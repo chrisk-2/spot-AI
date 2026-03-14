@@ -1,0 +1,32 @@
+# logs
+*.log
+
+# python junk
+__pycache__/
+*.pyc
+
+# virtual environments
+.venv/
+venv/
+
+# AI model files
+models/
+*.gguf
+*.bin
+*.safetensors
+
+# job output
+jobs_out/
+mnt/collective/jobs_out/
+
+# datasets
+datasets/
+
+# temp files
+*.tmp
+*.swp
+
+# OS junk
+.DS_Store
+Thumbs.db
+
