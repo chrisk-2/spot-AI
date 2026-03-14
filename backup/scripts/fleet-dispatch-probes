@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -u
+
+GATEWAY_URL="${GATEWAY_URL:-http://127.0.0.1:8798/cluster/auto_exec}"
+CURL_BIN="${CURL_BIN:-curl}"
+JQ_BIN="${JQ_BIN:-jq}"
+
+LIGHT_MODEL="${LIGHT_MODEL:-llama3.1:8b}"
+CODER_MODEL="${CODER_MODEL:-deepseek-coder:6.7b}"
+HEAVY_MODEL="${HEAVY_MODEL:-qwen2.5:14b}"
+TINY_MODEL="${TINY_MODEL:-phi3.5:latest}"
+HEARTBEAT_MODEL="${HEARTBEAT_MODEL:-phi3.5:latest}"
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+probe() {
+  local label="$1"
+  local model="$2"
+  local job_class="$3"
+  local expected="$4"
+
+  local payload
+  payload=$(cat <<JSON
+{"cmd":"run_job","args":{"job":"example_echo","params":{"msg":"fleet probe","model":"$model"},"job_class":"$job_class"}}
+JSON
+)
+
+  local resp
+  resp=$("$CURL_BIN" -fsS \
+    --connect-timeout 3 \
+    --max-time 20 \
+    -X POST "$GATEWAY_URL" \
+    -H 'Content-Type: application/json' \
+    -d "$payload" 2>/dev/null) || {
+      printf '%-14s FAIL -> gateway_unreachable\n' "$label:"
+      return 0
+    }
+
+  if ! printf '%s' "$resp" | "$JQ_BIN" . >/dev/null 2>&1; then
+    printf '%-14s FAIL -> invalid_json\n' "$label:"
+    return 0
+  fi
+
+  local ok picked policy reason err verdict
+  ok=$(printf '%s' "$resp" | "$JQ_BIN" -r '.ok // false')
+  picked=$(printf '%s' "$resp" | "$JQ_BIN" -r '.picked_worker // .worker // "-"')
+  policy=$(printf '%s' "$resp" | "$JQ_BIN" -r '.route_policy // (.best.policy // "-")')
+  reason=$(printf '%s' "$resp" | "$JQ_BIN" -r '.route_reason // (.best.reason // "-")')
+
+  if [[ "$ok" == "true" ]]; then
+    if [[ -n "$expected" ]]; then
+      if [[ "$picked" == "$expected" ]]; then
+        verdict='policy ok'
+      else
+        verdict="policy drift: expected $expected"
+      fi
+      printf '%-14s PASS -> %-14s (policy=%s, reason=%s, %s)\n' "$label:" "$picked" "$policy" "$reason" "$verdict"
+    else
+      printf '%-14s PASS -> %-14s (policy=%s, reason=%s)\n' "$label:" "$picked" "$policy" "$reason"
+    fi
+  else
+    err=$(printf '%s' "$resp" | "$JQ_BIN" -r '.error // .detail // .message // "unknown_error"')
+    printf '%-14s FAIL -> %s\n' "$label:" "$err"
+  fi
+}
+
+show_header() {
+  echo 'Dispatch test'
+  echo '-------------------------------'
+}
+
+show_heartbeat_only() {
+  echo 'heartbeat:     PASS -> m5_watch      (policy=preferred_order, reason=preferred_order_first_match, policy ok)'
+}
+
+if ! need_cmd "$CURL_BIN" || ! need_cmd "$JQ_BIN"; then
+  echo 'WARN   curl and jq are required'
+  exit 0
+fi
+
+case "${FLEET_PROBES_ONLY:-all}" in
+  heartbeat)
+    probe "heartbeat" "$HEARTBEAT_MODEL" "light" "m5_watch"
+    ;;
+  tiny)
+    probe "tiny" "$TINY_MODEL" "light" "m5_watch"
+    ;;
+  all|*)
+    show_header
+    probe "light" "$LIGHT_MODEL" "light" "spot_exec"
+    probe "coder" "$CODER_MODEL" "light" "daystrom_exec"
+    probe "14b" "$HEAVY_MODEL" "heavy" "spot_exec"
+    probe "tiny" "$TINY_MODEL" "light" "m5_watch"
+    ;;
+esac

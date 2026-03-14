@@ -1,0 +1,22 @@
+[Unit]
+Description=ReadyRoom UI (Spot Command Dashboard)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ogre
+Group=ogre
+WorkingDirectory=/opt/readyroom-ui
+Environment=SPOT_BRAIN_URL=http://192.168.10.10:8798
+Environment=JOBS_OUT_ROOT=/mnt/collective/jobs_out
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/readyroom-ui/.venv/bin/uvicorn app:APP --host 0.0.0.0 --port 8790
+Restart=always
+RestartSec=3
+TimeoutStopSec=5
+KillMode=mixed
+SendSIGKILL=yes
+
+[Install]
+WantedBy=multi-user.target

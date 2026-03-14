@@ -1,0 +1,6 @@
+[Unit]
+Description=ReadyRoom smoke test
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/readyroom-smoke-test

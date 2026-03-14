@@ -1,0 +1,325 @@
+import os
+import sys
+import time
+import json
+import uuid
+import subprocess
+sys.path.append("/opt/spotd")
+
+from pathlib import Path
+from typing import Dict, Any, Optional
+from job_history import record_job
+from fastapi import FastAPI, Request, HTTPException
+
+APP = FastAPI(title="Spot Worker 0")
+
+EXEC_TOKEN = os.environ.get("EXEC_TOKEN", "changeme0")
+START = time.time()
+
+# Job runner config
+JOB_DIR = Path(os.environ.get("JOB_DIR", "/mnt/collective/jobs"))
+JOB_OUT_DIR = Path(os.environ.get("JOB_OUT_DIR", "/mnt/collective/jobs_out"))
+ALLOWED_JOBS = [x.strip() for x in os.environ.get("ALLOWED_JOBS", "example_echo").split(",") if x.strip()]
+DEFAULT_JOB_TIMEOUT_SEC = int(os.environ.get("JOB_TIMEOUT_SEC", "900"))  # 15 min default
+
+
+def _run(cmd, *, shell: bool = False, timeout: Optional[int] = None):
+    try:
+        p = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=shell,
+            timeout=timeout,
+        )
+        return {"rc": p.returncode, "stdout": p.stdout, "stderr": p.stderr}
+    except subprocess.TimeoutExpired as e:
+        return {"rc": 124, "stdout": (e.stdout or ""), "stderr": (e.stderr or "") + "\nTIMEOUT"}
+    except Exception as e:
+        return {"rc": 1, "stdout": "", "stderr": str(e)}
+
+
+def gpu_id():
+    return _run(
+        [
+            "nvidia-smi",
+            "--query-gpu=index,name,pci.bus_id",
+            "--format=csv,noheader",
+        ]
+    )
+
+
+def vram_mb():
+    return _run(
+        [
+            "nvidia-smi",
+            "--query-gpu=memory.free",
+            "--format=csv,noheader,nounits",
+        ]
+    )
+
+
+def gpu_util():
+    return _run(
+        [
+            "nvidia-smi",
+            "--query-gpu=index,utilization.gpu,utilization.memory,temperature.gpu,power.draw",
+            "--format=csv,noheader",
+        ]
+    )
+
+
+def cuda_probe():
+    code = r"""
+import os, sys
+try:
+    import torch
+    print("PY=", sys.executable)
+    print("CUDA_VISIBLE_DEVICES=", os.environ.get("CUDA_VISIBLE_DEVICES"))
+    print("torch_version", torch.__version__)
+    print("torch_cuda_available", torch.cuda.is_available())
+    print("gpu_count", torch.cuda.device_count())
+    if torch.cuda.is_available() and torch.cuda.device_count() > 0:
+        print("gpu_name", torch.cuda.get_device_name(0))
+except Exception as e:
+    print("probe_error", repr(e))
+"""
+    return _run([sys.executable, "-c", code])
+
+
+def _first_int(s):
+    try:
+        return int(str(s).strip().split()[0])
+    except Exception:
+        return -1
+
+
+def _parse_gpu_util(raw: str):
+    parts = [x.strip() for x in raw.split(",")]
+    if len(parts) < 5:
+        return {"raw": raw}
+    return {
+        "raw": raw,
+        "index": parts[0],
+        "util_gpu": parts[1],
+        "util_mem": parts[2],
+        "temp_c": parts[3],
+        "power_w": parts[4],
+    }
+
+
+def _parse_torch_version(txt: str):
+    for line in txt.splitlines():
+        if line.startswith("torch_version "):
+            return line.split(" ", 1)[1].strip()
+    return "unknown"
+
+
+def _probe_ok(txt: str) -> bool:
+    return "torch_cuda_available True" in txt
+
+
+def _safe_job_name(name: str) -> str:
+    name = (name or "").strip()
+    if not name:
+        raise ValueError("missing_job")
+    # allow: letters, numbers, underscore, dash
+    for ch in name:
+        if not (ch.isalnum() or ch in ("_", "-")):
+            raise ValueError("bad_job_name")
+    return name
+
+
+def _job_script_path(job: str) -> Path:
+    # prefer .sh, then .py, then exact name
+    sh = JOB_DIR / f"{job}.sh"
+    py = JOB_DIR / f"{job}.py"
+    direct = JOB_DIR / job
+    if sh.exists():
+        return sh
+    if py.exists():
+        return py
+    if direct.exists():
+        return direct
+    raise FileNotFoundError("job_not_found")
+
+
+def run_job(args: Dict[str, Any]) -> Dict[str, Any]:
+    job = _safe_job_name(args.get("job", ""))
+    if job not in ALLOWED_JOBS:
+        return {"ok": False, "error": "job_not_allowed", "job": job, "allowed_jobs": ALLOWED_JOBS}
+
+    timeout_sec = int(args.get("timeout_sec") or DEFAULT_JOB_TIMEOUT_SEC)
+    params = args.get("params") or {}
+    if not isinstance(params, dict):
+        return {"ok": False, "error": "params_must_be_object"}
+
+    script = _job_script_path(job)
+
+    job_id = uuid.uuid4().hex[:12]
+    out_dir = JOB_OUT_DIR / job / job_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save params
+    (out_dir / "params.json").write_text(json.dumps(params, indent=2, sort_keys=True))
+
+    # Env passthrough + JOB_PARAM_* for convenience
+    env = os.environ.copy()
+    env["JOB_ID"] = job_id
+    env["JOB_NAME"] = job
+    env["JOB_OUT_DIR"] = str(out_dir)
+    for k, v in params.items():
+        kk = str(k).upper().replace(" ", "_")
+        env[f"JOB_PARAM_{kk}"] = str(v)
+
+    # Choose runner
+    if script.suffix == ".py":
+        argv = [sys.executable, str(script)]
+    elif script.suffix == ".sh":
+        argv = ["bash", str(script)]
+    else:
+        argv = [str(script)]
+
+    # Run
+    try:
+        p = subprocess.run(
+            argv,
+            cwd=str(JOB_DIR),
+            env=env,
+            text=True,
+            capture_output=True,
+            timeout=timeout_sec,
+        )
+        (out_dir / "stdout.txt").write_text(p.stdout or "")
+        (out_dir / "stderr.txt").write_text(p.stderr or "")
+        (out_dir / "rc.txt").write_text(str(p.returncode))
+
+        status = "success" if p.returncode == 0 else "failure"
+
+        record_job(
+            job_id=job_id,
+            job_name=job,
+            worker="spot_exec",
+            status=status,
+            rc=p.returncode,
+            job_class=args.get("job_class")
+        )
+
+        return {
+            "ok": True,
+            "job": job,
+            "job_id": job_id,
+            "script": str(script),
+            "timeout_sec": timeout_sec,
+            "rc": p.returncode,
+            "out_dir": str(out_dir),
+        }
+    except subprocess.TimeoutExpired as e:
+        (out_dir / "stdout.txt").write_text(e.stdout or "")
+        (out_dir / "stderr.txt").write_text((e.stderr or "") + "\nTIMEOUT")
+        (out_dir / "rc.txt").write_text("124")
+
+        record_job(
+            job_id=job_id,
+            job_name=job,
+            worker="spot_exec",
+            status="timeout",
+            rc=124,
+            job_class=(args or {}).get("job_class"),
+        )
+
+        return {
+            "ok": False,
+            "error": "timeout",
+            "job": job,
+            "job_id": job_id,
+            "script": str(script),
+            "timeout_sec": timeout_sec,
+            "rc": 124,
+            "out_dir": str(out_dir),
+        }
+
+    except Exception as e:
+        (out_dir / "stderr.txt").write_text(repr(e))
+        (out_dir / "rc.txt").write_text("1")
+        return {
+            "ok": False,
+            "error": "job_failed",
+            "job": job,
+            "job_id": job_id,
+            "script": str(script),
+            "rc": 1,
+            "out_dir": str(out_dir),
+            "exc": repr(e),
+        }
+
+
+@APP.get("/health")
+def health():
+    return {"ok": True, "role": "spot_worker0", "uptime_sec": int(time.time() - START)}
+
+
+@APP.get("/status")
+def status():
+    gid = gpu_id()
+    vram = vram_mb()
+    util = gpu_util()
+    probe = cuda_probe()
+
+    vram_free_mb = _first_int(vram.get("stdout", ""))
+
+    probe_stdout = (probe.get("stdout") or "").strip()
+    probe_stderr = (probe.get("stderr") or "").strip()
+
+    return {
+        "ok": True,
+        "role": "spot_worker0",
+        "uptime_sec": int(time.time() - START),
+        "gpu_id": (gid.get("stdout") or "").strip(),
+        "vram_free_mb": vram_free_mb,
+        "gpu_util": _parse_gpu_util((util.get("stdout") or "").strip()),
+        "torch_version": _parse_torch_version(probe_stdout),
+        "cuda_probe_ok": _probe_ok(probe_stdout),
+        "cuda_probe_rc": probe.get("rc"),
+        "cuda_probe_stderr": probe_stderr[:500],
+        "job_dir": str(JOB_DIR),
+        "job_out_dir": str(JOB_OUT_DIR),
+        "allowed_jobs": ALLOWED_JOBS,
+    }
+
+
+@APP.post("/exec")
+async def exec_cmd(req: Request):
+    token = req.headers.get("x-exec-token")
+    if token != EXEC_TOKEN:
+        raise HTTPException(status_code=403, detail="bad_token")
+
+    body: Dict[str, Any] = await req.json()
+    cmd = body.get("cmd")
+
+    if cmd == "cuda_probe":
+        return {"ok": True, **cuda_probe()}
+
+    if cmd == "vram_mb":
+        return {"ok": True, **vram_mb()}
+
+    if cmd == "gpu_util":
+        return {"ok": True, **gpu_util()}
+
+    if cmd == "gpu_id":
+        return {"ok": True, **gpu_id()}
+
+    if cmd == "ping":
+        return {"ok": True, "stdout": "pong\n"}
+
+    if cmd == "gpu_status":
+        return status()
+
+    if cmd == "run_job":
+        args = body.get("args") or {}
+        if not isinstance(args, dict):
+            return {"ok": False, "error": "args_must_be_object"}
+        return run_job(args)
+
+    return {"ok": False, "error": "cmd_not_allowed", "cmd": cmd}

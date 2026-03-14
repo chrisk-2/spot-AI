@@ -1,0 +1,14 @@
+[Unit]
+Description=Spot Fleet Control API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/spot/api
+ExecStart=/opt/spot/api/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8090
+Restart=always
+RestartSec=3
+User=root
+
+[Install]
+WantedBy=multi-user.target
