@@ -69,7 +69,7 @@ WORKERS = json.loads(
 )
 
 MODEL_VRAM_REQUIREMENTS = {
-    "qwen2.5:14b": 10000,
+    "qwen2.5:14b": 6000,
     "llama3.1:8b": 6000,
     "deepseek-coder:6.7b": 5000,
     "codellama:7b": 5000,

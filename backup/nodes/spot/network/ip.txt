@@ -7,7 +7,7 @@
 2: enp4s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
     link/ether d8:43:ae:a9:c2:4c brd ff:ff:ff:ff:ff:ff
     inet 192.168.10.10/24 metric 100 brd 192.168.10.255 scope global dynamic enp4s0
-       valid_lft 2210sec preferred_lft 2210sec
+       valid_lft 3373sec preferred_lft 3373sec
     inet6 fe80::da43:aeff:fea9:c24c/64 scope link 
        valid_lft forever preferred_lft forever
 3: enp5s0: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default qlen 1000

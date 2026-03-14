@@ -4,51 +4,10 @@
        valid_lft forever preferred_lft forever
     inet6 ::1/128 scope host noprefixroute 
        valid_lft forever preferred_lft forever
-2: enp0s25: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
-    link/ether 34:17:eb:a6:83:73 brd ff:ff:ff:ff:ff:ff
-    inet 192.168.10.11/24 metric 100 brd 192.168.10.255 scope global dynamic enp0s25
-       valid_lft 3280sec preferred_lft 3280sec
-    inet6 fe80::3617:ebff:fea6:8373/64 scope link 
-       valid_lft forever preferred_lft forever
-3: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default 
-    link/ether 92:15:e4:8d:06:18 brd ff:ff:ff:ff:ff:ff
-    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::9015:e4ff:fe8d:618/64 scope link 
-       valid_lft forever preferred_lft forever
-6: br-88857d5b26e0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default 
-    link/ether da:2e:38:08:05:b0 brd ff:ff:ff:ff:ff:ff
-    inet 172.18.0.1/16 brd 172.18.255.255 scope global br-88857d5b26e0
-       valid_lft forever preferred_lft forever
-7: br-70ec9138d53a: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default 
-    link/ether ee:a5:bc:92:da:ae brd ff:ff:ff:ff:ff:ff
-    inet 172.20.0.1/16 brd 172.20.255.255 scope global br-70ec9138d53a
-       valid_lft forever preferred_lft forever
-11: br-649685d80a5c: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default 
-    link/ether 2e:48:3f:e7:f5:07 brd ff:ff:ff:ff:ff:ff
-    inet 172.19.0.1/16 brd 172.19.255.255 scope global br-649685d80a5c
-       valid_lft forever preferred_lft forever
-12: br-314df1be5541: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default 
-    link/ether 52:0c:0d:b4:51:d9 brd ff:ff:ff:ff:ff:ff
-    inet 172.19.0.1/16 brd 172.19.255.255 scope global br-314df1be5541
-       valid_lft forever preferred_lft forever
-13: br-34b4ef4dc9b3: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default 
-    link/ether f6:0f:14:be:dd:e2 brd ff:ff:ff:ff:ff:ff
-    inet 172.19.0.1/16 brd 172.19.255.255 scope global br-34b4ef4dc9b3
-       valid_lft forever preferred_lft forever
-14: br-7fedaee1eca7: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN group default 
-    link/ether c6:19:96:3d:27:d4 brd ff:ff:ff:ff:ff:ff
-    inet 172.19.0.1/16 brd 172.19.255.255 scope global br-7fedaee1eca7
-       valid_lft forever preferred_lft forever
-16: br-365317fa43f9: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default 
-    link/ether c6:e1:37:04:35:6c brd ff:ff:ff:ff:ff:ff
-    inet 172.19.0.1/16 brd 172.19.255.255 scope global br-365317fa43f9
-       valid_lft forever preferred_lft forever
-    inet6 fe80::c4e1:37ff:fe04:356c/64 scope link 
-       valid_lft forever preferred_lft forever
-29: br-4f4ff3b995b0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default 
-    link/ether 8e:75:33:9d:b1:df brd ff:ff:ff:ff:ff:ff
-    inet 172.20.0.1/16 brd 172.20.255.255 scope global br-4f4ff3b995b0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::8c75:33ff:fe9d:b1df/64 scope link 
+2: eno1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether b4:2e:99:a5:17:ef brd ff:ff:ff:ff:ff:ff
+    altname enp3s0
+    inet 192.168.10.13/24 metric 100 brd 192.168.10.255 scope global dynamic eno1
+       valid_lft 2993sec preferred_lft 2993sec
+    inet6 fe80::b62e:99ff:fea5:17ef/64 scope link 
        valid_lft forever preferred_lft forever

@@ -1,7 +1,7 @@
 
 ==============NVSMI LOG==============
 
-Timestamp                                 : Sat Mar 14 16:54:59 2026
+Timestamp                                 : Sat Mar 14 17:08:56 2026
 Driver Version                            : 535.288.01
 CUDA Version                              : 12.2
 
@@ -149,7 +149,7 @@ GPU 00000000:01:00.0
         Pending Page Blacklist            : N/A
     Remapped Rows                         : N/A
     Temperature
-        GPU Current Temp                  : 40 C
+        GPU Current Temp                  : 42 C
         GPU T.Limit Temp                  : N/A
         GPU Shutdown Temp                 : 98 C
         GPU Slowdown Temp                 : 95 C
@@ -158,7 +158,7 @@ GPU 00000000:01:00.0
         Memory Current Temp               : N/A
         Memory Max Operating Temp         : N/A
     GPU Power Readings
-        Power Draw                        : 16.18 W
+        Power Draw                        : 16.20 W
         Current Power Limit               : 170.00 W
         Requested Power Limit             : 170.00 W
         Default Power Limit               : 170.00 W
@@ -195,7 +195,7 @@ GPU 00000000:01:00.0
         Auto Boost                        : N/A
         Auto Boost Default                : N/A
     Voltage
-        Graphics                          : 662.500 mV
+        Graphics                          : 656.250 mV
     Fabric
         State                             : N/A
         Status                            : N/A

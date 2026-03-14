@@ -1,7 +1,7 @@
 NAME                       ID              SIZE      MODIFIED     
-bge-m3:latest              790764642607    1.2 GB    17 hours ago    
-gemma3:4b                  a2af6cc3eb7f    3.3 GB    17 hours ago    
-qwen2.5-coder:7b           dae161e27b0e    4.7 GB    17 hours ago    
+bge-m3:latest              790764642607    1.2 GB    18 hours ago    
+gemma3:4b                  a2af6cc3eb7f    3.3 GB    18 hours ago    
+qwen2.5-coder:7b           dae161e27b0e    4.7 GB    18 hours ago    
 mistral:7b                 6577803aa9a0    4.4 GB    46 hours ago    
 codellama:7b               8fdf8f752f6e    3.8 GB    46 hours ago    
 deepseek-coder:6.7b        ce298d984115    3.8 GB    46 hours ago    
