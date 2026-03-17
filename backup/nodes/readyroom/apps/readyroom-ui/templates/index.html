@@ -1,780 +1,353 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ReadyRoom Operations Console</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #0b1220; color: #e5ecf5; margin: 0; }
-    .wrap { max-width: 1700px; margin: 0 auto; padding: 16px; }
-    .grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 16px; }
-    .right-col { display: grid; gap: 16px; }
-    .panel { background: #111b2e; border: 1px solid #22324f; border-radius: 12px; padding: 14px; }
-    h1, h2, h3 { margin: 0 0 10px 0; }
-    textarea {
-      width: 100%;
-      min-height: 110px;
-      background: #09111d;
-      color: #e5ecf5;
-      border: 1px solid #284064;
-      border-radius: 8px;
-      padding: 10px;
-      box-sizing: border-box;
-      resize: vertical;
+    :root {
+      --bg: #0b0f14;
+      --panel: #111822;
+      --panel2: #182231;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --line: #263244;
+      --good: #3fb950;
+      --warn: #d29922;
+      --bad: #f85149;
+      --accent: #58a6ff;
     }
-    input, select, button {
-      background: #09111d;
-      color: #e5ecf5;
-      border: 1px solid #284064;
-      border-radius: 8px;
-      padding: 10px;
-      box-sizing: border-box;
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
     }
-    button { cursor: pointer; }
-    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    .col { display: grid; gap: 10px; }
-    .label { font-size: 0.92em; color: #8ba0bf; }
-    .mono { font-family: Consolas, monospace; }
-    .meta { color: #8ba0bf; font-size: 0.95em; }
-    .muted { color: #8ba0bf; }
-    .ok { color: #74d99f; }
-    .bad { color: #ff7b72; }
-    .pill {
-      display: inline-block;
-      padding: 4px 8px;
-      border: 1px solid #284064;
-      border-radius: 999px;
-      font-size: 0.9em;
-      color: #8ba0bf;
-    }
-    #conversation {
-      height: 520px;
-      overflow: auto;
-      white-space: pre-wrap;
-      background: #07101b;
-      border-radius: 8px;
-      padding: 12px;
-    }
-    .msg { margin-bottom: 12px; }
-    .assistant span, .user span { display: inline-block; margin-top: 4px; }
-    .worker-card, .repo-result-box {
-      background: #0a1422;
-      border: 1px solid #22324f;
-      border-radius: 10px;
-      padding: 10px;
-      margin-bottom: 10px;
-    }
-    .repo-result-box {
-      white-space: pre-wrap;
-      max-height: 240px;
-      overflow: auto;
-      margin-bottom: 0;
-    }
-    .repo-grid, .draft-grid {
+    .wrap {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 16px;
+      padding: 16px;
+      min-height: 100vh;
+    }
+    .panel {
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+    h1, h2, h3 { margin: 0 0 12px 0; }
+    h1 { font-size: 22px; }
+    h2 { font-size: 16px; color: #f0f6fc; }
+    .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .stack { display: grid; gap: 16px; }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 220px 220px auto auto auto;
       gap: 10px;
+      align-items: center;
+      margin-top: 12px;
     }
-    .small-btn { padding: 8px 10px; }
-    .split {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+    input, select, button, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #0d1117;
+      color: var(--text);
+      padding: 10px 12px;
+      font: inherit;
+    }
+    textarea { min-height: 140px; resize: vertical; }
+    button {
+      cursor: pointer;
+      background: #1f6feb;
+      border: none;
+      font-weight: 600;
+    }
+    button.secondary { background: #30363d; }
+    button.warn { background: #9e6a03; }
+    .log, .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0d1117;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      min-height: 180px;
+      overflow: auto;
+    }
+    .cards { display: grid; gap: 10px; }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(13,17,23,.7);
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
       gap: 12px;
+      align-items: center;
     }
-    #repo_file, #draft_file { width: 100%; }
-    #repo_text { min-height: 180px; }
-    #draft_prompt { min-height: 120px; }
-    #draft_output { min-height: 280px; }
+    .muted { color: var(--muted); }
+    .good { color: var(--good); }
+    .warnc { color: var(--warn); }
+    .bad { color: var(--bad); }
+    .pill {
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .small { font-size: 12px; }
+    .candidate.accepted { border-color: rgba(63,185,80,.45); }
+    .candidate.rejected { border-color: rgba(248,81,73,.35); }
   </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>ReadyRoom Operations Console</h1>
-
-  <div class="grid">
-    <div class="panel">
-      <h2>Conversation</h2>
-      <div id="conversation" class="mono"></div>
-
-      <div style="margin-top: 12px;">
-        <textarea id="prompt" placeholder="Send a prompt to Spot..."></textarea>
-      </div>
-
-      <div class="row" style="margin-top: 10px;">
-        <label class="pill" for="model">Model</label>
-        <select id="model">
-          <option value="auto" selected>Auto — Best</option>
-        </select>
-
-        <label class="pill" for="worker">Worker</label>
-        <select id="worker">
-          <option value="auto" selected>Auto — Best Node</option>
-          <option value="spot_exec">spot_exec</option>
-          <option value="daystrom_exec">daystrom_exec</option>
-          <option value="m5_exec">m5_exec</option>
-          <option value="m5_watch">m5_watch</option>
-          <option value="daystrom_watch">daystrom_watch</option>
-        </select>
-
-        <button onclick="sendPrompt()">Send</button>
-        <button onclick="runTestJob()">Run Test Job</button>
-        <button onclick="refreshStatus()">Refresh Status</button>
-        <button onclick="clearChat()">Clear Chat</button>
-      </div>
-    </div>
-
-    <div class="right-col">
-      <div class="panel">
-        <h2>Cluster</h2>
-        <div id="status_summary" class="mono meta">Loading...</div>
-        <hr>
-        <div id="workers_box"></div>
-        <hr>
-        <div id="llm_last" class="mono meta"><b>Last LLM Job</b><br>none</div>
-      </div>
-
-    <div id="job_panel" style="margin-top:12px;">
-      <b>Job Queue</b>
-      <pre id="job_queue">Loading...</pre>
-    </div>
-
-    <div id="fleet_panel" style="margin-top:12px;">
-      <b>Fleet Status</b>
-      <pre id="fleet_status">Loading...</pre>
-    </div>
-
-      <div class="panel">
-        <h2>Repo Actions</h2>
-
-        <div class="repo-grid">
-          <div class="row">
-            <button class="small-btn" onclick="repoTree()">Tree</button>
-            <button class="small-btn" onclick="repoRead()">Read</button>
-            <button class="small-btn" onclick="repoWrite()">Write</button>
-            <button class="small-btn" onclick="repoAppend()">Append</button>
-            <button class="small-btn" onclick="repoBuild()">Build</button>
-          </div>
-
-          <div class="col">
-            <label class="label" for="repo_file">Repo file</label>
-            <input id="repo_file" value="docs/architecture.md" placeholder="docs/architecture.md">
-          </div>
-
-          <div class="col">
-            <label class="label" for="repo_text">Repo text</label>
-            <textarea id="repo_text" placeholder="Paste file content here..."></textarea>
-          </div>
-
-          <div>
-            <div class="label" style="margin-bottom: 6px;">Repo result</div>
-            <div id="repo_result" class="repo-result-box mono muted">No repo action yet.</div>
-          </div>
+  <div class="wrap">
+    <div class="stack">
+      <section class="panel">
+        <h1>ReadyRoom Operations Console</h1>
+        <div class="sub">Operational mode. Stable first, flashy later.</div>
+        <div class="controls">
+          <input id="prompt" placeholder="Send a prompt to Spot..." value="Create a short 3-step plan to improve Starfleet model routing." />
+          <select id="model">
+            <option value="qwen2.5:14b">qwen2.5:14b</option>
+            <option value="llama3.1:8b">llama3.1:8b</option>
+            <option value="deepseek-coder:6.7b">deepseek-coder:6.7b</option>
+            <option value="nomic-embed-text:latest">nomic-embed-text:latest</option>
+          </select>
+          <select id="worker">
+            <option value="">Auto — Best Node</option>
+            <option value="spot_exec">spot_exec</option>
+            <option value="daystrom_exec">daystrom_exec</option>
+            <option value="m5_exec">m5_exec</option>
+          </select>
+          <button id="sendBtn">Send</button>
+          <button id="runBtn" class="secondary">Run Test Job</button>
+          <button id="refreshBtn" class="warn">Refresh Status</button>
         </div>
-      </div>
+      </section>
 
-      <div class="panel">
+      <section class="panel">
+        <h2>Conversation</h2>
+        <div id="conversation" class="log">Spot: Ready Room operational console online. Standing by.</div>
+      </section>
+
+      <section class="panel">
         <h2>AI Repo Builder</h2>
-
-        <div class="draft-grid">
-          <div class="col">
-            <label class="label" for="draft_file">Target file</label>
-            <input id="draft_file" value="docs/roadmap.md" placeholder="docs/roadmap.md">
+        <div class="grid2">
+          <div>
+            <label class="small muted" for="targetFile">Target file</label>
+            <input id="targetFile" value="docs/roadmap.md" />
           </div>
-
-          <div class="col">
-            <label class="label" for="draft_prompt">Generation prompt</label>
-            <textarea id="draft_prompt" placeholder="Generate a practical Starfleet OS roadmap with phases, milestones, current status, and next actions based on a distributed AI-assisted operating environment using Spot, M-5, and ReadyRoom."></textarea>
-          </div>
-
-          <div class="row">
-            <button class="small-btn" onclick="generateDraft()">Generate Draft</button>
-            <button class="small-btn" onclick="saveDraftToRepo()">Save Draft</button>
-            <button class="small-btn" onclick="appendDraftToRepo()">Append Draft</button>
-            <button class="small-btn" onclick="loadDraftFile()">Load File</button>
-            <button class="small-btn" onclick="copyDraftToRepoEditor()">Copy Draft → Repo Text</button>
-            <button class="small-btn" onclick="copyRepoToDraft()">Copy Repo Text → Draft</button>
-          </div>
-
-          <div class="split">
-            <div class="col">
-              <label class="label" for="draft_output">Generated draft</label>
-              <textarea id="draft_output" placeholder="Generated draft will appear here..."></textarea>
-            </div>
-
-            <div class="col">
-              <label class="label" for="import_prompt_help">Prompt ideas</label>
-              <textarea id="import_prompt_help" readonly>Good first targets:
-- docs/roadmap.md
-- docs/components.md
-- docs/todo.md
-- docs/import-notes.md
-- AGENTS.md
-
-Useful prompt style:
-"Generate a practical markdown file for [target], grounded in the current Starfleet OS architecture, ReadyRoom operator console, Spot scheduler, M-5 overflow compute, shared repo workflow, and imported staging bundles."
-
-Import-notes prompt:
-"Generate docs/import-notes.md summarizing imported staging materials, what should be promoted now, what should stay quarantined, and the next review actions."
-
-Components prompt:
-"Generate docs/components.md describing Spot, M-5, ReadyRoom, service bus, repo layer, UI layer, security layer, imported scripts/services, and future Codex integration."
-
-AGENTS prompt:
-"Generate AGENTS.md with instructions for AI coding agents working on Starfleet OS, including coding standards, repo layout, preferred workflow, guardrails, and how to handle imported staging material."</textarea>
-            </div>
+          <div>
+            <label class="small muted" for="repoPrompt">Generation prompt</label>
+            <input id="repoPrompt" value="Generate a practical Starfleet OS roadmap with phases, milestones, current status, and next actions based on a distributed AI-assisted operating environment using Spot, M-5, and ReadyRoom." />
           </div>
         </div>
-      </div>
+        <div style="margin-top: 10px;">
+          <textarea id="generatedDraft" placeholder="Generated draft will appear here..."></textarea>
+        </div>
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="panel">
+        <h2>Cluster Status</h2>
+        <div id="clusterStatus" class="cards"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Scheduler Decisions</h2>
+        <div class="sub">This is the missing operator sanity panel. Without it, the scheduler is a black box with a fake mustache.</div>
+        <div id="decisionSummary" class="card" style="margin-top:12px;">
+          No decision recorded yet.
+        </div>
+        <div id="decisionCandidates" class="cards" style="margin-top:12px;"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Last LLM Job</h2>
+        <div id="lastJob" class="mono">No job run yet.</div>
+      </section>
     </div>
   </div>
-</div>
 
-<script>
-let activeStreamEl = null;
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const conversation = $("conversation");
 
-function log(text, cls = "assistant") {
-  const convo = document.getElementById("conversation");
-  const div = document.createElement("div");
-  div.className = `msg ${cls}`;
-  const who = cls === "user" ? "You" : "Spot";
-  div.innerHTML = `<b>${who}:</b> <span></span>`;
-  div.querySelector("span").textContent = text;
-  convo.appendChild(div);
-  convo.scrollTop = convo.scrollHeight;
-}
-
-function clearActiveStreamBubble() {
-  activeStreamEl = null;
-}
-
-function updateStreamingAssistantBubble(text) {
-  const convo = document.getElementById("conversation");
-  if (!activeStreamEl) {
-    activeStreamEl = document.createElement("div");
-    activeStreamEl.className = "msg assistant";
-    activeStreamEl.innerHTML = "<b>Spot:</b> <span></span>";
-    convo.appendChild(activeStreamEl);
-  }
-  activeStreamEl.querySelector("span").textContent = text;
-  convo.scrollTop = convo.scrollHeight;
-}
-
-function fmtNs(ns) {
-  if (ns === null || ns === undefined || ns === "") return "-";
-  return (Number(ns) / 1e9).toFixed(2) + "s";
-}
-
-function updateLastLLMPanel(r) {
-  const llmBox = document.getElementById("llm_last");
-  if (!llmBox) return;
-
-  const node = r.node || r.worker || r.picked_worker || "-";
-  const model = r.model || r.resolved_model || "-";
-  const promptTokens = r.prompt_eval_count ?? r.prompt_tokens ?? "-";
-  const tokens = r.eval_count ?? r.tokens ?? "-";
-
-  let latency = "-";
-  let wallTime = "-";
-  let genTime = "-";
-  let tps = "-";
-
-  if (r.load_duration !== undefined) latency = (r.load_duration / 1e9).toFixed(2) + "s";
-  if (r.total_duration !== undefined) wallTime = (r.total_duration / 1e9).toFixed(2) + "s";
-  if (r.eval_duration !== undefined) genTime = (r.eval_duration / 1e9).toFixed(2) + "s";
-
-  if (r.eval_count !== undefined && r.eval_duration !== undefined && r.eval_duration > 0) {
-    tps = (r.eval_count / (r.eval_duration / 1e9)).toFixed(2);
-  }
-
-  llmBox.innerHTML = `
-    <b>Last LLM Job</b><br>
-    node: ${node}<br>
-    model: ${model}<br>
-    prompt_tokens: ${promptTokens}<br>
-    tokens: ${tokens}<br>
-    latency: ${latency}<br>
-    wall_time: ${wallTime}<br>
-    gen_time: ${genTime}<br>
-    tokens/sec: ${tps}<br>
-    started: ${r.started_at || r.started || "-"}<br>
-    ended: ${r.ended_at || r.ended || "-"}<br>
-    rc: ${r.rc ?? "-"}
-  `;
-}
-
-function renderWorkers(status) {
-  const box = document.getElementById("workers_box");
-  const clusterWorkers = status?.cluster?.workers || {};
-  const gpuWorkers = status?.gpu?.workers || {};
-
-  let html = "";
-  for (const [name, health] of Object.entries(clusterWorkers)) {
-    const gpu = gpuWorkers[name] || {};
-    const gpuData = gpu.selected_gpu || {};
-    const ok = !!health.ok;
-    html += `
-      <div class="worker-card mono">
-        <div><b>${name}</b> <span class="${ok ? "ok" : "bad"}">${ok ? "OK" : "BAD"}</span></div>
-        <div class="muted">health: ${JSON.stringify(health)}</div>
-        <div>gpu: ${gpuData.name || "-"}</div>
-        <div>free_vram_mb: ${gpuData.vram_free_mb ?? "-"}</div>
-        <div>util_gpu: ${gpuData.util_gpu ?? "-"}</div>
-        <div>temp_c: ${gpuData.temp_c ?? "-"}</div>
-      </div>
-    `;
-  }
-  box.innerHTML = html || `<div class="mono muted">No worker data.</div>`;
-}
-
-async function loadJobQueue() {
-  try {
-    const r = await fetch("/api/job_queue");
-    const j = await r.json();
-
-    if (!j.ok) return;
-
-    const w = j.workers || {};
-
-    const text = `spot_exec      : ${w.spot_exec?.status ?? "-"}
-daystrom_exec  : ${w.daystrom_exec?.status ?? "-"}
-m5_exec        : ${w.m5_exec?.status ?? "-"}
-m5_watch       : ${w.m5_watch?.status ?? "-"}
-daystrom_watch : ${w.daystrom_watch?.status ?? "-"}`;
-
-    document.getElementById("job_queue").textContent = text;
-  } catch (e) {}
-}
-
-loadJobQueue();
-setInterval(loadJobQueue, 4000);
-
-async function loadFleetStatus() {
-  try {
-    const r = await fetch("/api/fleet_summary");
-    const j = await r.json();
-
-    if (!j.ok) {
-      document.getElementById("fleet_status").textContent = "Fleet summary unavailable";
-      return;
+    function logLine(prefix, text) {
+      const stamp = new Date().toLocaleTimeString();
+      conversation.textContent += `\n${prefix}: ${text}`;
+      conversation.scrollTop = conversation.scrollHeight;
     }
 
-    const w = j.workers || {};
-
-    const text = `spot_exec      : ${w.spot_exec?.model || "-"}  ${w.spot_exec?.free_vram_mb || "-"} / ${w.spot_exec?.total_vram_mb || "-"} MB  ${w.spot_exec?.temp_c || "-"}C
-daystrom_exec  : ${w.daystrom_exec?.model || "-"}  ${w.daystrom_exec?.free_vram_mb || "-"} / ${w.daystrom_exec?.total_vram_mb || "-"} MB  ${w.daystrom_exec?.temp_c || "-"}C
-m5_exec        : ${w.m5_exec?.model || "-"}  ${w.m5_exec?.free_vram_mb || "-"} / ${w.m5_exec?.total_vram_mb || "-"} MB  ${w.m5_exec?.temp_c || "-"}C
-m5_watch       : ${w.m5_watch?.model || "-"}  ${w.m5_watch?.free_vram_mb || "-"} / ${w.m5_watch?.total_vram_mb || "-"} MB  ${w.m5_watch?.temp_c || "-"}C
-daystrom_watch : ${w.daystrom_watch?.model || "-"}  ${w.daystrom_watch?.free_vram_mb || "-"} / ${w.daystrom_watch?.total_vram_mb || "-"} MB  ${w.daystrom_watch?.temp_c || "-"}C`;
-
-    document.getElementById("fleet_status").textContent = text;
-  } catch (e) {
-    document.getElementById("fleet_status").textContent = "Fleet summary unavailable";
-  }
-}
-
-loadFleetStatus();
-setInterval(loadFleetStatus, 5000);
-
-async function refreshStatus() {
-  const summary = document.getElementById("status_summary");
-  summary.textContent = "Refreshing...";
-  const r = await fetch("/api/status");
-  const j = await r.json();
-
-  const workers = j?.cluster?.workers || {};
-  const healthy = Object.values(workers).filter(w => w && w.ok).length;
-  const total = Object.keys(workers).length;
-
-  summary.innerHTML = `
-    <b>Status</b><br>
-    cluster_ok: ${j.cluster?.ok ?? "-"}<br>
-    gpu_ok: ${j.gpu?.ok ?? "-"}<br>
-    healthy_workers: ${healthy}/${total}<br>
-    ts: ${j.ts ?? "-"}
-  `;
-
-  renderWorkers(j);
-}
-
-async function runTestJob() {
-  log("Launching example_echo test job...", "assistant");
-  const r = await fetch("/api/run_job", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ job: "example_echo", params: { msg: "hello from ReadyRoom" } })
-  });
-  const j = await r.json();
-  log(JSON.stringify(j, null, 2), "assistant");
-}
-
-async function sendPrompt() {
-  const promptEl = document.getElementById("prompt");
-  const modelEl = document.getElementById("model");
-  const workerEl = document.getElementById("worker");
-
-  const prompt = promptEl.value.trim();
-  const model = modelEl ? modelEl.value.trim() : "auto";
-  const preferred_worker = workerEl ? workerEl.value.trim() : "auto";
-
-  if (!prompt) return;
-
-  clearActiveStreamBubble();
-  log(prompt, "user");
-  promptEl.value = "";
-
-  const r = await fetch("/api/run_llm", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ prompt, model, preferred_worker })
-  });
-
-  const j = await r.json();
-
-  if (!r.ok || !j.ok) {
-    log(JSON.stringify(j, null, 2), "assistant");
-    return;
-  }
-
-  if (!j.job_id) {
-    log(`LLM submit returned no job_id: ${JSON.stringify(j, null, 2)}`, "assistant");
-    return;
-  }
-
-  const resolvedModel = j.resolved_model || j.model || model || "-";
-  const resolvedWorker = j.resolved_worker || j.picked_worker || j.worker || preferred_worker || "-";
-
-  log(`LLM job submitted -> ${resolvedWorker} | model=${resolvedModel}`, "assistant");
-
-  let buffer = "";
-  const evt = new EventSource(`/api/job_stream/llm_infer_stream/${j.job_id}`);
-
-  evt.onmessage = function(e) {
-    const msg = JSON.parse(e.data);
-
-    if (msg.type === "token") {
-      buffer += msg.text || "";
-      updateStreamingAssistantBubble(buffer);
+    function workerCard(name, info) {
+      const okClass = info.healthy ? "good" : "bad";
+      const okText = info.healthy ? "OK" : "DOWN";
+      return `
+        <div class="card">
+          <div class="row">
+            <strong>${name}</strong>
+            <span class="pill ${okClass}">${okText}</span>
+          </div>
+          <div class="small muted">node=${info.node} | role=${info.role} | class=${info.worker_class}</div>
+          <div style="margin-top:6px;">${info.gpu_name}</div>
+          <div class="small muted">free_vram_mb: ${info.free_vram_mb} | util_gpu: ${info.util_gpu}% | temp_c: ${info.temp_c} | queue_depth: ${info.queue_depth}</div>
+        </div>
+      `;
     }
 
-    if (msg.type === "done") {
-      evt.close();
-      fetch(`/api/job_result/llm_infer_stream/${j.job_id}`)
-        .then(r => r.json())
-        .then(res => {
-          updateLastLLMPanel(res);
-        });
+    function renderCluster(data) {
+      const root = $("clusterStatus");
+      const workers = data.workers || {};
+      root.innerHTML = Object.entries(workers).map(([name, info]) => workerCard(name, info)).join("");
+      renderDecision(data.latest_decision || {});
     }
 
-    if (msg.type === "error") {
-      evt.close();
-      log(`Stream error rc=${msg.rc}`, "assistant");
-    }
-  };
+    function renderDecision(decision) {
+      const summary = $("decisionSummary");
+      const candidatesRoot = $("decisionCandidates");
 
-  evt.onerror = function() {
-    evt.close();
-  };
-}
-
-function setRepoResult(text) {
-  const box = document.getElementById("repo_result");
-  box.textContent = text || "";
-}
-
-function getRepoFile() {
-  return document.getElementById("repo_file").value.trim();
-}
-
-function getRepoText() {
-  return document.getElementById("repo_text").value;
-}
-
-function setRepoText(text) {
-  document.getElementById("repo_text").value = text || "";
-}
-
-async function runRepoAction(cmd, file = "", text = "") {
-  setRepoResult(`Running repo action: ${cmd} ...`);
-
-  const r = await fetch("/api/repo_action", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ cmd, file, text })
-  });
-
-  const j = await r.json();
-
-  if (!r.ok || !j.ok) {
-    setRepoResult(JSON.stringify(j, null, 2));
-    log(`Repo action failed: ${cmd}`, "assistant");
-    return null;
-  }
-
-  const stdout = j.stdout ?? "";
-  const stderr = j.stderr ?? "";
-  const rc = j.rc ?? "-";
-  const worker = j.picked_worker || j.worker || "-";
-
-  let out = `repo_cmd: ${cmd}\nworker: ${worker}\nrc: ${rc}\n`;
-
-  if (stdout) out += `\nstdout:\n${stdout}`;
-  if (stderr) out += `\nstderr:\n${stderr}`;
-
-  setRepoResult(out);
-
-  if (cmd === "read" && stdout) {
-    setRepoText(stdout);
-  }
-
-  if (cmd === "tree" || cmd === "list" || cmd === "build") {
-    log(`Repo action completed -> ${cmd} on ${worker}`, "assistant");
-  } else if (cmd === "write" || cmd === "append") {
-    log(`Repo file updated -> ${file}`, "assistant");
-  } else if (cmd === "read") {
-    log(`Repo file loaded -> ${file}`, "assistant");
-  }
-
-  return j;
-}
-
-async function repoTree() {
-  await runRepoAction("tree");
-}
-
-async function repoRead() {
-  const file = getRepoFile();
-  if (!file) {
-    setRepoResult("Repo file is required for read.");
-    return;
-  }
-  await runRepoAction("read", file);
-}
-
-async function repoWrite() {
-  const file = getRepoFile();
-  if (!file) {
-    setRepoResult("Repo file is required for write.");
-    return;
-  }
-  await runRepoAction("write", file, getRepoText());
-}
-
-async function repoAppend() {
-  const file = getRepoFile();
-  if (!file) {
-    setRepoResult("Repo file is required for append.");
-    return;
-  }
-  await runRepoAction("append", file, getRepoText());
-}
-
-async function repoBuild() {
-  await runRepoAction("build");
-}
-
-async function generateDraft() {
-  const file = document.getElementById("draft_file").value.trim();
-  const prompt = document.getElementById("draft_prompt").value.trim();
-  const model = document.getElementById("model").value.trim();
-  const out = document.getElementById("draft_output");
-
-  if (!prompt) {
-    out.value = "Generation prompt is required.";
-    return;
-  }
-
-  out.value = "Generating draft...";
-
-  const r = await fetch("/api/generate_repo_draft", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ prompt, file, model })
-  });
-
-  const j = await r.json();
-
-  if (!r.ok || !j.ok) {
-    out.value = JSON.stringify(j, null, 2);
-    return;
-  }
-
-  if (!j.job_id) {
-    out.value = `Draft submit returned no job_id:\n${JSON.stringify(j, null, 2)}`;
-    return;
-  }
-
-  log(`Draft generation submitted -> ${(j.picked_worker || j.worker || "-")} | model=${model} | file=${file || "-"}`, "assistant");
-
-  let buffer = "";
-  let sawContent = false;
-  const evt = new EventSource(`/api/job_stream/llm_infer_stream/${j.job_id}`);
-
-  evt.onmessage = function(e) {
-    let msg;
-    try {
-      msg = JSON.parse(e.data);
-    } catch {
-      return;
-    }
-
-    // Handle token-style events
-    if (msg.type === "token") {
-      const tokenText = msg.text ?? msg.token ?? msg.content ?? "";
-      if (tokenText) {
-        buffer += tokenText;
-        out.value = buffer;
-        sawContent = true;
+      if (!decision || !decision.request) {
+        summary.textContent = "No decision recorded yet.";
+        candidatesRoot.innerHTML = "";
+        return;
       }
-      return;
+
+      const req = decision.request;
+      summary.innerHTML = `
+        <div class="row"><strong>Chosen worker</strong><span class="pill">${decision.chosen || "none"}</span></div>
+        <div class="small muted" style="margin-top:6px;">model=${req.model} | job_class=${req.job_class} | min_vram_mb=${req.min_vram_mb}</div>
+        <div class="small muted">requested_worker=${req.requested_worker || "auto"} | ts=${decision.ts || "-"}</div>
+      `;
+
+      const items = decision.candidates || [];
+      candidatesRoot.innerHTML = items.map(item => `
+        <div class="card candidate ${item.accepted ? "accepted" : "rejected"}">
+          <div class="row">
+            <strong>${item.worker}</strong>
+            <span class="pill">score=${item.score}</span>
+          </div>
+          <div class="small muted">node=${item.node} | role=${item.role} | free_vram_mb=${item.free_vram_mb} | queue_depth=${item.queue_depth}</div>
+          <div style="margin-top:6px;" class="${item.accepted ? "good" : "bad"}">${item.accepted ? "accepted" : "rejected"}</div>
+          <div class="small muted">${item.reason}</div>
+        </div>
+      `).join("");
     }
 
-    // Handle alternate chunk/message formats
-    if (msg.type === "chunk" || msg.type === "message" || msg.type === "output") {
-      const chunkText =
-        msg.text ??
-        msg.content ??
-        msg.delta ??
-        msg.response ??
-        "";
-      if (chunkText) {
-        buffer += chunkText;
-        out.value = buffer;
-        sawContent = true;
-      }
-      return;
+    async function refreshStatus() {
+      const r = await fetch("/cluster/status");
+      if (!r.ok) throw new Error(`status failed: ${r.status}`);
+      const j = await r.json();
+      renderCluster(j);
+      return j;
     }
 
-    // On done, fall back to final job result if stream had no usable tokens
-    if (msg.type === "done") {
-      evt.close();
-
-      fetch(`/api/job_result/llm_infer_stream/${j.job_id}`)
-        .then(r => r.json())
-        .then(res => {
-          updateLastLLMPanel(res);
-
-          if (!sawContent) {
-            const finalText =
-              res.stdout ||
-              res.response ||
-              res.output ||
-              res.text ||
-              "";
-
-            if (finalText && finalText.trim()) {
-              out.value = finalText;
-              sawContent = true;
-            } else if (!buffer.trim()) {
-              out.value = "[draft completed, but no streamed text was captured]";
-            }
-          }
-
-          log(`Draft generation completed -> ${file || "unspecified file"}`, "assistant");
-        })
-        .catch(err => {
-          if (!sawContent) {
-            out.value = `Draft completed, but final result fetch failed:\n${err}`;
-          }
-        });
-
-      return;
+    async function fetchDecision() {
+      const r = await fetch("/scheduler/decision");
+      if (!r.ok) return;
+      renderDecision(await r.json());
     }
 
-    if (msg.type === "error") {
-      evt.close();
-      out.value += `\n\n[stream error rc=${msg.rc ?? "?"}]`;
-      log(`Draft generation failed rc=${msg.rc ?? "?"}`, "assistant");
+    function inferJobClass(model) {
+      const lower = model.toLowerCase();
+      if (lower.includes("14b")) return "llm_heavy";
+      if (lower.includes("coder") || lower.includes("code")) return "code";
+      if (lower.includes("embed")) return "embedding";
+      return "llm_general";
     }
-  };
 
-  evt.onerror = function() {
-    evt.close();
+    async function sendPrompt() {
+      const prompt = $("prompt").value.trim();
+      const model = $("model").value;
+      const worker = $("worker").value;
+      if (!prompt) return;
 
-    // Try final result fetch even if SSE closes oddly
-    fetch(`/api/job_result/llm_infer_stream/${j.job_id}`)
-      .then(r => r.json())
-      .then(res => {
-        updateLastLLMPanel(res);
+      logLine("You", prompt);
+      const payload = {
+        prompt,
+        model,
+        worker: worker || null,
+        job_class: inferJobClass(model),
+        stream: false,
+      };
 
-        if (!sawContent) {
-          const finalText =
-            res.stdout ||
-            res.response ||
-            res.output ||
-            res.text ||
-            "";
-
-          if (finalText && finalText.trim()) {
-            out.value = finalText;
-          } else if (!buffer.trim()) {
-            out.value = "[stream closed without usable draft output]";
-          }
-        }
-      })
-      .catch(() => {
-        if (!sawContent && !buffer.trim()) {
-          out.value = "[stream closed and no final draft output was available]";
-        }
+      const r = await fetch("/api/run_llm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-  };
-}
 
-async function saveDraftToRepo() {
-  const file = document.getElementById("draft_file").value.trim();
-  const text = document.getElementById("draft_output").value;
-  if (!file) {
-    setRepoResult("Target file is required.");
-    return;
-  }
-  await runRepoAction("write", file, text);
-}
+      const j = await r.json();
+      if (!r.ok) {
+        logLine("Spot", `LLM dispatch failed: ${JSON.stringify(j)}`);
+        await fetchDecision();
+        return;
+      }
 
-async function appendDraftToRepo() {
-  const file = document.getElementById("draft_file").value.trim();
-  const text = document.getElementById("draft_output").value;
-  if (!file) {
-    setRepoResult("Target file is required.");
-    return;
-  }
-  await runRepoAction("append", file, text);
-}
+      logLine("Spot", `LLM job submitted -> ${j.worker} | model=${model}`);
+      const result = j.result || {};
+      const resultJson = result.result_json || result.response_json || result;
+      const answer = resultJson.response || result.stdout || JSON.stringify(resultJson, null, 2);
+      logLine("Spot", answer);
 
-async function loadDraftFile() {
-  const file = document.getElementById("draft_file").value.trim();
-  if (!file) {
-    setRepoResult("Target file is required.");
-    return;
-  }
+      $("lastJob").textContent = JSON.stringify({
+        worker: j.worker,
+        node: j.node,
+        role: j.role,
+        model,
+        decision: j.decision,
+        result: result,
+      }, null, 2);
 
-  const j = await runRepoAction("read", file);
-  if (j && j.stdout !== undefined) {
-    document.getElementById("draft_output").value = j.stdout || "";
-  }
-}
+      renderDecision(j.decision);
+      await refreshStatus();
+    }
 
-function copyDraftToRepoEditor() {
-  const file = document.getElementById("draft_file").value.trim();
-  const text = document.getElementById("draft_output").value;
-  document.getElementById("repo_file").value = file;
-  document.getElementById("repo_text").value = text;
-  setRepoResult(`Copied draft into repo editor for ${file || "(no file set)"}`);
-}
+    async function runTestJob() {
+      const payload = {
+        job: "example_echo",
+        job_class: "background",
+        params: { text: "ReadyRoom dispatch check" },
+      };
+      const r = await fetch("/api/run_job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        logLine("Spot", `Test job failed: ${JSON.stringify(j)}`);
+        await fetchDecision();
+        return;
+      }
+      logLine("Spot", `Job completed: ${payload.job}`);
+      $("lastJob").textContent = JSON.stringify(j, null, 2);
+      renderDecision(j.decision);
+      await refreshStatus();
+    }
 
-function copyRepoToDraft() {
-  const file = document.getElementById("repo_file").value.trim();
-  const text = document.getElementById("repo_text").value;
-  document.getElementById("draft_file").value = file;
-  document.getElementById("draft_output").value = text;
-  setRepoResult(`Copied repo editor content into draft area for ${file || "(no file set)"}`);
-}
+    $("sendBtn").addEventListener("click", () => sendPrompt().catch(err => logLine("Spot", err.message)));
+    $("runBtn").addEventListener("click", () => runTestJob().catch(err => logLine("Spot", err.message)));
+    $("refreshBtn").addEventListener("click", () => refreshStatus().catch(err => logLine("Spot", err.message)));
+    $("prompt").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendPrompt().catch(err => logLine("Spot", err.message));
+      }
+    });
 
-function clearChat() {
-  document.getElementById("conversation").innerHTML = "";
-  clearActiveStreamBubble();
-}
-
-refreshStatus();
-log("Ready Room operational console online. Standing by.", "assistant");
-</script>
+    refreshStatus().catch(err => logLine("Spot", err.message));
+    fetchDecision().catch(() => {});
+  </script>
 </body>
 </html>

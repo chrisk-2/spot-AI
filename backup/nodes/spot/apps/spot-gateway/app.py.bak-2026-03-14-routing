@@ -30,7 +30,7 @@ WORKERS_JSON = os.getenv(
                 "gpu": 0,
                 "gpu_name": "NVIDIA GeForce RTX 3060",
                 "vram_mb": 12288,
-                "url": "http://127.0.0.1:8787",
+                "url": "http://127.0.0.1:8700",
                 "labels": ["llm", "heavy", "general", "14b"],
             },
             "daystrom_exec": {
@@ -41,7 +41,7 @@ WORKERS_JSON = os.getenv(
                 "gpu": 0,
                 "gpu_name": "NVIDIA GeForce RTX 3060",
                 "vram_mb": 12288,
-                "url": "http://192.168.10.13:8782",
+                "url": "http://192.168.10.12:8700",
                 "labels": ["llm", "heavy", "code"],
             },
             "m5_exec": {
@@ -52,7 +52,7 @@ WORKERS_JSON = os.getenv(
                 "gpu": 0,
                 "gpu_name": "Quadro M4000",
                 "vram_mb": 8192,
-                "url": "http://192.168.10.11:8789",
+                "url": "http://192.168.10.11:8700",
                 "labels": ["embedding", "utility", "background"],
             },
             "m5_watch": {
@@ -63,7 +63,7 @@ WORKERS_JSON = os.getenv(
                 "gpu": 1,
                 "gpu_name": "NVIDIA GeForce GTX 1060 6GB",
                 "vram_mb": 6144,
-                "url": "http://192.168.10.11:8791",
+                "url": "http://192.168.10.11:8701",
                 "labels": ["watch", "monitoring", "heartbeat"],
             },
             "daystrom_watch": {
@@ -74,7 +74,7 @@ WORKERS_JSON = os.getenv(
                 "gpu": 1,
                 "gpu_name": "NVIDIA GeForce GTX 1070",
                 "vram_mb": 8192,
-                "url": "http://192.168.10.13:8783",
+                "url": "http://192.168.10.12:8701",
                 "labels": ["watch", "monitoring"],
             },
         }

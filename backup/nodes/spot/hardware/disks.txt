@@ -1,17 +1,17 @@
-NAME                      MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
-loop0                       7:0    0  63.8M  1 loop /snap/core20/2686
-loop1                       7:1    0  63.8M  1 loop /snap/core20/2717
-loop2                       7:2    0    74M  1 loop /snap/core22/2339
-loop3                       7:3    0  66.9M  1 loop /snap/core24/1349
-loop4                       7:4    0 151.4M  1 loop /snap/docker/3377
-loop5                       7:5    0  66.8M  1 loop /snap/core24/1499
-loop7                       7:7    0  38.8M  1 loop /snap/snapd/21759
-loop8                       7:8    0  48.1M  1 loop /snap/snapd/25935
-loop9                       7:9    0   4.4M  1 loop /snap/tree/54
-loop10                      7:10   0  91.6M  1 loop /snap/lxd/38331
-loop11                      7:11   0  91.7M  1 loop /snap/lxd/38469
-nvme0n1                   259:0    0   1.8T  0 disk 
-├─nvme0n1p1               259:1    0     1G  0 part /boot/efi
-├─nvme0n1p2               259:2    0     2G  0 part /boot
-└─nvme0n1p3               259:3    0   1.8T  0 part 
-  └─ubuntu--vg-ubuntu--lv 253:0    0   100G  0 lvm  /
+NAME                        SIZE TYPE FSTYPE      MOUNTPOINT        MODEL              SERIAL
+loop0                      63.8M loop squashfs    /snap/core20/2686                    
+loop1                      63.8M loop squashfs    /snap/core20/2717                    
+loop2                        74M loop squashfs    /snap/core22/2339                    
+loop3                      66.9M loop squashfs    /snap/core24/1349                    
+loop4                     151.4M loop squashfs    /snap/docker/3377                    
+loop5                      66.8M loop squashfs    /snap/core24/1499                    
+loop7                      38.8M loop squashfs    /snap/snapd/21759                    
+loop8                      48.1M loop squashfs    /snap/snapd/25935                    
+loop9                       4.4M loop squashfs    /snap/tree/54                        
+loop10                     91.6M loop squashfs    /snap/lxd/38331                      
+loop11                     91.7M loop squashfs    /snap/lxd/38469                      
+nvme0n1                     1.8T disk                               WD_BLACK SN770 2TB 231522800663
+├─nvme0n1p1                   1G part vfat        /boot/efi                            
+├─nvme0n1p2                   2G part ext4        /boot                                
+└─nvme0n1p3                 1.8T part LVM2_member                                      
+  └─ubuntu--vg-ubuntu--lv   100G lvm  ext4        /                                    

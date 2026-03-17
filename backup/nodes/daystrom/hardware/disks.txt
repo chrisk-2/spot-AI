@@ -1,4 +1,4 @@
-NAME   MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
-sda      8:0    0 476.9G  0 disk 
-├─sda1   8:1    0     1G  0 part /boot/efi
-└─sda2   8:2    0 475.9G  0 part /
+NAME     SIZE TYPE FSTYPE MOUNTPOINT MODEL       SERIAL
+sda    476.9G disk                   ADATA SU800 2J3720068491
+├─sda1     1G part vfat   /boot/efi              
+└─sda2 475.9G part ext4   /                      
