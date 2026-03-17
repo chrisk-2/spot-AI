@@ -7,6 +7,6 @@
 2: enp0s25: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
     link/ether 34:17:eb:a6:83:73 brd ff:ff:ff:ff:ff:ff
     inet 192.168.10.11/24 metric 100 brd 192.168.10.255 scope global dynamic enp0s25
-       valid_lft 3395sec preferred_lft 3395sec
+       valid_lft 3736sec preferred_lft 3736sec
     inet6 fe80::3617:ebff:fea6:8373/64 scope link 
        valid_lft forever preferred_lft forever

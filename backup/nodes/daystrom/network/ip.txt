@@ -8,6 +8,6 @@
     link/ether b4:2e:99:a5:17:ef brd ff:ff:ff:ff:ff:ff
     altname enp3s0
     inet 192.168.10.13/24 metric 100 brd 192.168.10.255 scope global dynamic eno1
-       valid_lft 3812sec preferred_lft 3812sec
+       valid_lft 2152sec preferred_lft 2152sec
     inet6 fe80::b62e:99ff:fea5:17ef/64 scope link 
        valid_lft forever preferred_lft forever
