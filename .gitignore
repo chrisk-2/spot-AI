@@ -1,6 +1,12 @@
 # logs
 *.log
 
+# Snapshots (do NOT track)
+fleet-docs/snapshots/
+
+# Local machine state
+packages.txt
+
 # python junk
 __pycache__/
 *.pyc
