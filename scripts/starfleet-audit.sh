@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -u
 
+POLICY="$HOME/spot-AI/configs/node-policy.env"
+[[ -f "$POLICY" ]] && source "$POLICY"
+
 echo "==============================="
 echo " STARFLEET CONFIG AUDIT"
 echo "==============================="
@@ -28,24 +31,29 @@ remote_first_line() {
 
 echo
 echo "[Spot Node Checks]"
-check "spot-gateway active" "active" "$(systemctl is-active spot-gateway 2>/dev/null || echo unknown)"
-check "spot-worker0 active" "active" "$(systemctl is-active spot-worker0 2>/dev/null || echo unknown)"
+check "spot-gateway active" "active" "$(systemctl is-active "$SPOT_GATEWAY_UNIT" 2>/dev/null || echo unknown)"
+check "$SPOT_WORKER_UNIT active" "active" "$(systemctl is-active "$SPOT_WORKER_UNIT" 2>/dev/null || echo unknown)"
 
 echo
 echo "[M-5 Checks]"
-M5="192.168.10.11"
-check "M-5 ollama disabled" "disabled" "$(remote_first_line "$M5" 'systemctl is-enabled ollama || true')"
-check "M-5 worker6 active" "active" "$(remote_first_line "$M5" 'systemctl is-active spot-worker6 || true')"
-check "M-5 worker8 active" "active" "$(remote_first_line "$M5" 'systemctl is-active spot-worker8 || true')"
+check "M-5 ollama disabled" "$M5_OLLAMA_SHOULD_BE" "$(remote_first_line "$M5_HOST" 'systemctl is-enabled ollama || true')"
+
+for svc in $M5_WORKER_UNITS; do
+  state="$(remote_first_line "$M5_HOST" "systemctl is-active $svc || true")"
+  check "M-5 $svc active" "active" "$state"
+done
 
 echo
 echo "[Daystrom Checks]"
-DAY="192.168.10.13"
-check "Daystrom worker2 active" "active" "$(remote_first_line "$DAY" 'systemctl is-active spot-worker2 || true')"
+for svc in $DAYSTROM_WORKER_UNITS; do
+  state="$(remote_first_line "$DAYSTROM_HOST" "systemctl is-active $svc || true")"
+  check "Daystrom $svc active" "active" "$state"
+done
 
 echo
 echo "[Gateway Health]"
-check "gateway health" "true" "$(curl -sS http://127.0.0.1:8798/health | jq -r '.ok' 2>/dev/null || echo false)"
+gw_ok="$(curl -sS "$GATEWAY_HEALTH_URL" | jq -r '.ok' 2>/dev/null || echo false)"
+check "gateway health" "true" "$gw_ok"
 
 echo
 echo "[Dispatch Sanity]"
