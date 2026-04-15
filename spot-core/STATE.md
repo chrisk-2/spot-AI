@@ -36,16 +36,15 @@ worker-04:
   - qwen2.5:14b
 
 ## Current Status
-- routing: ✅ correct
-- fallback: ✅ correct
-- test harness: ✅ spottest working
+- routing correct for coding and heavy
+- fallback verified working (coding + heavy)
+- spottest operational
 
 ## Known Issues
-- general sometimes routes to worker-04 (needs strict enforcement)
-- scheduler still allows cross-role scoring
+- general routing incorrectly hitting worker-04 (heavy node)
+- scheduler still allows cross-role scoring bleed
 
 ## Next Tasks
-1. enforce strict role ownership in scheduler
-2. split owned vs fallback routing phases
-3. extend fallback tests (full chain)
-
+1. enforce strict role ownership (owned → fallback phases)
+2. prevent general from ever landing on heavy unless explicitly allowed
+3. extend fallback tests to full-chain validation (optional next)
