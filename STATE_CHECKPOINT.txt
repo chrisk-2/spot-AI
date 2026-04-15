@@ -1,0 +1,23 @@
+Spot-Core Status (2026-04-15)
+
+Scheduler: WORKING
+Warm system: WORKING
+Workers: ALL HEALTHY
+Routing: STABLE
+Shared memory: CONNECTED (Unimatrix)
+
+Next Task:
+Retry + fallback routing in app.py
+
+Key Paths:
+- app.py:
+  /home/ogre/spot-stack/spot-core/spotcore/app.py
+- config:
+  /home/ogre/spot-stack/spot-core/config/cluster_config.json
+- warmd:
+  /home/ogre/spot-stack/spot-core/spotcore/warmd.py
+
+Warm Targets:
+- worker-03 coder
+- worker-04 heavy
+- worker-01 fallback

@@ -1,0 +1,463 @@
+===== BASIC =====
+Mon Apr 13 05:16:08 PM UTC 2026
+
+===== HOSTNAMECTL =====
+ Static hostname: spot-worker-02
+       Icon name: computer-desktop
+         Chassis: desktop 🖥️
+      Machine ID: 37d567f2cd41412e90a2f8a5edcd06b5
+         Boot ID: 74c8eacaaeba4166962e0bb95562ba3f
+Operating System: Ubuntu 24.04.4 LTS
+          Kernel: Linux 6.8.0-107-generic
+    Architecture: x86-64
+ Hardware Vendor: Dell Inc.
+  Hardware Model: Precision T3610
+Firmware Version: A07
+   Firmware Date: Tue 2014-04-29
+    Firmware Age: 11y 11month 2w 1d
+
+===== HOSTNAME =====
+spot-worker-02
+
+===== OS RELEASE =====
+PRETTY_NAME="Ubuntu 24.04.4 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.4 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+
+===== KERNEL =====
+Linux spot-worker-02 6.8.0-107-generic #107-Ubuntu SMP PREEMPT_DYNAMIC Fri Mar 13 19:51:50 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+
+===== UPTIME =====
+ 17:16:08 up  2:11,  2 users,  load average: 0.03, 0.02, 0.00
+
+===== CPU LSCU =====
+Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           46 bits physical, 48 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  8
+On-line CPU(s) list:                     0-7
+Vendor ID:                               GenuineIntel
+Model name:                              Intel(R) Xeon(R) CPU E5-1620 v2 @ 3.70GHz
+CPU family:                              6
+Model:                                   62
+Thread(s) per core:                      2
+Core(s) per socket:                      4
+Socket(s):                               1
+Stepping:                                4
+CPU(s) scaling MHz:                      69%
+CPU max MHz:                             3900.0000
+CPU min MHz:                             1200.0000
+BogoMIPS:                                7381.84
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm cpuid_fault epb pti ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid fsgsbase smep erms xsaveopt dtherm ida arat pln pts vnmi md_clear flush_l1d ibpb_exit_to_user
+Virtualization:                          VT-x
+L1d cache:                               128 KiB (4 instances)
+L1i cache:                               128 KiB (4 instances)
+L2 cache:                                1 MiB (4 instances)
+L3 cache:                                10 MiB (1 instance)
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-7
+Vulnerability Gather data sampling:      Not affected
+Vulnerability Indirect target selection: Not affected
+Vulnerability Itlb multihit:             KVM: Mitigation: VMX disabled
+Vulnerability L1tf:                      Mitigation; PTE Inversion; VMX conditional cache flushes, SMT vulnerable
+Vulnerability Mds:                       Mitigation; Clear CPU buffers; SMT vulnerable
+Vulnerability Meltdown:                  Mitigation; PTI
+Vulnerability Mmio stale data:           Unknown: No mitigations
+Vulnerability Reg file data sampling:    Not affected
+Vulnerability Retbleed:                  Not affected
+Vulnerability Spec rstack overflow:      Not affected
+Vulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:                Mitigation; Retpolines; IBPB conditional; IBRS_FW; STIBP conditional; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected
+Vulnerability Srbds:                     Not affected
+Vulnerability Tsa:                       Not affected
+Vulnerability Tsx async abort:           Not affected
+Vulnerability Vmscape:                   Mitigation; IBPB before exit to userspace
+
+===== CPUINFO TOP =====
+processor	: 0
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 62
+model name	: Intel(R) Xeon(R) CPU E5-1620 v2 @ 3.70GHz
+stepping	: 4
+microcode	: 0x42e
+cpu MHz		: 2593.587
+cache size	: 10240 KB
+physical id	: 0
+siblings	: 8
+core id		: 0
+cpu cores	: 4
+apicid		: 0
+initial apicid	: 0
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm cpuid_fault epb pti ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid fsgsbase smep erms xsaveopt dtherm ida arat pln pts vnmi md_clear flush_l1d ibpb_exit_to_user
+vmx flags	: vnmi preemption_timer posted_intr invvpid ept_x_only ept_1gb flexpriority apicv tsc_offset vtpr mtf vapic ept vpid unrestricted_guest vapic_reg vid ple
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs itlb_multihit mmio_unknown vmscape
+bogomips	: 7381.84
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 46 bits physical, 48 bits virtual
+power management:
+
+processor	: 1
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 62
+model name	: Intel(R) Xeon(R) CPU E5-1620 v2 @ 3.70GHz
+stepping	: 4
+microcode	: 0x42e
+cpu MHz		: 1200.000
+cache size	: 10240 KB
+physical id	: 0
+siblings	: 8
+core id		: 1
+cpu cores	: 4
+apicid		: 2
+initial apicid	: 2
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm cpuid_fault epb pti ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid fsgsbase smep erms xsaveopt dtherm ida arat pln pts vnmi md_clear flush_l1d ibpb_exit_to_user
+vmx flags	: vnmi preemption_timer posted_intr invvpid ept_x_only ept_1gb flexpriority apicv tsc_offset vtpr mtf vapic ept vpid unrestricted_guest vapic_reg vid ple
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs itlb_multihit mmio_unknown vmscape
+bogomips	: 7381.84
+clflush size	: 64
+cache_alignment	: 64
+address sizes	: 46 bits physical, 48 bits virtual
+power management:
+
+processor	: 2
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 62
+model name	: Intel(R) Xeon(R) CPU E5-1620 v2 @ 3.70GHz
+stepping	: 4
+microcode	: 0x42e
+cpu MHz		: 3658.217
+cache size	: 10240 KB
+physical id	: 0
+siblings	: 8
+core id		: 2
+cpu cores	: 4
+apicid		: 4
+initial apicid	: 4
+fpu		: yes
+fpu_exception	: yes
+cpuid level	: 13
+wp		: yes
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm cpuid_fault epb pti ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid fsgsbase smep erms xsaveopt dtherm ida arat pln pts vnmi md_clear flush_l1d ibpb_exit_to_user
+vmx flags	: vnmi preemption_timer posted_intr invvpid ept_x_only ept_1gb flexpriority apicv tsc_offset vtpr mtf vapic ept vpid unrestricted_guest vapic_reg vid ple
+bugs		: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs itlb_multihit mmio_unknown vmscape
+bogomips	: 7381.84
+clflush size	: 64
+
+===== RAM =====
+               total        used        free      shared  buff/cache   available
+Mem:            31Gi       979Mi        27Gi       1.7Mi       2.8Gi        30Gi
+Swap:          8.0Gi          0B       8.0Gi
+
+MemTotal:       32809356 kB
+MemFree:        29264000 kB
+MemAvailable:   31806732 kB
+SwapTotal:       8388604 kB
+SwapFree:        8388604 kB
+
+===== MAINBOARD / BIOS =====
+# dmidecode 3.5
+Getting SMBIOS data from sysfs.
+SMBIOS 2.7 present.
+
+Handle 0x0000, DMI type 0, 24 bytes
+BIOS Information
+	Vendor: Dell Inc.
+	Version: A07
+	Release Date: 04/29/2014
+	Address: 0xF0000
+	Runtime Size: 64 kB
+	ROM Size: 12 MB
+	Characteristics:
+		PCI is supported
+		PNP is supported
+		BIOS is upgradeable
+		BIOS shadowing is allowed
+		Boot from CD is supported
+		Selectable boot is supported
+		EDD is supported
+		5.25"/1.2 MB floppy services are supported (int 13h)
+		3.5"/720 kB floppy services are supported (int 13h)
+		3.5"/2.88 MB floppy services are supported (int 13h)
+		Print screen service is supported (int 5h)
+		8042 keyboard services are supported (int 9h)
+		Serial services are supported (int 14h)
+		Printer services are supported (int 17h)
+		ACPI is supported
+		USB legacy is supported
+		BIOS boot specification is supported
+		Function key-initiated network boot is supported
+		Targeted content distribution is supported
+		UEFI is supported
+	BIOS Revision: 4.6
+
+Handle 0x0001, DMI type 1, 27 bytes
+System Information
+	Manufacturer: Dell Inc.
+	Product Name: Precision T3610
+	Version: 01
+	Serial Number: 1BS7X12
+	UUID: 4c4c4544-0042-5310-8037-b1c04f583132
+	Wake-up Type: Power Switch
+	SKU Number: Precision T3610
+	Family: Not Specified
+
+Handle 0x0002, DMI type 2, 15 bytes
+Base Board Information
+	Manufacturer: Dell Inc.
+	Product Name: 09M8Y8
+	Version: A01
+	Serial Number: /1BS7X12/CN7220044903ZH/
+	Asset Tag: Not Specified
+	Features:
+		Board is a hosting board
+		Board is replaceable
+	Location In Chassis: Not Specified
+	Chassis Handle: 0x0003
+	Type: Motherboard
+	Contained Object Handles: 0
+
+Handle 0x002E, DMI type 10, 6 bytes
+On Board Device Information
+	Type: Ethernet
+	Status: Enabled
+	Description: NETWORK_NAME_STRING
+
+Handle 0x0030, DMI type 12, 5 bytes
+System Configuration Options
+	Option 1: To Be Filled By O.E.M.
+
+Handle 0x0031, DMI type 15, 35 bytes
+System Event Log
+	Area Length: 4 bytes
+	Header Start Offset: 0x0000
+	Header Length: 2 bytes
+	Data Start Offset: 0x0002
+	Access Method: Indexed I/O, one 16-bit index port, one 8-bit data port
+	Access Address: Index 0x046A, Data 0x046C
+	Status: Invalid, Not Full
+	Change Token: 0x00000000
+	Header Format: No Header
+	Supported Log Type Descriptors: 6
+	Descriptor 1: End of log
+	Data Format 1: OEM-specific
+	Descriptor 2: End of log
+	Data Format 2: OEM-specific
+	Descriptor 3: End of log
+	Data Format 3: OEM-specific
+	Descriptor 4: End of log
+	Data Format 4: OEM-specific
+	Descriptor 5: End of log
+	Data Format 5: OEM-specific
+	Descriptor 6: End of log
+	Data Format 6: OEM-specific
+
+Handle 0x0045, DMI type 32, 20 bytes
+System Boot Information
+	Status: No errors detected
+
+Handle 0x0062, DMI type 41, 11 bytes
+Onboard Device
+	Reference Designation:  Onboard IGD
+	Type: Video
+	Status: Enabled
+	Type Instance: 1
+	Bus Address: 0000:00:02.0
+
+
+===== STORAGE LSBLK =====
+NAME                        SIZE FSTYPE      TYPE MOUNTPOINT        MODEL                  SERIAL
+loop0                      66.8M squashfs    loop /snap/core24/1499                        
+loop1                     151.4M squashfs    loop /snap/docker/3377                        
+loop2                      66.8M squashfs    loop /snap/core24/1587                        
+loop3                      48.1M squashfs    loop /snap/snapd/25935                        
+loop4                      48.4M squashfs    loop /snap/snapd/26382                        
+sda                       931.5G             disk                   ST1000DM003-1SB1       Z9ABY6H1
+├─sda1                      260M vfat        part                                          
+├─sda2                       16M             part                                          
+├─sda3                    930.3G ntfs        part                                          
+└─sda4                     1000M ntfs        part                                          
+sdb                       238.5G             disk                   SAMSUNG MZ7TY256       S307NB0J233401
+├─sdb1                        1G vfat        part /boot/efi                                
+├─sdb2                        2G ext4        part /boot                                    
+└─sdb3                    235.4G LVM2_member part                                          
+  └─ubuntu--vg-ubuntu--lv   100G ext4        lvm  /                                        
+sdc                           0B             disk                   Compact Flash          20100818841300000
+sdd                           0B             disk                   SM/xD-Picture          20100818841300000
+sde                           0B             disk                   SD/MMC                 20100818841300000
+sdf                           0B             disk                   M.S./M.S.Pro/HG        20100818841300000
+sr0                        1024M             rom                    PLDS DVD+/-RW DS-8ABSH 9F42J7363943452AIA00
+
+===== STORAGE DF =====
+Filesystem                         Size  Used Avail Use% Mounted on
+tmpfs                              3.2G  1.7M  3.2G   1% /run
+efivarfs                           128K   78K   46K  63% /sys/firmware/efi/efivars
+/dev/mapper/ubuntu--vg-ubuntu--lv   98G   44G   50G  48% /
+tmpfs                               16G     0   16G   0% /dev/shm
+tmpfs                              5.0M     0  5.0M   0% /run/lock
+/dev/sdb2                          2.0G  201M  1.6G  11% /boot
+/dev/sdb1                          1.1G  6.2M  1.1G   1% /boot/efi
+192.168.50.10:/volume1/docker      2.7T   13G  2.6T   1% /mnt/collective
+tmpfs                              3.2G   20K  3.2G   1% /run/user/1000
+
+===== FSTAB =====
+# /etc/fstab: static file system information.
+#
+# Use 'blkid' to print the universally unique identifier for a
+# device; this may be used with UUID= as a more robust way to name devices
+# that works even if disks are added and removed. See fstab(5).
+#
+# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+# / was on /dev/ubuntu-vg/ubuntu-lv during curtin installation
+/dev/disk/by-id/dm-uuid-LVM-hT5f8bYv5KXWZFJB8lY0f0Q9zj9TXfv8vd4GLzhaR0vpoBqzXATt6o1JjYOpFvEN / ext4 defaults 0 1
+# /boot was on /dev/sdb2 during curtin installation
+/dev/disk/by-uuid/7f61c47a-cda2-4398-a2cb-af346142a2b8 /boot ext4 defaults 0 1
+# /boot/efi was on /dev/sdb1 during curtin installation
+/dev/disk/by-uuid/DAA6-D32C /boot/efi vfat defaults 0 1
+/swap.img	none	swap	sw	0	0
+192.168.50.10:/volume1/docker  /mnt/collective  nfs  defaults,_netdev,nfsvers=4,x-systemd.automount,noatime  0  0
+192.168.10.50:/volume1/spotvault /mnt/unimatrix6 nfs defaults,_netdev,noatime,nofail 0 0
+
+===== MOUNTS OF INTEREST =====
+systemd-1 on /mnt/collective type autofs (rw,relatime,fd=64,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=6331)
+/var/lib/snapd/snaps/docker_3377.snap on /snap/docker/3377 type squashfs (ro,nodev,relatime,errors=continue,threads=single,x-gdu.hide,x-gvfs-hide)
+nsfs on /run/snapd/ns/docker.mnt type nsfs (rw)
+192.168.50.10:/volume1/docker on /mnt/collective type nfs4 (rw,noatime,vers=4.0,rsize=131072,wsize=131072,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.10.11,local_lock=none,addr=192.168.50.10,_netdev)
+
+===== NETWORK BRIEF =====
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+enp0s25          UP             192.168.10.11/24 metric 100 fe80::3617:ebff:fea6:8373/64 
+
+===== ROUTES =====
+default via 192.168.10.1 dev enp0s25 proto dhcp src 192.168.10.11 metric 100 
+192.168.10.0/24 dev enp0s25 proto kernel scope link src 192.168.10.11 metric 100 
+192.168.10.1 dev enp0s25 proto dhcp scope link src 192.168.10.11 metric 100 
+
+===== DNS =====
+nameserver 1.1.1.1
+
+===== LISTENING PORTS =====
+Netid State  Recv-Q Send-Q         Local Address:Port  Peer Address:PortProcess                                                                                  
+udp   UNCONN 0      0      192.168.10.11%enp0s25:68         0.0.0.0:*                                                                                            
+udp   UNCONN 0      0                    0.0.0.0:111        0.0.0.0:*                                                                                            
+udp   UNCONN 0      0                       [::]:111           [::]:*                                                                                            
+tcp   LISTEN 0      4096                 0.0.0.0:111        0.0.0.0:*                                                                                            
+tcp   LISTEN 0      4096                 0.0.0.0:22         0.0.0.0:*                                                                                            
+tcp   LISTEN 0      2048                 0.0.0.0:5050       0.0.0.0:*    users:(("gunicorn",pid=1465,fd=5),("gunicorn",pid=1459,fd=5),("gunicorn",pid=1429,fd=5))
+tcp   LISTEN 0      2048                 0.0.0.0:8791       0.0.0.0:*    users:(("uvicorn",pid=1434,fd=13))                                                      
+tcp   LISTEN 0      2048                 0.0.0.0:8789       0.0.0.0:*    users:(("uvicorn",pid=1431,fd=13))                                                      
+tcp   LISTEN 0      64                   0.0.0.0:46235      0.0.0.0:*                                                                                            
+tcp   LISTEN 0      4096                    [::]:111           [::]:*                                                                                            
+tcp   LISTEN 0      4096                    [::]:22            [::]:*                                                                                            
+tcp   LISTEN 0      64                      [::]:42323         [::]:*                                                                                            
+tcp   LISTEN 0      4096                       *:11434            *:*                                                                                            
+
+===== IMPORTANT SERVICES =====
+  cron.service                                                                              loaded    active   running Regular background program processing daemon
+● docker.service                                                                            not-found inactive dead    docker.service
+  nvidia-cdi-refresh.service                                                                loaded    inactive dead    Refresh NVIDIA CDI specification file
+  nvidia-hibernate.service                                                                  loaded    inactive dead    NVIDIA system hibernate actions
+  nvidia-persistenced.service                                                               loaded    active   running NVIDIA Persistence Daemon
+  nvidia-resume.service                                                                     loaded    inactive dead    NVIDIA system resume actions
+  nvidia-suspend.service                                                                    loaded    inactive dead    NVIDIA system suspend actions
+  ollama.service                                                                            loaded    active   running Ollama Service
+  snap.docker.dockerd.service                                                               loaded    inactive dead    Service for snap application docker.dockerd
+  snap.docker.nvidia-container-toolkit.service                                              loaded    inactive dead    Service for snap application docker.nvidia-container-toolkit
+  ssh.service                                                                               loaded    active   running OpenBSD Secure Shell server
+  systemd-backlight@backlight:nvidia_0.service                                              loaded    inactive dead    Load/Save Screen Backlight Brightness of backlight:nvidia_0
+
+===== OLLAMA VERSION =====
+ollama version is 0.18.2
+
+===== OLLAMA MODELS =====
+NAME                       ID              SIZE      MODIFIED    
+bge-m3:latest              790764642607    1.2 GB    3 weeks ago    
+nomic-embed-text:latest    0a109f422b47    274 MB    3 weeks ago    
+phi3.5:latest              61819fb370a3    2.2 GB    3 weeks ago    
+
+===== DOCKER PS =====
+
+===== PCI ALL RELEVANT =====
+00:19.0 Ethernet controller: Intel Corporation 82579LM Gigabit Network Connection (Lewisville) (rev 06)
+00:1f.2 RAID bus controller: Intel Corporation SATA Controller [RAID Mode] (rev 06)
+02:00.0 VGA compatible controller: NVIDIA Corporation GM204GL [Quadro M4000] (rev a1)
+02:00.1 Audio device: NVIDIA Corporation GM204 High Definition Audio Controller (rev a1)
+03:00.0 VGA compatible controller: NVIDIA Corporation GP106 [GeForce GTX 1060 6GB] (rev a1)
+03:00.1 Audio device: NVIDIA Corporation GP106 High Definition Audio Controller (rev a1)
+
+===== NVIDIA-SMI SUMMARY =====
+Mon Apr 13 17:16:08 2026       
++---------------------------------------------------------------------------------------+
+| NVIDIA-SMI 535.288.01             Driver Version: 535.288.01   CUDA Version: 12.2     |
+|-----------------------------------------+----------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
+|                                         |                      |               MIG M. |
+|=========================================+======================+======================|
+|   0  Quadro M4000                   Off | 00000000:02:00.0 Off |                  N/A |
+| 46%   39C    P8              12W / 120W |      1MiB /  8192MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+|   1  NVIDIA GeForce GTX 1060 6GB    Off | 00000000:03:00.0 Off |                  N/A |
+|  0%   42C    P8               5W / 120W |      2MiB /  6144MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+                                                                                         
++---------------------------------------------------------------------------------------+
+| Processes:                                                                            |
+|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
+|        ID   ID                                                             Usage      |
+|=======================================================================================|
+|  No running processes found                                                           |
++---------------------------------------------------------------------------------------+
+
+===== NVIDIA-SMI DETAILED =====
+0, Quadro M4000, GPU-df37cf4b-9f71-6aa8-43b7-ab55693fdef1, 8192, 1, 8119, 39, 12.41, 0, 1, 16, 535.288.01
+1, NVIDIA GeForce GTX 1060 6GB, GPU-4ec68a12-f832-487e-9e8b-531d3de4795b, 6144, 2, 6070, 42, 5.81, 0, 1, 16, 535.288.01
+
+===== NVIDIA GPU PROCESSES =====
+# gpu         pid  type    sm    mem    enc    dec    command
+# Idx           #   C/G     %      %      %      %    name
+    0          -     -      -      -      -      -    -              
+    1          -     -      -      -      -      -    -              
+
+===== NVIDIA TOPO =====
+	[4mGPU0	GPU1	CPU Affinity	NUMA Affinity	GPU NUMA ID[0m
+GPU0	 X 	PHB	0-7	0		N/A
+GPU1	PHB	 X 	0-7	0		N/A
+
+Legend:
+
+  X    = Self
+  SYS  = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)
+  NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node
+  PHB  = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)
+  PXB  = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)
+  PIX  = Connection traversing at most a single PCIe bridge
+  NV#  = Connection traversing a bonded set of # NVLinks
+
+===== ENV HINTS =====
+

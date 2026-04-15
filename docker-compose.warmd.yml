@@ -1,0 +1,21 @@
+services:
+  spot-warmd:
+    image: python:3.11-slim
+    container_name: spot-warmd
+    working_dir: /srv/spot-core
+    volumes:
+      - ./spot-core:/srv/spot-core
+      - ./watch:/srv/watch
+      - /mnt/collective/fleet/spot-core/shared_memory:/srv/spot-core/shared_memory
+    environment:
+      SPOTCORE_CONFIG: /srv/spot-core/config/cluster_config.json
+      SPOTCORE_EXEC_HISTORY: /srv/spot-core/shared_memory/exec-history.jsonl
+      SPOTCORE_WARMD_STATE: /srv/spot-core/shared_memory/warmd-state.json
+      SPOTCORE_ROUTING_URL: http://spot-core:8787/routing
+      PYTHONUNBUFFERED: "1"
+    command: >
+      bash -lc "
+        pip install --no-cache-dir -r requirements.txt &&
+        python -m spotcore.warmd
+      "
+    restart: unless-stopped

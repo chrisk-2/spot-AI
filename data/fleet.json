@@ -1,0 +1,51 @@
+{
+  "spot-worker-01": {
+    "base_url": "http://192.168.10.10:11434",
+    "enabled": true,
+    "gpu_count": 1,
+    "name": "spot-worker-01",
+    "notes": null,
+    "primary_role": "general",
+    "role": "general",
+    "secondary_roles": [
+      "coding"
+    ]
+  },
+  "spot-worker-02": {
+    "base_url": "http://192.168.10.11:11434",
+    "enabled": true,
+    "gpu_count": 2,
+    "name": "spot-worker-02",
+    "notes": null,
+    "primary_role": "utility",
+    "role": "utility",
+    "secondary_roles": [
+      "general"
+    ]
+  },
+  "spot-worker-03": {
+    "base_url": "http://192.168.10.13:11434",
+    "enabled": true,
+    "gpu_count": 2,
+    "name": "spot-worker-03",
+    "notes": null,
+    "primary_role": "coding",
+    "role": "coding",
+    "secondary_roles": [
+      "heavy",
+      "general"
+    ]
+  },
+  "spot-worker-04": {
+    "base_url": "http://192.168.10.14:11434",
+    "enabled": true,
+    "gpu_count": 1,
+    "name": "spot-worker-04",
+    "notes": "TITAN Xp 12GB",
+    "primary_role": "heavy",
+    "role": "heavy",
+    "secondary_roles": [
+      "coding"
+    ]
+  }
+}

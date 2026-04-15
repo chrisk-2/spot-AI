@@ -1,0 +1,19 @@
+○ ollama.service - Ollama Service
+     Loaded: loaded (/etc/systemd/system/ollama.service; enabled; vendor preset: enabled)
+    Drop-In: /etc/systemd/system/ollama.service.d
+             └─override.conf
+     Active: inactive (dead) since Mon 2026-04-13 18:55:23 UTC; 14s ago
+    Process: 991 ExecStart=/usr/local/bin/ollama serve (code=exited, status=0/SUCCESS)
+   Main PID: 991 (code=exited, status=0/SUCCESS)
+        CPU: 24.210s
+
+Apr 13 18:51:17 spot-worker-01 ollama[991]: [GIN] 2026/04/13 - 18:51:17 | 200 |     215.214µs |   192.168.60.30 | GET      "/api/tags"
+Apr 13 18:51:17 spot-worker-01 ollama[991]: [GIN] 2026/04/13 - 18:51:17 | 200 |      229.04µs |   192.168.60.30 | GET      "/api/tags"
+Apr 13 18:51:20 spot-worker-01 ollama[991]: [GIN] 2026/04/13 - 18:51:20 | 200 |     266.551µs |   192.168.60.30 | GET      "/api/tags"
+Apr 13 18:51:20 spot-worker-01 ollama[991]: [GIN] 2026/04/13 - 18:51:20 | 200 |     222.298µs |   192.168.60.30 | GET      "/api/tags"
+Apr 13 18:54:17 spot-worker-01 ollama[991]: [GIN] 2026/04/13 - 18:54:17 | 200 |     257.663µs |   192.168.60.30 | GET      "/api/tags"
+Apr 13 18:54:17 spot-worker-01 ollama[991]: [GIN] 2026/04/13 - 18:54:17 | 200 |     168.186µs |   192.168.60.30 | GET      "/api/tags"
+Apr 13 18:55:23 spot-worker-01 systemd[1]: Stopping Ollama Service...
+Apr 13 18:55:23 spot-worker-01 systemd[1]: ollama.service: Deactivated successfully.
+Apr 13 18:55:23 spot-worker-01 systemd[1]: Stopped Ollama Service.
+Apr 13 18:55:23 spot-worker-01 systemd[1]: ollama.service: Consumed 24.210s CPU time.

@@ -1,0 +1,19 @@
+○ ollama.service - Ollama Service
+     Loaded: loaded (/etc/systemd/system/ollama.service; enabled; vendor preset: enabled)
+    Drop-In: /etc/systemd/system/ollama.service.d
+             └─override.conf
+     Active: inactive (dead) since Mon 2026-04-13 19:02:29 UTC; 4min 9s ago
+    Process: 13050 ExecStart=/usr/local/bin/ollama serve (code=exited, status=0/SUCCESS)
+   Main PID: 13050 (code=exited, status=0/SUCCESS)
+        CPU: 136ms
+
+Apr 13 19:02:02 spot-worker-01 ollama[13050]: time=2026-04-13T19:02:02.987Z level=INFO source=server.go:430 msg="starting runner" cmd="/usr/local/bin/ollama runner --ollama-engine --port 37213"
+Apr 13 19:02:03 spot-worker-01 ollama[13050]: time=2026-04-13T19:02:03.072Z level=INFO source=types.go:42 msg="inference compute" id=GPU-3fe10587-6253-1847-40c7-b1a5ba3c1a56 filter_id="" library=CUDA compute=8.6 name=CUDA0 description="NVIDIA GeForce RTX 3060" libdirs=ollama,cuda_v12 driver=12.2 pci_id=0000:01:00.0 type=discrete total="12.0 GiB" available="11.8 GiB"
+Apr 13 19:02:03 spot-worker-01 ollama[13050]: time=2026-04-13T19:02:03.072Z level=INFO source=routes.go:1832 msg="vram-based default context" total_vram="12.0 GiB" default_num_ctx=4096
+Apr 13 19:02:09 spot-worker-01 ollama[13050]: [GIN] 2026/04/13 - 19:02:09 | 200 |     440.817µs |   192.168.60.30 | GET      "/api/tags"
+Apr 13 19:02:09 spot-worker-01 ollama[13050]: [GIN] 2026/04/13 - 19:02:09 | 200 |      287.25µs |   192.168.60.30 | GET      "/api/tags"
+Apr 13 19:02:15 spot-worker-01 ollama[13050]: [GIN] 2026/04/13 - 19:02:15 | 200 |     287.199µs |   192.168.60.30 | GET      "/api/tags"
+Apr 13 19:02:15 spot-worker-01 ollama[13050]: [GIN] 2026/04/13 - 19:02:15 | 200 |     295.434µs |   192.168.60.30 | GET      "/api/tags"
+Apr 13 19:02:29 spot-worker-01 systemd[1]: Stopping Ollama Service...
+Apr 13 19:02:29 spot-worker-01 systemd[1]: ollama.service: Deactivated successfully.
+Apr 13 19:02:29 spot-worker-01 systemd[1]: Stopped Ollama Service.

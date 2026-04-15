@@ -1,0 +1,61 @@
+{
+  "w01-gpu0-rtx3060": {
+    "worker": "spot-worker-01",
+    "gpu_index": 0,
+    "model": "RTX 3060",
+    "vram_mb": 12288,
+    "role": "general",
+    "secondary_roles": ["coding"],
+    "enabled": true
+  },
+
+  "w02-gpu0-m4000": {
+    "worker": "spot-worker-02",
+    "gpu_index": 0,
+    "model": "Quadro M4000",
+    "vram_mb": 8192,
+    "role": "utility",
+    "secondary_roles": ["embeddings"],
+    "enabled": true
+  },
+
+  "w02-gpu1-gtx1060": {
+    "worker": "spot-worker-02",
+    "gpu_index": 1,
+    "model": "GTX 1060 6GB",
+    "vram_mb": 6144,
+    "role": "monitoring",
+    "secondary_roles": ["watchdog", "alerts"],
+    "enabled": true
+  },
+
+  "w03-gpu0-gtx1070": {
+    "worker": "spot-worker-03",
+    "gpu_index": 0,
+    "model": "GTX 1070",
+    "vram_mb": 8192,
+    "role": "overflow",
+    "secondary_roles": ["general"],
+    "enabled": true
+  },
+
+  "w03-gpu1-rtx3060": {
+    "worker": "spot-worker-03",
+    "gpu_index": 1,
+    "model": "RTX 3060",
+    "vram_mb": 12288,
+    "role": "coding",
+    "secondary_roles": ["heavy", "general"],
+    "enabled": true
+  },
+
+  "w04-gpu0-titanxp": {
+    "worker": "spot-worker-04",
+    "gpu_index": 0,
+    "model": "TITAN Xp",
+    "vram_mb": 12288,
+    "role": "heavy",
+    "secondary_roles": ["coding"],
+    "enabled": true
+  }
+}

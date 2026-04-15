@@ -1,0 +1,37 @@
+[2026-04-13T18:55:37Z] pre-backup for spot-worker-01
+[2026-04-13T18:55:37Z] restarting ollama on spot-worker-01
+[2026-04-13T18:55:37Z] restart succeeded on spot-worker-01
+[2026-04-13T18:59:24Z] pre-backup for spot-worker-01
+[2026-04-13T18:59:24Z] restarting ollama on spot-worker-01
+[2026-04-13T18:59:24Z] restart succeeded on spot-worker-01
+[2026-04-13T19:02:02Z] pre-backup for spot-worker-01
+[2026-04-13T19:02:02Z] restarting ollama on spot-worker-01
+[2026-04-13T19:02:02Z] restart succeeded on spot-worker-01
+[2026-04-13T19:02:40Z] cooldown active for spot-worker-01 — skipping
+[2026-04-13T19:02:58Z] cooldown active for spot-worker-01 — skipping
+[2026-04-13T19:03:06Z] cooldown active for spot-worker-01 — skipping
+[2026-04-13T19:06:38Z] pre-backup for spot-worker-01
+[2026-04-13T19:06:38Z] restarting ollama on spot-worker-01
+[2026-04-13T19:06:38Z] restart succeeded on spot-worker-01
+[2026-04-13T19:06:54Z] cooldown active for spot-worker-01 (884s remaining) — skipping
+[2026-04-13T19:07:08Z] cooldown active for spot-worker-01 (870s remaining) — skipping
+[2026-04-13T19:07:13Z] cooldown active for spot-worker-01 (865s remaining) — skipping
+[2026-04-13T19:07:17Z] cooldown active for spot-worker-01 (861s remaining) — skipping
+[2026-04-13T19:07:22Z] cooldown active for spot-worker-01 (856s remaining) — skipping
+[2026-04-13T19:08:05Z] cooldown active for spot-worker-01 (813s remaining) — skipping
+[2026-04-13T19:13:17Z] cooldown active for spot-worker-01 (501s remaining) — skipping
+[2026-04-13T19:19:17Z] cooldown active for spot-worker-01 (141s remaining) — skipping
+[2026-04-13T19:25:17Z] pre-backup for spot-worker-01
+[2026-04-13T19:25:17Z] restarting ollama on spot-worker-01
+[2026-04-13T19:25:17Z] restart succeeded on spot-worker-01
+[2026-04-13T19:36:17Z] cooldown active for spot-worker-01 (240s remaining) — skipping
+[2026-04-13T19:42:17Z] pre-backup for spot-worker-01
+[2026-04-13T19:42:17Z] restarting ollama on spot-worker-01
+[2026-04-13T19:42:17Z] restart succeeded on spot-worker-01
+[2026-04-13T20:36:16Z] pre-backup for spot-worker-01
+[2026-04-13T20:36:16Z] restarting ollama on spot-worker-01
+[2026-04-13T20:36:16Z] restart succeeded on spot-worker-01
+[2026-04-13T20:37:51Z] cooldown active for spot-worker-01 (805s remaining) — skipping
+[2026-04-13T20:40:17Z] cooldown active for spot-worker-01 (659s remaining) — skipping
+[2026-04-13T20:46:17Z] cooldown active for spot-worker-01 (299s remaining) — skipping
+[2026-04-13T20:47:57Z] cooldown active for spot-worker-01 (199s remaining) — skipping

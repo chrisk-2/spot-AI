@@ -1,0 +1,574 @@
+from __future__ import annotations
+
+import json
+import time
+from pathlib import Path
+from typing import Any
+
+import httpx
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+
+APP_START = time.time()
+
+DATA_PATH = Path("/app/data")
+FLEET_FILE = DATA_PATH / "fleet.json"
+SHARED_MEMORY_PATH = Path("/app/shared_memory")
+FLEET_STATUS_PATH = Path("/home/ogre/spot-stack/watch/state/fleet-status.json")
+
+DATA_PATH.mkdir(parents=True, exist_ok=True)
+
+if FLEET_FILE.exists():
+    with FLEET_FILE.open("r", encoding="utf-8") as f:
+        FLEET: dict[str, dict[str, Any]] = json.load(f)
+else:
+    FLEET: dict[str, dict[str, Any]] = {}
+
+app = FastAPI(title="spot-core", version="0.3.0")
+
+GPU_INVENTORY_PATH = Path("/app/config/gpu_inventory.json")
+
+
+def load_gpu_inventory():
+    try:
+        with open(GPU_INVENTORY_PATH, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def get_gpu_inventory_runtime():
+    return load_gpu_inventory()
+
+
+def load_fleet_status() -> dict[str, Any]:
+    try:
+        with open(FLEET_STATUS_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"hosts": {}}
+
+
+
+# ---------- models ----------
+
+class FleetNode(BaseModel):
+    name: str
+    role: str
+    base_url: str
+    primary_role: str | None = None
+    secondary_roles: list[str] = Field(default_factory=list)
+    gpu_count: int | None = None
+    enabled: bool = True
+    notes: str | None = None
+
+
+class ExecRequest(BaseModel):
+    prompt: str
+    role: str
+    model: str | None = None
+    system: str | None = None
+    stream: bool = False
+    temperature: float | None = None
+    num_predict: int | None = None
+    timeout_sec: int = 180
+    worker: str | None = None
+    auto_model: bool = True
+
+
+class ExecResult(BaseModel):
+    ok: bool
+    worker: str
+    worker_url: str
+    role_requested: str
+    model: str
+    response: str
+    raw: dict[str, Any]
+
+
+# ---------- helpers ----------
+
+def save_fleet() -> None:
+    with FLEET_FILE.open("w", encoding="utf-8") as f:
+        json.dump(FLEET, f, indent=2, sort_keys=True)
+
+
+def load_node(name: str) -> dict[str, Any]:
+    node = FLEET.get(name)
+    if not node:
+        raise HTTPException(status_code=404, detail=f"worker not found: {name}")
+    if not node.get("enabled", True):
+        raise HTTPException(status_code=503, detail=f"worker disabled: {name}")
+    return node
+
+
+def normalize_node(name: str, node: dict[str, Any]) -> dict[str, Any]:
+    role = node.get("role", "general")
+    primary_role = node.get("primary_role") or role
+    secondary_roles = node.get("secondary_roles") or []
+
+    return {
+        "name": name,
+        "role": role,
+        "primary_role": primary_role,
+        "secondary_roles": secondary_roles,
+        "base_url": str(node["base_url"]).rstrip("/"),
+        "gpu_count": node.get("gpu_count"),
+        "enabled": node.get("enabled", True),
+        "notes": node.get("notes"),
+    }
+
+
+def fleet_view() -> dict[str, dict[str, Any]]:
+    return {name: normalize_node(name, node) for name, node in FLEET.items()}
+
+
+def role_priority_map() -> dict[str, list[str]]:
+    return {
+        "general": [
+            "spot-worker-01",
+            "spot-worker-03",
+            "spot-worker-02",
+            "spot-worker-04",
+        ],
+        "utility": [
+            "spot-worker-02",
+            "spot-worker-01",
+            "spot-worker-03",
+            "spot-worker-04",
+        ],
+        "coding": [
+            "spot-worker-03",
+            "spot-worker-01",
+            "spot-worker-04",
+            "spot-worker-02",
+        ],
+        "heavy": [
+            "spot-worker-04",
+            "spot-worker-03",
+            "spot-worker-01",
+            "spot-worker-02",
+        ],
+    }
+
+
+def default_role_models() -> dict[str, list[str]]:
+    return {
+        "general": [
+            "llama3.1:8b",
+            "mistral:7b",
+            "qwen2.5:14b",
+        ],
+        "utility": [
+            "phi3.5:latest",
+            "bge-m3:latest",
+            "nomic-embed-text:latest",
+        ],
+        "coding": [
+            "qwen2.5-coder:7b",
+            "deepseek-coder:6.7b",
+            "codellama:7b",
+            "qwen2.5:14b",
+        ],
+        "heavy": [
+            "qwen2.5:14b",
+            "llama3.1:8b",
+            "mistral:7b",
+        ],
+    }
+
+
+def candidate_workers(role: str) -> list[dict[str, Any]]:
+    priorities = role_priority_map()
+    ordered_names = priorities.get(role, priorities["general"])
+
+    fleet_status = load_fleet_status().get("hosts", {})
+
+    def is_eligible(name: str) -> bool:
+        status = fleet_status.get(name, {})
+        return bool(status.get("eligible", False))
+
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for name in ordered_names:
+        node = FLEET.get(name)
+        if not node or not node.get("enabled", True):
+            continue
+        if not is_eligible(name):
+            continue
+        out.append(normalize_node(name, node))
+        seen.add(name)
+
+    for name, node in FLEET.items():
+        if name in seen or not node.get("enabled", True):
+            continue
+        if not is_eligible(name):
+            continue
+        out.append(normalize_node(name, node))
+
+    return out
+
+
+async def ping_worker(base_url: str, timeout_sec: int = 10) -> tuple[bool, str]:
+    test_url = f"{base_url.rstrip('/')}/api/tags"
+    try:
+        async with httpx.AsyncClient(timeout=timeout_sec) as client:
+            resp = await client.get(test_url)
+            if resp.status_code == 200:
+                return True, "ok"
+            return False, f"http {resp.status_code}"
+    except Exception as exc:
+        return False, str(exc)
+
+
+async def list_worker_models(base_url: str, timeout_sec: int = 20) -> list[str]:
+    url = f"{base_url.rstrip('/')}/api/tags"
+    async with httpx.AsyncClient(timeout=timeout_sec) as client:
+        resp = await client.get(url)
+
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "worker returned non-200 from /api/tags",
+                "worker_url": base_url,
+                "status_code": resp.status_code,
+                "body": resp.text,
+            },
+        )
+
+    data = resp.json()
+    return [m.get("name") for m in data.get("models", []) if m.get("name")]
+
+
+async def choose_worker_and_model(
+    role: str,
+    requested_model: str | None,
+    forced_worker: str | None = None,
+) -> tuple[dict[str, Any], str]:
+    preferred_models = default_role_models().get(role, default_role_models()["general"])
+
+    if requested_model:
+        preferred_models = [requested_model] + [m for m in preferred_models if m != requested_model]
+
+    if forced_worker:
+        node = normalize_node(forced_worker, load_node(forced_worker))
+        ok, reason = await ping_worker(node["base_url"])
+        if not ok:
+            raise HTTPException(
+                status_code=503,
+                detail=f"forced worker {forced_worker} is unavailable: {reason}",
+            )
+        installed = await list_worker_models(node["base_url"])
+        for model in preferred_models:
+            if model in installed:
+                return node, model
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "message": f"forced worker {forced_worker} does not have a usable model for role '{role}'",
+                "installed_models": installed,
+                "preferred_models": preferred_models,
+            },
+        )
+
+    candidates = candidate_workers(role)
+    if not candidates:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "message": "no eligible registered workers available",
+                "role": role,
+            },
+        )
+
+    failures: list[dict[str, Any]] = []
+    scored = []
+
+    for node in candidates:
+        name = node["name"]
+
+        ok, reason = await ping_worker(node["base_url"])
+        if not ok:
+            failures.append({
+                "worker": name,
+                "reason": reason,
+                "stage": "health",
+            })
+            continue
+
+        try:
+            installed = await list_worker_models(node["base_url"])
+        except Exception as exc:
+            failures.append({
+                "worker": name,
+                "reason": str(exc),
+                "stage": "inventory",
+            })
+            continue
+
+        for model in preferred_models:
+            if model not in installed:
+                continue
+
+            score = 0
+
+            if model == requested_model:
+                score += 100
+
+            if role == "heavy" and name == "spot-worker-04":
+                score += 80
+            elif role == "coding" and name == "spot-worker-03":
+                score += 80
+            elif role == "utility" and name == "spot-worker-02":
+                score += 80
+            elif role == "general" and name == "spot-worker-01":
+                score += 40
+
+            priority_list = role_priority_map().get(role, [])
+            if name in priority_list:
+                score += max(0, 50 - (priority_list.index(name) * 10))
+
+            gpu_count = node.get("gpu_count") or 0
+            score += gpu_count * 5
+
+            scored.append((score, node, model))
+
+    if scored:
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        print("SCHEDULER SCORES:")
+        for s, n, m in scored:
+            print(f"{n['name']} -> {m} = {s}")
+
+        best = scored[0]
+        return best[1], best[2]
+
+    raise HTTPException(
+        status_code=503,
+        detail={
+            "message": f"no healthy eligible workers with a valid model for role '{role}'",
+            "failures": failures,
+        },
+    )
+
+
+async def call_ollama_generate(
+    base_url: str,
+    req: ExecRequest,
+    model: str,
+) -> dict[str, Any]:
+    url = f"{base_url.rstrip('/')}/api/generate"
+
+    payload: dict[str, Any] = {
+        "model": model,
+        "prompt": req.prompt,
+        "stream": req.stream,
+    }
+
+    options: dict[str, Any] = {}
+    if req.temperature is not None:
+        options["temperature"] = req.temperature
+    if req.num_predict is not None:
+        options["num_predict"] = req.num_predict
+    if options:
+        payload["options"] = options
+
+    if req.system:
+        payload["system"] = req.system
+
+    async with httpx.AsyncClient(timeout=req.timeout_sec) as client:
+        resp = await client.post(url, json=payload)
+
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "worker returned non-200 from /api/generate",
+                "worker_url": base_url,
+                "status_code": resp.status_code,
+                "body": resp.text,
+            },
+        )
+
+    return resp.json()
+
+
+async def call_ollama_embed(
+    base_url: str,
+    req: ExecRequest,
+    model: str,
+) -> dict[str, Any]:
+    url = f"{base_url.rstrip('/')}/api/embed"
+    payload = {
+        "model": model,
+        "input": req.prompt,
+    }
+
+    async with httpx.AsyncClient(timeout=req.timeout_sec) as client:
+        resp = await client.post(url, json=payload)
+
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "worker returned non-200 from /api/embed",
+                "worker_url": base_url,
+                "status_code": resp.status_code,
+                "body": resp.text,
+            },
+        )
+
+    return resp.json()
+
+
+def append_exec_log(entry: dict[str, Any]) -> None:
+    SHARED_MEMORY_PATH.mkdir(parents=True, exist_ok=True)
+    log_file = SHARED_MEMORY_PATH / "exec-history.jsonl"
+    with log_file.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+# ---------- routes ----------
+
+@app.get("/gpu")
+def get_gpu_inventory():
+    return get_gpu_inventory_runtime()
+
+
+@app.get("/health")
+def health() -> dict[str, Any]:
+    return {"ok": True, "uptime_sec": int(time.time() - APP_START)}
+
+
+@app.get("/fleet")
+def get_fleet() -> dict[str, Any]:
+    return fleet_view()
+
+
+@app.get("/fleet/ping")
+async def fleet_ping() -> dict[str, Any]:
+    results: dict[str, Any] = {}
+    fleet_status = load_fleet_status().get("hosts", {})
+
+    for name, node in fleet_view().items():
+        ok, reason = await ping_worker(node["base_url"])
+        installed_models = []
+        if ok:
+            try:
+                installed_models = await list_worker_models(node["base_url"])
+            except Exception:
+                installed_models = []
+
+        status = fleet_status.get(name, {})
+        results[name] = {
+            "ok": ok,
+            "reason": reason,
+            "base_url": node["base_url"],
+            "primary_role": node["primary_role"],
+            "secondary_roles": node["secondary_roles"],
+            "gpu_count": node["gpu_count"],
+            "installed_models": installed_models,
+            "eligible": status.get("eligible", False),
+            "quarantined": status.get("quarantined", False),
+            "alerts": status.get("alerts", []),
+        }
+    return results
+
+
+@app.get("/routing")
+def routing() -> dict[str, Any]:
+    return {
+        "worker_priority": role_priority_map(),
+        "default_models": default_role_models(),
+    }
+
+
+@app.post("/fleet/register")
+def register(node: FleetNode) -> dict[str, Any]:
+    payload = node.model_dump()
+    if not payload.get("primary_role"):
+        payload["primary_role"] = payload["role"]
+    if payload.get("secondary_roles") is None:
+        payload["secondary_roles"] = []
+
+    FLEET[node.name] = payload
+    save_fleet()
+
+    return {
+        "ok": True,
+        "registered": node.name,
+        "fleet_size": len(FLEET),
+        "node": normalize_node(node.name, payload),
+    }
+
+
+@app.post("/fleet/remove/{name}")
+def remove_worker(name: str) -> dict[str, Any]:
+    if name not in FLEET:
+        raise HTTPException(status_code=404, detail=f"worker not found: {name}")
+    removed = FLEET.pop(name)
+    save_fleet()
+    return {"ok": True, "removed": name, "node": removed}
+
+
+@app.post("/fleet/disable/{name}")
+def disable_worker(name: str) -> dict[str, Any]:
+    if name not in FLEET:
+        raise HTTPException(status_code=404, detail=f"worker not found: {name}")
+    FLEET[name]["enabled"] = False
+    save_fleet()
+    return {"ok": True, "disabled": name, "node": normalize_node(name, FLEET[name])}
+
+
+@app.post("/fleet/enable/{name}")
+def enable_worker(name: str) -> dict[str, Any]:
+    if name not in FLEET:
+        raise HTTPException(status_code=404, detail=f"worker not found: {name}")
+    FLEET[name]["enabled"] = True
+    save_fleet()
+    return {"ok": True, "enabled": name, "node": normalize_node(name, FLEET[name])}
+
+
+@app.post("/exec", response_model=ExecResult)
+async def exec_route(req: ExecRequest) -> ExecResult:
+    node, chosen_model = await choose_worker_and_model(
+        role=req.role,
+        requested_model=req.model if not req.auto_model else req.model,
+        forced_worker=req.worker,
+    )
+
+    if req.role == "utility" and chosen_model in {"bge-m3:latest", "nomic-embed-text:latest"}:
+        data = await call_ollama_embed(node["base_url"], req, chosen_model)
+        response_text = f"Embedding request completed with model {chosen_model}. Vector count: {len(data.get('embeddings', []))}"
+    else:
+        data = await call_ollama_generate(node["base_url"], req, chosen_model)
+        response_text = data.get("response", "")
+
+    entry = {
+        "ts": int(time.time()),
+        "worker": node["name"],
+        "worker_url": node["base_url"],
+        "role_requested": req.role,
+        "model_requested": req.model,
+        "model_used": chosen_model,
+        "prompt_chars": len(req.prompt),
+        "response_chars": len(response_text),
+        "done": data.get("done"),
+        "total_duration": data.get("total_duration"),
+        "load_duration": data.get("load_duration"),
+        "prompt_eval_count": data.get("prompt_eval_count"),
+        "eval_count": data.get("eval_count"),
+    }
+    append_exec_log(entry)
+
+    return ExecResult(
+        ok=True,
+        worker=node["name"],
+        worker_url=node["base_url"],
+        role_requested=req.role,
+        model=chosen_model,
+        response=response_text,
+        raw=data,
+    )

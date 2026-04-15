@@ -1,0 +1,377 @@
+{
+  "health_policy": {
+    "blocking_alerts": [
+      "service_down",
+      "ssh_down",
+      "gpu_missing"
+    ]
+  },
+  "priority_order": [
+    "heavy",
+    "coding",
+    "general",
+    "utility",
+    "watcher"
+  ],
+  "role_priority": {
+    "heavy": [
+      "spot-worker-04",
+      "spot-worker-03",
+      "spot-worker-01",
+      "spot-worker-02"
+    ],
+    "coding": [
+      "spot-worker-03",
+      "spot-worker-01",
+      "spot-worker-04",
+      "spot-worker-02"
+    ],
+    "general": [
+      "spot-worker-01",
+      "spot-worker-04",
+      "spot-worker-03",
+      "spot-worker-02"
+    ],
+    "utility": [
+      "spot-worker-02",
+      "spot-worker-01",
+      "spot-worker-03",
+      "spot-worker-04"
+    ],
+    "watcher": [
+      "spot-worker-02",
+      "spot-worker-01",
+      "spot-worker-03",
+      "spot-worker-04"
+    ]
+  },
+  "queue_policy": {
+    "queue_wait_ms": 2500,
+    "queue_poll_ms": 200,
+    "burst_after_ms": 500,
+    "per_role": {
+      "heavy": {
+        "queue_wait_ms": 2500,
+        "queue_poll_ms": 200,
+        "burst_after_ms": 700
+      },
+      "coding": {
+        "queue_wait_ms": 1800,
+        "queue_poll_ms": 200,
+        "burst_after_ms": 600
+      },
+      "general": {
+        "queue_wait_ms": 1200,
+        "queue_poll_ms": 150,
+        "burst_after_ms": 300
+      },
+      "utility": {
+        "queue_wait_ms": 1000,
+        "queue_poll_ms": 150,
+        "burst_after_ms": 1200
+      },
+      "watcher": {
+        "queue_wait_ms": 500,
+        "queue_poll_ms": 100,
+        "burst_after_ms": 5000
+      }
+    }
+  },
+
+"warm_model_policy": {
+  "enabled": true,
+  "tick_seconds": 45,
+  "refresh_seconds": 240,
+  "keep_alive": "30m",
+  "warm_seconds": 3600,
+  "evict_enabled": true,
+  "history_lines": 500,
+  "max_recent_targets": 4,
+  "recent_roles": [
+    "coding",
+    "heavy",
+    "general"
+  ],
+  "targets": [
+    {
+      "worker": "spot-worker-03",
+      "model": "qwen2.5-coder:7b",
+      "reason": "codex_primary"
+    },
+    {
+      "worker": "spot-worker-04",
+      "model": "qwen2.5:14b",
+      "reason": "heavy_primary"
+    },
+    {
+      "worker": "spot-worker-01",
+      "model": "llama3.1:8b",
+      "reason": "general_fallback"
+    }
+  ]
+},
+  "penalty_policy": {
+    "cooldown_sec": 120,
+    "quarantine_after_failures": 3,
+    "quarantine_window_sec": 600,
+    "quarantine_sec": 1800
+  },
+  "score_weights": {
+    "role_rank_bonus": 30,
+    "gpu_free_ratio_bonus": 200,
+    "load_penalty": 18,
+    "worker_active_penalty": 25,
+    "lane_active_penalty": 45,
+    "model_active_penalty": 60,
+    "warm_model_bonus": 80,
+    "latency_bonus": 8,
+    "burst_penalty": 125,
+    "penalty_box_penalty": 500
+  },
+
+    "retry_policy": {
+      "same_worker_retries": 1,
+      "alternate_worker_retries": 2,
+      "retryable_errors": [
+        "ConnectError",
+        "ReadTimeout",
+        "RemoteProtocolError",
+        "HTTPStatusError"
+      ]
+    },
+
+  "workers": {
+    "spot-worker-01": {
+      "base_url": "http://192.168.10.10:11434",
+      "primary_role": "general",
+      "secondary_roles": [
+        "heavy",
+        "coding"
+      ],
+      "max_total": 1,
+      "class_limits": {
+        "general": 1,
+        "heavy": 1,
+        "coding": 1,
+        "utility": 0,
+        "watcher": 0
+      },
+      "installed_models": [
+        "mistral:7b",
+        "llama3.1:8b",
+        "qwen2.5:14b"
+      ],
+      "gpu_routes": {
+        "gpu0": {
+          "label": "RTX 3060 12GB",
+          "max_total": 1,
+          "classes": [
+            "general",
+            "heavy",
+            "coding"
+          ],
+          "model_limits": {
+            "llama3.1:8b": 1,
+            "mistral:7b": 1,
+            "qwen2.5:14b": 1
+          },
+          "model_preferences": {
+            "general": [
+              "llama3.1:8b",
+              "mistral:7b"
+            ],
+            "coding": [
+              "llama3.1:8b"
+            ],
+            "heavy": [
+              "qwen2.5:14b"
+            ]
+          }
+        }
+      },
+      "burst_gpu_routes": {}
+    },
+    "spot-worker-02": {
+      "base_url": "http://192.168.10.11:11434",
+      "primary_role": "utility",
+      "secondary_roles": [
+        "watcher"
+      ],
+      "max_total": 2,
+      "class_limits": {
+        "general": 0,
+        "heavy": 0,
+        "coding": 0,
+        "utility": 2,
+        "watcher": 1
+      },
+      "installed_models": [
+        "bge-m3:latest",
+        "nomic-embed-text:latest",
+        "phi3.5:latest"
+      ],
+      "gpu_routes": {
+        "gpu0": {
+          "label": "Quadro M4000 8GB",
+          "max_total": 1,
+          "classes": [
+            "utility"
+          ],
+          "model_limits": {
+            "bge-m3:latest": 1,
+            "nomic-embed-text:latest": 1,
+            "phi3.5:latest": 1
+          },
+          "model_preferences": {
+            "utility": [
+              "bge-m3:latest",
+              "nomic-embed-text:latest",
+              "phi3.5:latest"
+            ]
+          }
+        },
+        "gpu1": {
+          "label": "GTX 1060 6GB",
+          "max_total": 1,
+          "classes": [
+            "watcher",
+            "utility"
+          ],
+          "model_limits": {
+            "phi3.5:latest": 1,
+            "nomic-embed-text:latest": 1
+          },
+          "model_preferences": {
+            "watcher": [
+              "phi3.5:latest"
+            ],
+            "utility": [
+              "phi3.5:latest",
+              "nomic-embed-text:latest"
+            ]
+          }
+        }
+      },
+      "burst_gpu_routes": {}
+    },
+    "spot-worker-03": {
+      "base_url": "http://192.168.10.13:11434",
+      "primary_role": "coding",
+      "secondary_roles": [
+        "heavy",
+        "general"
+      ],
+      "max_total": 2,
+      "class_limits": {
+        "general": 1,
+        "heavy": 1,
+        "coding": 2,
+        "utility": 0,
+        "watcher": 0
+      },
+      "installed_models": [
+        "qwen2.5:14b",
+        "qwen2.5-coder:7b",
+        "codellama:7b",
+        "deepseek-coder:6.7b"
+      ],
+      "gpu_routes": {
+        "gpu0": {
+          "label": "GTX 1070 8GB",
+          "max_total": 1,
+          "classes": [
+            "coding",
+            "general"
+          ],
+          "model_limits": {
+            "qwen2.5-coder:7b": 1,
+            "codellama:7b": 1,
+            "deepseek-coder:6.7b": 1
+          },
+          "model_preferences": {
+            "coding": [
+              "qwen2.5-coder:7b",
+              "deepseek-coder:6.7b",
+              "codellama:7b"
+            ],
+            "general": [
+              "qwen2.5-coder:7b",
+              "codellama:7b"
+            ]
+          }
+        },
+        "gpu1": {
+          "label": "RTX 3060 12GB",
+          "max_total": 1,
+          "classes": [
+            "heavy",
+            "coding",
+            "general"
+          ],
+          "model_limits": {
+            "qwen2.5:14b": 1,
+            "qwen2.5-coder:7b": 1
+          },
+          "model_preferences": {
+            "heavy": [
+              "qwen2.5:14b"
+            ],
+            "coding": [
+              "qwen2.5-coder:7b"
+            ],
+            "general": [
+              "qwen2.5-coder:7b"
+            ]
+          }
+        }
+      },
+      "burst_gpu_routes": {
+        "gpu1": {
+          "classes": [
+            "coding"
+          ]
+        }
+      }
+    },
+    "spot-worker-04": {
+      "base_url": "http://192.168.10.14:11434",
+      "primary_role": "heavy",
+      "secondary_roles": [
+        "general"
+      ],
+      "max_total": 1,
+      "class_limits": {
+        "general": 1,
+        "heavy": 1,
+        "coding": 0,
+        "utility": 0,
+        "watcher": 0
+      },
+      "installed_models": [
+        "qwen2.5:14b"
+      ],
+      "gpu_routes": {
+        "gpu0": {
+          "label": "TITAN Xp 12GB",
+          "max_total": 1,
+          "classes": [
+            "heavy",
+            "general"
+          ],
+          "model_limits": {
+            "qwen2.5:14b": 1
+          },
+          "model_preferences": {
+            "heavy": [
+              "qwen2.5:14b"
+            ],
+            "general": [
+              "qwen2.5:14b"
+            ]
+          }
+        }
+      },
+      "burst_gpu_routes": {}
+    }
+  }
+}

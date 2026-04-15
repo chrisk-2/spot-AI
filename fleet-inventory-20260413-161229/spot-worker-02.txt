@@ -1,0 +1,204 @@
+===== BASIC =====
+Mon Apr 13 04:12:41 PM UTC 2026
+ Static hostname: spot-worker-02
+       Icon name: computer-desktop
+         Chassis: desktop 🖥️
+      Machine ID: 37d567f2cd41412e90a2f8a5edcd06b5
+         Boot ID: 74c8eacaaeba4166962e0bb95562ba3f
+Operating System: Ubuntu 24.04.4 LTS
+          Kernel: Linux 6.8.0-107-generic
+    Architecture: x86-64
+ Hardware Vendor: Dell Inc.
+  Hardware Model: Precision T3610
+Firmware Version: A07
+   Firmware Date: Tue 2014-04-29
+    Firmware Age: 11y 11month 2w 1d
+
+===== HOSTNAME =====
+spot-worker-02
+
+===== OS =====
+PRETTY_NAME="Ubuntu 24.04.4 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.4 LTS (Noble Numbat)"
+VERSION_CODENAME=noble
+ID=ubuntu
+ID_LIKE=debian
+HOME_URL="https://www.ubuntu.com/"
+SUPPORT_URL="https://help.ubuntu.com/"
+BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+UBUNTU_CODENAME=noble
+LOGO=ubuntu-logo
+
+===== KERNEL =====
+Linux spot-worker-02 6.8.0-107-generic #107-Ubuntu SMP PREEMPT_DYNAMIC Fri Mar 13 19:51:50 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+
+===== UPTIME =====
+ 16:12:41 up  1:07,  2 users,  load average: 0.00, 0.01, 0.00
+
+===== CPU =====
+Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           46 bits physical, 48 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  8
+On-line CPU(s) list:                     0-7
+Vendor ID:                               GenuineIntel
+Model name:                              Intel(R) Xeon(R) CPU E5-1620 v2 @ 3.70GHz
+CPU family:                              6
+Model:                                   62
+Thread(s) per core:                      2
+Core(s) per socket:                      4
+Socket(s):                               1
+Stepping:                                4
+CPU(s) scaling MHz:                      91%
+CPU max MHz:                             3900.0000
+CPU min MHz:                             1200.0000
+BogoMIPS:                                7381.84
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm cpuid_fault epb pti ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid fsgsbase smep erms xsaveopt dtherm ida arat pln pts vnmi md_clear flush_l1d ibpb_exit_to_user
+Virtualization:                          VT-x
+L1d cache:                               128 KiB (4 instances)
+L1i cache:                               128 KiB (4 instances)
+L2 cache:                                1 MiB (4 instances)
+L3 cache:                                10 MiB (1 instance)
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-7
+Vulnerability Gather data sampling:      Not affected
+Vulnerability Indirect target selection: Not affected
+Vulnerability Itlb multihit:             KVM: Mitigation: VMX disabled
+Vulnerability L1tf:                      Mitigation; PTE Inversion; VMX conditional cache flushes, SMT vulnerable
+Vulnerability Mds:                       Mitigation; Clear CPU buffers; SMT vulnerable
+Vulnerability Meltdown:                  Mitigation; PTI
+Vulnerability Mmio stale data:           Unknown: No mitigations
+Vulnerability Reg file data sampling:    Not affected
+Vulnerability Retbleed:                  Not affected
+Vulnerability Spec rstack overflow:      Not affected
+Vulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:                Mitigation; Retpolines; IBPB conditional; IBRS_FW; STIBP conditional; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected
+Vulnerability Srbds:                     Not affected
+
+===== RAM =====
+               total        used        free      shared  buff/cache   available
+Mem:            31Gi       907Mi        30Gi       1.7Mi       705Mi        30Gi
+Swap:          8.0Gi          0B       8.0Gi
+
+MemTotal:       32809356 kB
+MemFree:        31553112 kB
+MemAvailable:   31879904 kB
+SwapTotal:       8388604 kB
+SwapFree:        8388604 kB
+
+===== STORAGE =====
+NAME                        SIZE FSTYPE      MOUNTPOINT        MODEL
+loop0                      66.8M squashfs    /snap/core24/1499 
+loop1                     151.4M squashfs    /snap/docker/3377 
+loop2                      66.8M squashfs    /snap/core24/1587 
+loop3                      48.1M squashfs    /snap/snapd/25935 
+loop4                      48.4M squashfs    /snap/snapd/26382 
+sda                       931.5G                               ST1000DM003-1SB1
+├─sda1                      260M vfat                          
+├─sda2                       16M                               
+├─sda3                    930.3G ntfs                          
+└─sda4                     1000M ntfs                          
+sdb                       238.5G                               SAMSUNG MZ7TY256
+├─sdb1                        1G vfat        /boot/efi         
+├─sdb2                        2G ext4        /boot             
+└─sdb3                    235.4G LVM2_member                   
+  └─ubuntu--vg-ubuntu--lv   100G ext4        /                 
+sdc                           0B                               Compact Flash
+sdd                           0B                               SM/xD-Picture
+sde                           0B                               SD/MMC
+sdf                           0B                               M.S./M.S.Pro/HG
+sr0                        1024M                               PLDS DVD+/-RW DS-8ABSH
+
+Filesystem                         Size  Used Avail Use% Mounted on
+tmpfs                              3.2G  1.7M  3.2G   1% /run
+efivarfs                           128K   78K   46K  63% /sys/firmware/efi/efivars
+/dev/mapper/ubuntu--vg-ubuntu--lv   98G   56G   38G  60% /
+tmpfs                               16G     0   16G   0% /dev/shm
+tmpfs                              5.0M     0  5.0M   0% /run/lock
+/dev/sdb2                          2.0G  201M  1.6G  11% /boot
+/dev/sdb1                          1.1G  6.2M  1.1G   1% /boot/efi
+192.168.50.10:/volume1/docker      2.7T   13G  2.6T   1% /mnt/collective
+tmpfs                              3.2G   20K  3.2G   1% /run/user/1000
+
+===== PCI GPU DEVICES =====
+02:00.0 VGA compatible controller: NVIDIA Corporation GM204GL [Quadro M4000] (rev a1)
+02:00.1 Audio device: NVIDIA Corporation GM204 High Definition Audio Controller (rev a1)
+03:00.0 VGA compatible controller: NVIDIA Corporation GP106 [GeForce GTX 1060 6GB] (rev a1)
+03:00.1 Audio device: NVIDIA Corporation GP106 High Definition Audio Controller (rev a1)
+
+===== NVIDIA-SMI GPU SUMMARY =====
+Mon Apr 13 16:12:41 2026       
++---------------------------------------------------------------------------------------+
+| NVIDIA-SMI 535.288.01             Driver Version: 535.288.01   CUDA Version: 12.2     |
+|-----------------------------------------+----------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
+|                                         |                      |               MIG M. |
+|=========================================+======================+======================|
+|   0  Quadro M4000                   Off | 00000000:02:00.0 Off |                  N/A |
+| 46%   39C    P8              12W / 120W |      1MiB /  8192MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+|   1  NVIDIA GeForce GTX 1060 6GB    Off | 00000000:03:00.0 Off |                  N/A |
+|  0%   41C    P8               5W / 120W |      2MiB /  6144MiB |      0%      Default |
+|                                         |                      |                  N/A |
++-----------------------------------------+----------------------+----------------------+
+                                                                                         
++---------------------------------------------------------------------------------------+
+| Processes:                                                                            |
+|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
+|        ID   ID                                                             Usage      |
+|=======================================================================================|
+|  No running processes found                                                           |
++---------------------------------------------------------------------------------------+
+
+===== NVIDIA-SMI DETAILED =====
+0, Quadro M4000, GPU-df37cf4b-9f71-6aa8-43b7-ab55693fdef1, 8192, 1, 8119, 39, 12.41, 0, 1, 16
+1, NVIDIA GeForce GTX 1060 6GB, GPU-4ec68a12-f832-487e-9e8b-531d3de4795b, 6144, 2, 6070, 41, 6.05, 0, 1, 16
+
+===== GPU PROCESSES =====
+# gpu         pid  type    sm    mem    enc    dec    command
+# Idx           #   C/G     %      %      %      %    name
+    0          -     -      -      -      -      -    -              
+    1          -     -      -      -      -      -    -              
+
+===== NETWORK ADDRESSES =====
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+enp0s25          UP             192.168.10.11/24 metric 100 fe80::3617:ebff:fea6:8373/64 
+
+===== ROUTES =====
+default via 192.168.10.1 dev enp0s25 proto dhcp src 192.168.10.11 metric 100 
+192.168.10.0/24 dev enp0s25 proto kernel scope link src 192.168.10.11 metric 100 
+192.168.10.1 dev enp0s25 proto dhcp scope link src 192.168.10.11 metric 100 
+
+===== DNS =====
+nameserver 1.1.1.1
+
+===== OLLAMA VERSION =====
+ollama version is 0.18.2
+
+===== OLLAMA MODELS =====
+NAME                       ID              SIZE      MODIFIED    
+bge-m3:latest              790764642607    1.2 GB    3 weeks ago    
+mistral:7b                 6577803aa9a0    4.4 GB    3 weeks ago    
+nomic-embed-text:latest    0a109f422b47    274 MB    3 weeks ago    
+gemma3:4b                  a2af6cc3eb7f    3.3 GB    3 weeks ago    
+phi3.5:latest              61819fb370a3    2.2 GB    3 weeks ago    
+llama3.1:8b                46e0c10c039e    4.9 GB    3 weeks ago    
+
+===== DOCKER =====
+
+===== IMPORTANT SERVICES =====
+  nvidia-persistenced.service loaded active running NVIDIA Persistence Daemon
+  ollama.service              loaded active running Ollama Service
+  ssh.service                 loaded active running OpenBSD Secure Shell server
+
+===== MOUNTS =====
+systemd-1 on /mnt/collective type autofs (rw,relatime,fd=64,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=6331)
+192.168.50.10:/volume1/docker on /mnt/collective type nfs4 (rw,noatime,vers=4.0,rsize=131072,wsize=131072,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.10.11,local_lock=none,addr=192.168.50.10,_netdev)
+

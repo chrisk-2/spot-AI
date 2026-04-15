@@ -1,0 +1,23 @@
+services:
+  spot-core:
+    image: python:3.11-slim
+    container_name: spot-core
+    working_dir: /srv/spot-core
+    volumes:
+      - ./spot-core:/srv/spot-core
+      - ./watch:/srv/watch
+      - /mnt/collective/fleet/spot-core/shared_memory:/srv/spot-core/shared_memory
+    environment:
+      SPOTCORE_CONFIG: /srv/spot-core/config/cluster_config.json
+      SPOTCORE_WATCH_STATE: /srv/watch/state/fleet-status.json
+      SPOTCORE_EXEC_HISTORY: /srv/spot-core/shared_memory/exec-history.jsonl
+      SPOTCORE_DECISION_LOG: /srv/spot-core/shared_memory/decision-history.jsonl
+      PYTHONUNBUFFERED: "1"
+    command: >
+      bash -lc "
+        pip install --no-cache-dir -r requirements.txt &&
+        uvicorn spotcore.app:app --host 0.0.0.0 --port 8787
+      "
+    ports:
+      - "8787:8787"
+    restart: unless-stopped
