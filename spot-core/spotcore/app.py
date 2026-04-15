@@ -494,14 +494,7 @@ def gather_candidates(cfg: dict[str, Any], req: ExecRequest, use_burst: bool) ->
             for model in models:
                 if model not in installed:
                     continue
-                lane_ok, lane_reason = lane_admission_allowed(
-                    cfg,
-                    worker_name,
-                    gpu_lane,
-                    req.role,
-                    model,
-                    use_burst,
-                )
+                lane_ok, lane_reason = lane_admission_allowed(cfg, worker_name, gpu_lane, req.role, model, use_burst)
                 if not lane_ok:
                     failures.append(
                         {
@@ -588,6 +581,18 @@ def is_embed_request(role: str, model: str) -> bool:
     return role == "utility" and any(token in model for token in ["embed", "bge-"])
 
 
+def request_to_dict(req: ExecRequest) -> dict[str, Any]:
+    if hasattr(req, "model_dump"):
+        return req.model_dump()
+    return req.dict()
+
+
+def clone_request(req: ExecRequest, **updates: Any) -> ExecRequest:
+    data = request_to_dict(req)
+    data.update(updates)
+    return ExecRequest(**data)
+
+
 def record_retry_event(events: list[dict[str, Any]], chosen: dict[str, Any], exc: Exception, phase: str, attempt: int) -> None:
     events.append(
         {
@@ -605,24 +610,63 @@ def record_retry_event(events: list[dict[str, Any]], chosen: dict[str, Any], exc
     )
 
 
+def record_retry_note(events: list[dict[str, Any]], chosen: dict[str, Any], phase: str, note: str) -> None:
+    events.append(
+        {
+            "ts": _now(),
+            "phase": phase,
+            "worker": chosen["worker"],
+            "worker_url": chosen["worker_url"],
+            "gpu_lane": chosen["gpu_lane"],
+            "gpu_label": chosen["gpu_label"],
+            "model": chosen["model"],
+            "note": note,
+        }
+    )
+
+
+def should_skip_same_worker_retry(cfg: dict[str, Any], worker_name: str, exc: Exception) -> tuple[bool, str]:
+    status = worker_status(worker_name)
+    if status.get("quarantined") is True:
+        return True, "watch_quarantined"
+    if status.get("ssh_ok") is False:
+        return True, "watch_ssh_down"
+    if status.get("service_ok") is False:
+        return True, "watch_service_down"
+    if isinstance(exc, httpx.ConnectError):
+        return True, "connect_error"
+    return False, ""
+
+
 async def claim_alternate_candidate(
     cfg: dict[str, Any],
     req: ExecRequest,
     excluded_workers: set[str],
+    preferred_model: str | None = None,
 ) -> dict[str, Any] | None:
     if req.worker:
         return None
 
-    normal_scored, _ = gather_candidates(cfg, req, False)
-    for _, candidate in normal_scored:
-        if candidate["worker"] not in excluded_workers:
-            return candidate
+    candidate_requests: list[ExecRequest] = []
 
-    if req.allow_burst:
-        burst_scored, _ = gather_candidates(cfg, req, True)
-        for _, candidate in burst_scored:
+    # First try to keep the same model across alternates.
+    if preferred_model:
+        candidate_requests.append(clone_request(req, model=preferred_model, allow_fallback=False))
+
+    # Then fall back to the normal request behavior.
+    candidate_requests.append(req)
+
+    for candidate_req in candidate_requests:
+        normal_scored, _ = gather_candidates(cfg, candidate_req, False)
+        for _, candidate in normal_scored:
             if candidate["worker"] not in excluded_workers:
                 return candidate
+
+        if candidate_req.allow_burst:
+            burst_scored, _ = gather_candidates(cfg, candidate_req, True)
+            for _, candidate in burst_scored:
+                if candidate["worker"] not in excluded_workers:
+                    return candidate
 
     return None
 
@@ -655,9 +699,9 @@ async def call_generate_with_retry(
     current_choice = dict(chosen)
     retry_events: list[dict[str, Any]] = []
     attempted_workers = {current_choice["worker"]}
+    preferred_model = current_choice["model"]
     last_exc: Exception | None = None
 
-    # First worker: initial attempt + configured same-worker retries.
     for attempt in range(same_worker_retries + 1):
         try:
             data = await call_generate(current_choice["worker_url"], req, current_choice["model"])
@@ -673,15 +717,25 @@ async def call_generate_with_retry(
             if attempt >= same_worker_retries:
                 break
 
-    # Alternate workers: try up to N alternate workers one time each.
+            skip_retry, reason = should_skip_same_worker_retry(cfg, current_choice["worker"], exc)
+            if skip_retry:
+                record_retry_note(retry_events, current_choice, "same_worker_skip", reason)
+                break
+
     for alt_attempt in range(alternate_worker_retries):
-        next_choice = await claim_alternate_candidate(cfg, req, attempted_workers)
+        next_choice = await claim_alternate_candidate(
+            cfg,
+            req,
+            attempted_workers,
+            preferred_model=preferred_model,
+        )
         if not next_choice:
             break
 
         await switch_active_allocation(current_choice, next_choice)
         current_choice = dict(next_choice)
         attempted_workers.add(current_choice["worker"])
+        record_retry_note(retry_events, current_choice, "alternate_claim", f"claimed alternate worker #{alt_attempt + 1}")
 
         try:
             data = await call_generate(current_choice["worker_url"], req, current_choice["model"])
@@ -710,7 +764,7 @@ async def call_embed(worker_url: str, req: ExecRequest, model: str) -> dict[str,
         return resp.json()
 
 
-app = FastAPI(title="Spot Core Control Plane", version="final-v3-retry-wired")
+app = FastAPI(title="Spot Core Control Plane", version="final-v4-smart-fallback")
 
 
 @app.on_event("startup")
