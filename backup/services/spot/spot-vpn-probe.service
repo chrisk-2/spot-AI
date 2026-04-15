@@ -1,0 +1,10 @@
+[Unit]
+Description=Spot VPN Probe (WireGuard)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/spot/tools/vpn_probe.sh
+User=root
+Group=root

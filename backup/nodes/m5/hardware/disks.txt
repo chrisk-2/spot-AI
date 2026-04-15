@@ -1,0 +1,20 @@
+NAME                        SIZE TYPE FSTYPE      MOUNTPOINT        MODEL                  SERIAL
+loop0                      66.9M loop squashfs    /snap/core24/1349                        
+loop1                      66.8M loop squashfs    /snap/core24/1499                        
+loop2                      48.1M loop squashfs    /snap/snapd/25935                        
+loop3                     151.4M loop squashfs    /snap/docker/3377                        
+sda                       931.5G disk                               ST1000DM003-1SB1       Z9ABY6H1
+├─sda1                      260M part vfat                                                 
+├─sda2                       16M part                                                      
+├─sda3                    930.3G part ntfs                                                 
+└─sda4                     1000M part ntfs                                                 
+sdb                       238.5G disk                               SAMSUNG MZ7TY256       S307NB0J233401
+├─sdb1                        1G part vfat        /boot/efi                                
+├─sdb2                        2G part ext4        /boot                                    
+└─sdb3                    235.4G part LVM2_member                                          
+  └─ubuntu--vg-ubuntu--lv   100G lvm  ext4        /                                        
+sdc                           0B disk                               Compact Flash          20100818841300000
+sdd                           0B disk                               SM/xD-Picture          20100818841300000
+sde                           0B disk                               SD/MMC                 20100818841300000
+sdf                           0B disk                               M.S./M.S.Pro/HG        20100818841300000
+sr0                        1024M rom                                PLDS DVD+/-RW DS-8ABSH 9F42J7363943452AIA00

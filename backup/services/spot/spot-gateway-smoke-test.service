@@ -1,0 +1,6 @@
+[Unit]
+Description=Spot Gateway smoke test
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/spot-gateway-smoke-test

@@ -1,0 +1,4 @@
+NAME          SIZE TYPE FSTYPE MOUNTPOINT MODEL                     SERIAL
+nvme0n1     476.9G disk                   BC511 NVMe SK hynix 512GB CY06N082612106N3X
+├─nvme0n1p1     1G part vfat   /boot/efi                            
+└─nvme0n1p2 475.9G part ext4   /                                    

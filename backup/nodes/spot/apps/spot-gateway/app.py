@@ -1,0 +1,482 @@
+from __future__ import annotations
+
+import json
+import math
+import os
+import time
+from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional, Tuple
+
+import requests
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+
+APP = FastAPI(title="Spot Gateway", version="2.0-routing")
+
+REQUEST_TIMEOUT_SEC = float(os.getenv("REQUEST_TIMEOUT_SEC", "5"))
+WORKER_TIMEOUT_SEC = float(os.getenv("WORKER_TIMEOUT_SEC", "900"))
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama3.1:8b")
+
+# Override with JSON in env if you already have your own inventory source.
+WORKERS_JSON = os.getenv(
+    "STARFLEET_WORKERS_JSON",
+    json.dumps(
+        {
+            "spot_exec": {
+                "name": "spot_exec",
+                "node": "spot",
+                "role": "general",
+                "class": "exec",
+                "gpu": 0,
+                "gpu_name": "NVIDIA GeForce RTX 3060",
+                "vram_mb": 12288,
+                "url": "http://127.0.0.1:8787",
+                "labels": ["llm", "heavy", "general", "14b"],
+            },
+            "daystrom_exec": {
+                "name": "daystrom_exec",
+                "node": "daystrom",
+                "role": "coder",
+                "class": "exec",
+                "gpu": 0,
+                "gpu_name": "NVIDIA GeForce RTX 3060",
+                "vram_mb": 12288,
+                "url": "http://192.168.10.13:8782",
+                "labels": ["llm", "heavy", "code"],
+            },
+            "m5_exec": {
+                "name": "m5_exec",
+                "node": "m5",
+                "role": "utility",
+                "class": "exec",
+                "gpu": 0,
+                "gpu_name": "Quadro M4000",
+                "vram_mb": 8192,
+                "url": "http://192.168.10.11:8789",
+                "labels": ["embedding", "utility", "background"],
+            },
+            "m5_watch": {
+                "name": "m5_watch",
+                "node": "m5",
+                "role": "watch",
+                "class": "watch",
+                "gpu": 1,
+                "gpu_name": "NVIDIA GeForce GTX 1060 6GB",
+                "vram_mb": 6144,
+                "url": "http://192.168.10.11:8791",
+                "labels": ["watch", "monitoring", "heartbeat"],
+            },
+            "daystrom_watch": {
+                "name": "daystrom_watch",
+                "node": "daystrom",
+                "role": "watch",
+                "class": "watch",
+                "gpu": 1,
+                "gpu_name": "NVIDIA GeForce GTX 1070",
+                "vram_mb": 8192,
+                "url": "http://192.168.10.13:8783",
+                "labels": ["watch", "monitoring"],
+            },
+        }
+    ),
+)
+WORKERS: Dict[str, Dict[str, Any]] = json.loads(WORKERS_JSON)
+
+# Rough planning values. These do not need to be perfect; they need to stop dumb dispatches.
+MODEL_REQUIREMENTS: Dict[str, Dict[str, Any]] = {
+    "qwen2.5:14b": {"min_vram_mb": 9000, "job_class": "llm_heavy", "preferred_roles": ["general", "coder"], "preferred_workers": ["spot_exec"], "forbid_workers": ["m5_exec", "m5_watch", "daystrom_watch"]},
+    "llama3.1:8b": {"min_vram_mb": 5000, "job_class": "llm_general", "preferred_roles": ["general", "coder", "utility"], "preferred_workers": ["spot_exec"], "forbid_workers": ["m5_watch", "daystrom_watch"]},
+    "mistral:7b": {"min_vram_mb": 4500, "job_class": "llm_general", "preferred_roles": ["general", "coder", "utility"], "preferred_workers": ["spot_exec", "daystrom_exec", "m5_exec"], "forbid_workers": ["m5_watch", "daystrom_watch"]},
+    "deepseek-coder:6.7b": {"min_vram_mb": 4500, "job_class": "code", "preferred_roles": ["coder", "general"], "preferred_workers": ["daystrom_exec", "spot_exec"], "forbid_workers": ["m5_watch", "daystrom_watch"]},
+    "codellama:7b": {"min_vram_mb": 5000, "job_class": "code", "preferred_roles": ["coder", "general"], "preferred_workers": ["daystrom_exec", "spot_exec"], "forbid_workers": ["m5_watch", "daystrom_watch"]},
+    "nomic-embed-text:latest": {"min_vram_mb": 1500, "job_class": "embedding", "preferred_roles": ["utility"], "preferred_workers": ["m5_exec"], "forbid_workers": ["m5_watch", "daystrom_watch"]},
+}
+
+JOB_CLASS_ROLE_PREFS: Dict[str, List[str]] = {
+    "llm_heavy": ["general", "coder"],
+    "llm_general": ["general", "coder", "utility"],
+    "code": ["coder", "general"],
+    "embedding": ["utility"],
+    "background": ["utility"],
+    "watch": ["watch"],
+}
+
+ROLE_SCORE_BONUS = {
+    "general": 35,
+    "coder": 35,
+    "utility": 20,
+    "watch": 10,
+}
+
+JOB_ROLE_SCORE_BONUS = {
+    "llm_heavy": {"general": 35, "coder": 25, "utility": -10, "watch": -100},
+    "llm_general": {"general": 30, "coder": 20, "utility": 10, "watch": -100},
+    "code": {"coder": 40, "general": 15, "utility": -10, "watch": -100},
+    "embedding": {"utility": 45, "general": -20, "coder": -20, "watch": -100},
+    "background": {"utility": 25, "general": 5, "coder": 0, "watch": -100},
+    "watch": {"watch": 50, "utility": 0, "general": -100, "coder": -100},
+}
+
+
+class RunLLMRequest(BaseModel):
+    prompt: str
+    model: str = DEFAULT_MODEL
+    worker: Optional[str] = None
+    job_class: Optional[str] = None
+    stream: bool = True
+    options: Dict[str, Any] = Field(default_factory=dict)
+
+
+class RunJobRequest(BaseModel):
+    job: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+    worker: Optional[str] = None
+    job_class: Optional[str] = None
+    timeout_sec: int = int(WORKER_TIMEOUT_SEC)
+
+
+@dataclass
+class WorkerSnapshot:
+    name: str
+    node: str
+    role: str
+    worker_class: str
+    gpu_name: str
+    url: str
+    vram_mb: int
+    healthy: bool
+    free_vram_mb: int
+    used_vram_mb: int
+    util_gpu: int
+    temp_c: int
+    queue_depth: int
+    last_error: Optional[str] = None
+
+
+@dataclass
+class CandidateDecision:
+    worker: str
+    accepted: bool
+    reason: str
+    score: float
+    free_vram_mb: int
+    queue_depth: int
+    role: str
+    node: str
+
+
+LATEST_DECISION: Dict[str, Any] = {
+    "ts": None,
+    "request": None,
+    "chosen": None,
+    "candidates": [],
+}
+
+
+def model_profile(model: str) -> Dict[str, Any]:
+    if model in MODEL_REQUIREMENTS:
+        return MODEL_REQUIREMENTS[model]
+
+    lower = model.lower()
+    if "14b" in lower:
+        return {"min_vram_mb": 9000, "job_class": "llm_heavy", "preferred_roles": ["general", "coder"], "preferred_workers": ["spot_exec"], "forbid_workers": ["m5_exec", "m5_watch", "daystrom_watch"]}
+    if "coder" in lower or "code" in lower:
+        return {"min_vram_mb": 4500, "job_class": "code", "preferred_roles": ["coder", "general"], "preferred_workers": ["daystrom_exec", "spot_exec"], "forbid_workers": ["m5_watch", "daystrom_watch"]}
+    if "embed" in lower:
+        return {"min_vram_mb": 1500, "job_class": "embedding", "preferred_roles": ["utility"], "preferred_workers": ["m5_exec"], "forbid_workers": ["m5_watch", "daystrom_watch"]}
+    return {"min_vram_mb": 4000, "job_class": "llm_general", "preferred_roles": ["general", "coder", "utility"], "preferred_workers": ["spot_exec"], "forbid_workers": ["m5_watch", "daystrom_watch"]}
+
+
+def _safe_get_json(url: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    try:
+        response = requests.get(url, timeout=REQUEST_TIMEOUT_SEC)
+        response.raise_for_status()
+        return response.json(), None
+    except Exception as exc:  # pragma: no cover - defensive
+        return None, str(exc)
+
+
+def _extract_gpu(metrics: Dict[str, Any], worker_cfg: Dict[str, Any]) -> WorkerSnapshot:
+    health = metrics.get("health") or metrics
+    gpu = metrics.get("gpu") or metrics
+    inventory = metrics.get("inventory") or {}
+
+    free_vram_mb = int(
+        gpu.get("free_vram_mb")
+        or gpu.get("free_vram")
+        or inventory.get("free_vram_mb")
+        or worker_cfg.get("vram_mb", 0)
+    )
+    total_vram_mb = int(
+        gpu.get("total_vram_mb")
+        or gpu.get("vram_mb")
+        or inventory.get("vram_mb")
+        or worker_cfg.get("vram_mb", 0)
+    )
+    used_vram_mb = max(total_vram_mb - free_vram_mb, 0)
+    queue_depth = int(metrics.get("queue_depth") or metrics.get("queued") or 0)
+
+    return WorkerSnapshot(
+        name=worker_cfg["name"],
+        node=worker_cfg["node"],
+        role=worker_cfg["role"],
+        worker_class=worker_cfg.get("class", "exec"),
+        gpu_name=str(gpu.get("gpu") or gpu.get("gpu_name") or worker_cfg.get("gpu_name", "unknown")),
+        url=worker_cfg["url"],
+        vram_mb=total_vram_mb,
+        healthy=bool(health.get("ok", True)),
+        free_vram_mb=free_vram_mb,
+        used_vram_mb=used_vram_mb,
+        util_gpu=int(gpu.get("util_gpu") or gpu.get("util") or 0),
+        temp_c=int(gpu.get("temp_c") or gpu.get("temp") or 0),
+        queue_depth=queue_depth,
+    )
+
+
+def probe_worker(worker_cfg: Dict[str, Any]) -> WorkerSnapshot:
+    status, status_err = _safe_get_json(f"{worker_cfg['url'].rstrip('/')}/status")
+    if status is not None:
+        return _extract_gpu(status, worker_cfg)
+
+    health, health_err = _safe_get_json(f"{worker_cfg['url'].rstrip('/')}/health")
+    if health is not None:
+        snap = _extract_gpu(health, worker_cfg)
+        snap.last_error = status_err
+        return snap
+
+    return WorkerSnapshot(
+        name=worker_cfg["name"],
+        node=worker_cfg["node"],
+        role=worker_cfg["role"],
+        worker_class=worker_cfg.get("class", "exec"),
+        gpu_name=worker_cfg.get("gpu_name", "unknown"),
+        url=worker_cfg["url"],
+        vram_mb=int(worker_cfg.get("vram_mb", 0)),
+        healthy=False,
+        free_vram_mb=0,
+        used_vram_mb=int(worker_cfg.get("vram_mb", 0)),
+        util_gpu=0,
+        temp_c=0,
+        queue_depth=999,
+        last_error=status_err or health_err or "unreachable",
+    )
+
+
+def fleet_status() -> Dict[str, WorkerSnapshot]:
+    return {name: probe_worker(cfg) for name, cfg in WORKERS.items()}
+
+
+def rank_worker(
+    snap: WorkerSnapshot,
+    profile: Dict[str, Any],
+    job_class: str,
+) -> Tuple[bool, str, float]:
+    min_vram_mb = int(profile.get("min_vram_mb", 0))
+    preferred_roles = profile.get("preferred_roles") or JOB_CLASS_ROLE_PREFS.get(job_class, [])
+    preferred_workers = set(profile.get("preferred_workers") or [])
+    forbid_workers = set(profile.get("forbid_workers") or [])
+
+    if not snap.healthy:
+        return False, f"worker unhealthy: {snap.last_error or 'unknown'}", -math.inf
+    if snap.name in forbid_workers:
+        return False, "worker forbidden for this model", -math.inf
+    if snap.free_vram_mb < min_vram_mb:
+        return False, f"insufficient VRAM ({snap.free_vram_mb} < {min_vram_mb})", -math.inf
+    if job_class == "watch" and snap.worker_class != "watch":
+        return False, "watch job requires watch node", -math.inf
+    if job_class != "watch" and snap.worker_class == "watch":
+        return False, "watch node reserved for monitoring", -math.inf
+
+    score = 0.0
+    reasons: List[str] = []
+
+    # Base preference for the hardware role.
+    score += ROLE_SCORE_BONUS.get(snap.role, 0)
+
+    # Job-class specific role weighting.
+    role_bonus = JOB_ROLE_SCORE_BONUS.get(job_class, {}).get(snap.role, 0)
+    score += role_bonus
+    if role_bonus:
+        reasons.append(f"role_bonus={role_bonus}")
+
+    # Prefer role matches from model profile.
+    if preferred_roles and snap.role in preferred_roles:
+        idx = preferred_roles.index(snap.role)
+        pref_bonus = 24 - (idx * 6)
+        score += pref_bonus
+        reasons.append(f"preferred_role={pref_bonus}")
+
+    # Strong hint for specifically blessed workers.
+    if snap.name in preferred_workers:
+        score += 30
+        reasons.append("preferred_worker=30")
+
+    # Raw free VRAM is still king.
+    vram_bonus = round(snap.free_vram_mb / 256.0, 2)
+    score += vram_bonus
+    reasons.append(f"free_vram_bonus={vram_bonus}")
+
+    # Idle GPUs win.
+    idle_bonus = max(0.0, 20.0 - (snap.util_gpu / 5.0))
+    score += idle_bonus
+    reasons.append(f"idle_bonus={round(idle_bonus, 2)}")
+
+    # Lower queue depth wins.
+    queue_penalty = snap.queue_depth * 25.0
+    score -= queue_penalty
+    if queue_penalty:
+        reasons.append(f"queue_penalty=-{queue_penalty}")
+
+    # Temperature is a tie-breaker, not a veto.
+    thermal_penalty = max(0, snap.temp_c - 70) * 1.5
+    score -= thermal_penalty
+    if thermal_penalty:
+        reasons.append(f"thermal_penalty=-{thermal_penalty}")
+
+    return True, ", ".join(reasons) if reasons else "eligible", round(score, 2)
+
+
+def choose_worker(
+    requested_worker: Optional[str],
+    model: str,
+    requested_job_class: Optional[str] = None,
+) -> Tuple[WorkerSnapshot, Dict[str, Any]]:
+    status = fleet_status()
+    profile = model_profile(model)
+    job_class = requested_job_class or profile.get("job_class") or "llm_general"
+
+    if requested_worker:
+        snap = status.get(requested_worker)
+        if snap is None:
+            raise HTTPException(status_code=404, detail=f"unknown worker: {requested_worker}")
+        ok, reason, score = rank_worker(snap, profile, job_class)
+        decision = {
+            "ts": int(time.time()),
+            "request": {
+                "model": model,
+                "job_class": job_class,
+                "requested_worker": requested_worker,
+                "min_vram_mb": profile.get("min_vram_mb"),
+            },
+            "chosen": requested_worker if ok else None,
+            "candidates": [asdict(CandidateDecision(worker=snap.name, accepted=ok, reason=reason, score=score, free_vram_mb=snap.free_vram_mb, queue_depth=snap.queue_depth, role=snap.role, node=snap.node))],
+        }
+        LATEST_DECISION.update(decision)
+        if not ok:
+            raise HTTPException(status_code=409, detail={"error": "requested worker rejected", "decision": decision})
+        return snap, decision
+
+    candidates: List[CandidateDecision] = []
+    winner: Optional[WorkerSnapshot] = None
+    winner_score = -math.inf
+
+    for name, snap in status.items():
+        ok, reason, score = rank_worker(snap, profile, job_class)
+        candidates.append(
+            CandidateDecision(
+                worker=name,
+                accepted=ok,
+                reason=reason,
+                score=score,
+                free_vram_mb=snap.free_vram_mb,
+                queue_depth=snap.queue_depth,
+                role=snap.role,
+                node=snap.node,
+            )
+        )
+        if ok and score > winner_score:
+            winner = snap
+            winner_score = score
+
+    candidates.sort(key=lambda item: item.score, reverse=True)
+    decision = {
+        "ts": int(time.time()),
+        "request": {
+            "model": model,
+            "job_class": job_class,
+            "requested_worker": requested_worker,
+            "min_vram_mb": profile.get("min_vram_mb"),
+        },
+        "chosen": winner.name if winner else None,
+        "candidates": [asdict(c) for c in candidates],
+    }
+    LATEST_DECISION.update(decision)
+
+    if winner is None:
+        raise HTTPException(status_code=503, detail={"error": "no eligible workers", "decision": decision})
+
+    return winner, decision
+
+
+def post_worker_json(snap: WorkerSnapshot, path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    url = f"{snap.url.rstrip('/')}/{path.lstrip('/')}"
+    response = requests.post(url, json=payload, timeout=WORKER_TIMEOUT_SEC)
+    response.raise_for_status()
+    return response.json()
+
+
+@APP.get("/health")
+def health() -> Dict[str, Any]:
+    status = fleet_status()
+    healthy_workers = sum(1 for s in status.values() if s.healthy)
+    return {
+        "ok": healthy_workers > 0,
+        "cluster_ok": healthy_workers > 0,
+        "gpu_ok": healthy_workers > 0,
+        "healthy_workers": f"{healthy_workers}/{len(status)}",
+        "ts": int(time.time()),
+    }
+
+
+@APP.get("/cluster/status")
+def cluster_status() -> Dict[str, Any]:
+    status = fleet_status()
+    return {
+        "ts": int(time.time()),
+        "workers": {name: asdict(snap) for name, snap in status.items()},
+        "latest_decision": LATEST_DECISION,
+    }
+
+
+@APP.get("/scheduler/decision")
+def scheduler_decision() -> Dict[str, Any]:
+    return LATEST_DECISION
+
+
+@APP.post("/api/run_llm")
+def api_run_llm(req: RunLLMRequest) -> Dict[str, Any]:
+    chosen, decision = choose_worker(req.worker, req.model, req.job_class)
+    payload = {
+        "prompt": req.prompt,
+        "model": req.model,
+        "stream": req.stream,
+        "options": req.options,
+    }
+    worker_result = post_worker_json(chosen, "/run_llm", payload)
+    return {
+        "ok": True,
+        "worker": chosen.name,
+        "node": chosen.node,
+        "role": chosen.role,
+        "decision": decision,
+        "result": worker_result,
+    }
+
+
+@APP.post("/api/run_job")
+def api_run_job(req: RunJobRequest) -> Dict[str, Any]:
+    chosen, decision = choose_worker(req.worker, model=req.job, requested_job_class=req.job_class or "background")
+    payload = {
+        "job": req.job,
+        "params": req.params,
+        "timeout_sec": req.timeout_sec,
+    }
+    worker_result = post_worker_json(chosen, "/run_job", payload)
+    return {
+        "ok": True,
+        "worker": chosen.name,
+        "node": chosen.node,
+        "role": chosen.role,
+        "decision": decision,
+        "result": worker_result,
+    }

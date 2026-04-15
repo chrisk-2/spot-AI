@@ -1,0 +1,18 @@
+[Unit]
+Description=Spot Avatar (M-5)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ogre
+WorkingDirectory=/opt/spot-avatar
+Environment=OLLAMA_URL=http://192.168.10.11:11434
+Environment=MODEL_NAME=llama3.1:8b
+Environment=VOICE_ONNX=/home/ogre/piper-voices/en_US-lessac-medium/en_US-lessac-medium.onnx
+Environment=PORT=5050
+ExecStart=/opt/spot-avatar/venv/bin/gunicorn -b 0.0.0.0:5050 -w 2 app:app
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

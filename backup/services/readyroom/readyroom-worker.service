@@ -1,0 +1,14 @@
+[Unit]
+Description=ReadyRoom Fleet Worker
+After=network-online.target mnt-collective.mount
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/readyroom-worker.sh
+Restart=always
+RestartSec=2
+User=ogre
+
+[Install]
+WantedBy=multi-user.target

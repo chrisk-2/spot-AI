@@ -1,0 +1,17 @@
+[Unit]
+Description=Spot Gateway (chat + tools)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/spot-gateway.env
+WorkingDirectory=/opt/spot-gateway
+ExecStart=/opt/spot-gateway/.venv/bin/uvicorn app:APP --host 0.0.0.0 --port 8798 --workers 1 --log-level info
+Restart=always
+RestartSec=2
+User=ogre
+Group=ogre
+
+[Install]
+WantedBy=multi-user.target

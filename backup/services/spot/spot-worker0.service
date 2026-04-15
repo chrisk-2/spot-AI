@@ -1,0 +1,21 @@
+[Unit]
+Description=Spot Worker 0 (Spot GPU)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/spot-worker0
+Environment=EXEC_TOKEN=changeme0
+Environment=WORKER_NAME=spot_exec
+Environment=CUDA_VISIBLE_DEVICES=0
+Environment=JOBS_ROOT=/mnt/collective/jobs
+Environment=JOBS_OUT_ROOT=/mnt/collective/jobs_out
+ExecStart=/opt/spot-worker0/.venv/bin/uvicorn app:APP --host 127.0.0.1 --port 8787
+Restart=always
+RestartSec=2
+User=ogre
+Group=ogre
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,38 @@
+# logs
+*.log
+
+# Snapshots (do NOT track)
+fleet-docs/snapshots/
+
+# Local machine state
+packages.txt
+
+# python junk
+__pycache__/
+*.pyc
+
+# virtual environments
+.venv/
+venv/
+
+# AI model files
+models/
+*.gguf
+*.bin
+*.safetensors
+
+# job output
+jobs_out/
+mnt/collective/jobs_out/
+
+# datasets
+datasets/
+
+# temp files
+*.tmp
+*.swp
+
+# OS junk
+.DS_Store
+Thumbs.db
+

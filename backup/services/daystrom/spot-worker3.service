@@ -1,0 +1,13 @@
+[Unit]
+Description=Spot Worker 3 (Daystrom GPU 2)
+After=network.target
+
+[Service]
+User=ogre
+WorkingDirectory=/opt/spot-worker3
+Environment=WORKER_NAME=daystrom_watch
+ExecStart=/opt/spot-worker3/.venv/bin/uvicorn app:APP --host 0.0.0.0 --port 8783
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
