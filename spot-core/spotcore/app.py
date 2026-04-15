@@ -23,6 +23,7 @@ DECISION_LOG_PATH = Path(os.environ.get("SPOTCORE_DECISION_LOG", "/app/shared_me
 HTTP_TIMEOUT = float(os.environ.get("SPOTCORE_HTTP_TIMEOUT", "240"))
 LATENCY_WINDOW = int(os.environ.get("SPOTCORE_LATENCY_WINDOW", "100"))
 DECISION_WINDOW = int(os.environ.get("SPOTCORE_DECISION_WINDOW", "200"))
+ALTERNATE_DEBUG_LIMIT = int(os.environ.get("SPOTCORE_ALTERNATE_DEBUG_LIMIT", "10"))
 
 ACTIVE_REQUESTS: dict[str, int] = {}
 ACTIVE_GPU_REQUESTS: dict[str, dict[str, int]] = {}
@@ -265,7 +266,7 @@ def installed_models_for_worker(worker_name: str, cfg: dict[str, Any]) -> set[st
 
 
 def is_worker_healthy(worker_name: str, cfg: dict[str, Any]) -> tuple[bool, str]:
-    status = worker_status(worker_name)
+    status = worker_status(name=worker_name)
     if not status:
         return False, "missing_watch_status"
     penalty = current_penalty(worker_name)
@@ -523,6 +524,68 @@ def gather_candidates(cfg: dict[str, Any], req: ExecRequest, use_burst: bool) ->
     return scored, failures
 
 
+def shortlist_candidates(
+    cfg: dict[str, Any],
+    req: ExecRequest,
+    excluded_workers: set[str],
+    preferred_model: str | None = None,
+) -> list[dict[str, Any]]:
+    shortlist: list[dict[str, Any]] = []
+
+    candidate_requests: list[tuple[str, ExecRequest]] = []
+    if preferred_model:
+        candidate_requests.append(
+            (
+                "same_model",
+                clone_request(req, model=preferred_model, allow_fallback=False),
+            )
+        )
+    candidate_requests.append(("flex_model", req))
+
+    seen_keys: set[tuple[str, str, str]] = set()
+
+    for mode, candidate_req in candidate_requests:
+        normal_scored, normal_failures = gather_candidates(cfg, candidate_req, False)
+        burst_scored: list[tuple[float, dict[str, Any]]] = []
+        if candidate_req.allow_burst:
+            burst_scored, _ = gather_candidates(cfg, candidate_req, True)
+
+        for score, candidate in normal_scored + burst_scored:
+            if candidate["worker"] in excluded_workers:
+                continue
+            key = (candidate["worker"], candidate["gpu_lane"], candidate["model"])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            shortlist.append(
+                {
+                    "mode": mode,
+                    "score": score,
+                    "worker": candidate["worker"],
+                    "worker_url": candidate["worker_url"],
+                    "gpu_lane": candidate["gpu_lane"],
+                    "gpu_label": candidate["gpu_label"],
+                    "model": candidate["model"],
+                    "burst_mode": candidate["burst_mode"],
+                }
+            )
+            if len(shortlist) >= ALTERNATE_DEBUG_LIMIT:
+                return shortlist
+
+        if mode == "same_model" and not normal_scored and preferred_model:
+            shortlist.append(
+                {
+                    "mode": mode,
+                    "reason": "no_same_model_candidates",
+                    "preferred_model": preferred_model,
+                    "excluded_workers": sorted(excluded_workers),
+                    "failure_sample": normal_failures[:5],
+                }
+            )
+
+    return shortlist
+
+
 async def choose_worker_and_model(cfg: dict[str, Any], req: ExecRequest) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     failures: list[dict[str, Any]] = []
     priority = priority_of_request(req)
@@ -610,19 +673,19 @@ def record_retry_event(events: list[dict[str, Any]], chosen: dict[str, Any], exc
     )
 
 
-def record_retry_note(events: list[dict[str, Any]], chosen: dict[str, Any], phase: str, note: str) -> None:
-    events.append(
-        {
-            "ts": _now(),
-            "phase": phase,
-            "worker": chosen["worker"],
-            "worker_url": chosen["worker_url"],
-            "gpu_lane": chosen["gpu_lane"],
-            "gpu_label": chosen["gpu_label"],
-            "model": chosen["model"],
-            "note": note,
-        }
-    )
+def record_retry_note(events: list[dict[str, Any]], chosen: dict[str, Any], phase: str, note: str, **extra: Any) -> None:
+    payload = {
+        "ts": _now(),
+        "phase": phase,
+        "worker": chosen["worker"],
+        "worker_url": chosen["worker_url"],
+        "gpu_lane": chosen["gpu_lane"],
+        "gpu_label": chosen["gpu_label"],
+        "model": chosen["model"],
+        "note": note,
+    }
+    payload.update(extra)
+    events.append(payload)
 
 
 def should_skip_same_worker_retry(cfg: dict[str, Any], worker_name: str, exc: Exception) -> tuple[bool, str]:
@@ -643,32 +706,25 @@ async def claim_alternate_candidate(
     req: ExecRequest,
     excluded_workers: set[str],
     preferred_model: str | None = None,
-) -> dict[str, Any] | None:
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     if req.worker:
-        return None
+        return None, []
 
-    candidate_requests: list[ExecRequest] = []
+    shortlist = shortlist_candidates(cfg, req, excluded_workers, preferred_model=preferred_model)
 
-    # First try to keep the same model across alternates.
-    if preferred_model:
-        candidate_requests.append(clone_request(req, model=preferred_model, allow_fallback=False))
+    for item in shortlist:
+        if item.get("reason"):
+            continue
+        return {
+            "worker": item["worker"],
+            "worker_url": item["worker_url"],
+            "gpu_lane": item["gpu_lane"],
+            "gpu_label": item["gpu_label"],
+            "model": item["model"],
+            "burst_mode": item["burst_mode"],
+        }, shortlist
 
-    # Then fall back to the normal request behavior.
-    candidate_requests.append(req)
-
-    for candidate_req in candidate_requests:
-        normal_scored, _ = gather_candidates(cfg, candidate_req, False)
-        for _, candidate in normal_scored:
-            if candidate["worker"] not in excluded_workers:
-                return candidate
-
-        if candidate_req.allow_burst:
-            burst_scored, _ = gather_candidates(cfg, candidate_req, True)
-            for _, candidate in burst_scored:
-                if candidate["worker"] not in excluded_workers:
-                    return candidate
-
-    return None
+    return None, shortlist
 
 
 async def switch_active_allocation(previous: dict[str, Any], new_choice: dict[str, Any]) -> None:
@@ -723,19 +779,34 @@ async def call_generate_with_retry(
                 break
 
     for alt_attempt in range(alternate_worker_retries):
-        next_choice = await claim_alternate_candidate(
+        next_choice, shortlist = await claim_alternate_candidate(
             cfg,
             req,
             attempted_workers,
             preferred_model=preferred_model,
         )
+        record_retry_note(
+            retry_events,
+            current_choice,
+            "alternate_shortlist",
+            "evaluated alternate candidates",
+            shortlist=shortlist[:ALTERNATE_DEBUG_LIMIT],
+            preferred_model=preferred_model,
+        )
+
         if not next_choice:
             break
 
         await switch_active_allocation(current_choice, next_choice)
         current_choice = dict(next_choice)
         attempted_workers.add(current_choice["worker"])
-        record_retry_note(retry_events, current_choice, "alternate_claim", f"claimed alternate worker #{alt_attempt + 1}")
+        record_retry_note(
+            retry_events,
+            current_choice,
+            "alternate_claim",
+            f"claimed alternate worker #{alt_attempt + 1}",
+            preferred_model=preferred_model,
+        )
 
         try:
             data = await call_generate(current_choice["worker_url"], req, current_choice["model"])
@@ -764,7 +835,7 @@ async def call_embed(worker_url: str, req: ExecRequest, model: str) -> dict[str,
         return resp.json()
 
 
-app = FastAPI(title="Spot Core Control Plane", version="final-v4-smart-fallback")
+app = FastAPI(title="Spot Core Control Plane", version="final-v5-fallback-visibility")
 
 
 @app.on_event("startup")
