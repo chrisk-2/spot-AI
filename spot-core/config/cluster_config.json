@@ -117,7 +117,7 @@
     "quarantine_sec": 1800
   },
   "score_weights": {
-    "role_rank_bonus": 30,
+    "role_rank_bonus": 150,
     "gpu_free_ratio_bonus": 200,
     "load_penalty": 18,
     "worker_active_penalty": 25,
@@ -125,20 +125,19 @@
     "model_active_penalty": 60,
     "warm_model_bonus": 80,
     "latency_bonus": 8,
-    "burst_penalty": 125,
-    "penalty_box_penalty": 500
+    "penalty_box_penalty": 500,
+    "burst_penalty": 125
   },
-
-    "retry_policy": {
-      "same_worker_retries": 1,
-      "alternate_worker_retries": 2,
-      "retryable_errors": [
-        "ConnectError",
-        "ReadTimeout",
-        "RemoteProtocolError",
-        "HTTPStatusError"
-      ]
-    },
+   "retry_policy": {
+    "same_worker_retries": 1,
+    "alternate_worker_retries": 2,
+    "retryable_errors": [
+      "ConnectError",
+      "ReadTimeout",
+      "RemoteProtocolError",
+      "HTTPStatusError"
+    ]
+  },
 
   "workers": {
     "spot-worker-01": {
@@ -304,23 +303,18 @@
           "label": "RTX 3060 12GB",
           "max_total": 1,
           "classes": [
-            "heavy",
             "coding",
             "general"
           ],
           "model_limits": {
-            "qwen2.5:14b": 1,
             "qwen2.5-coder:7b": 1
           },
           "model_preferences": {
-            "heavy": [
-              "qwen2.5:14b"
-            ],
             "coding": [
               "qwen2.5-coder:7b"
             ],
             "general": [
-              "qwen2.5-coder:7b"
+              "qwen2.5:14b"
             ]
           }
         }
