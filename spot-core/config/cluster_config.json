@@ -16,33 +16,20 @@
   "role_priority": {
     "heavy": [
       "spot-worker-04",
-      "spot-worker-03",
-      "spot-worker-01",
-      "spot-worker-02"
+      "spot-worker-01"
     ],
     "coding": [
       "spot-worker-03",
-      "spot-worker-01",
-      "spot-worker-04",
-      "spot-worker-02"
+      "spot-worker-01"
     ],
     "general": [
-      "spot-worker-01",
-      "spot-worker-04",
-      "spot-worker-03",
-      "spot-worker-02"
+      "spot-worker-01"
     ],
     "utility": [
-      "spot-worker-02",
-      "spot-worker-01",
-      "spot-worker-03",
-      "spot-worker-04"
+      "spot-worker-02"
     ],
     "watcher": [
-      "spot-worker-02",
-      "spot-worker-01",
-      "spot-worker-03",
-      "spot-worker-04"
+      "spot-worker-02"
     ]
   },
   "queue_policy": {
@@ -77,39 +64,38 @@
       }
     }
   },
-
-"warm_model_policy": {
-  "enabled": true,
-  "tick_seconds": 45,
-  "refresh_seconds": 240,
-  "keep_alive": "30m",
-  "warm_seconds": 3600,
-  "evict_enabled": true,
-  "history_lines": 500,
-  "max_recent_targets": 4,
-  "recent_roles": [
-    "coding",
-    "heavy",
-    "general"
-  ],
-  "targets": [
-    {
-      "worker": "spot-worker-03",
-      "model": "qwen2.5-coder:7b",
-      "reason": "codex_primary"
-    },
-    {
-      "worker": "spot-worker-04",
-      "model": "qwen2.5:14b",
-      "reason": "heavy_primary"
-    },
-    {
-      "worker": "spot-worker-01",
-      "model": "llama3.1:8b",
-      "reason": "general_fallback"
-    }
-  ]
-},
+  "warm_model_policy": {
+    "enabled": true,
+    "tick_seconds": 45,
+    "refresh_seconds": 240,
+    "keep_alive": "30m",
+    "warm_seconds": 3600,
+    "evict_enabled": true,
+    "history_lines": 500,
+    "max_recent_targets": 4,
+    "recent_roles": [
+      "coding",
+      "heavy",
+      "general"
+    ],
+    "targets": [
+      {
+        "worker": "spot-worker-03",
+        "model": "qwen2.5-coder:7b",
+        "reason": "codex_primary"
+      },
+      {
+        "worker": "spot-worker-04",
+        "model": "qwen2.5:14b",
+        "reason": "heavy_primary"
+      },
+      {
+        "worker": "spot-worker-01",
+        "model": "llama3.1:8b",
+        "reason": "general_primary"
+      }
+    ]
+  },
   "penalty_policy": {
     "cooldown_sec": 120,
     "quarantine_after_failures": 3,
@@ -128,7 +114,7 @@
     "penalty_box_penalty": 500,
     "burst_penalty": 125
   },
-   "retry_policy": {
+  "retry_policy": {
     "same_worker_retries": 1,
     "alternate_worker_retries": 2,
     "retryable_errors": [
@@ -138,7 +124,6 @@
       "HTTPStatusError"
     ]
   },
-
   "workers": {
     "spot-worker-01": {
       "base_url": "http://192.168.10.10:11434",
@@ -158,6 +143,7 @@
       "installed_models": [
         "mistral:7b",
         "llama3.1:8b",
+        "qwen2.5-coder:7b",
         "qwen2.5:14b"
       ],
       "gpu_routes": {
@@ -172,6 +158,7 @@
           "model_limits": {
             "llama3.1:8b": 1,
             "mistral:7b": 1,
+            "qwen2.5-coder:7b": 1,
             "qwen2.5:14b": 1
           },
           "model_preferences": {
@@ -180,6 +167,7 @@
               "mistral:7b"
             ],
             "coding": [
+              "qwen2.5-coder:7b",
               "llama3.1:8b"
             ],
             "heavy": [
@@ -194,14 +182,14 @@
       "base_url": "http://192.168.10.11:11434",
       "primary_role": "utility",
       "secondary_roles": [
-        "watcher"
+       "watcher"
       ],
-      "max_total": 2,
+      "max_total": 1,
       "class_limits": {
         "general": 0,
         "heavy": 0,
         "coding": 0,
-        "utility": 2,
+        "utility": 1,
         "watcher": 1
       },
       "installed_models": [
@@ -211,10 +199,11 @@
       ],
       "gpu_routes": {
         "gpu0": {
-          "label": "Quadro M4000 8GB",
+          "label": "worker-02 ollama lane",
           "max_total": 1,
           "classes": [
-            "utility"
+            "utility",
+            "watcher"
           ],
           "model_limits": {
             "bge-m3:latest": 1,
@@ -223,30 +212,12 @@
           },
           "model_preferences": {
             "utility": [
+              "phi3.5:latest",
               "bge-m3:latest",
-              "nomic-embed-text:latest",
-              "phi3.5:latest"
-            ]
-          }
-        },
-        "gpu1": {
-          "label": "GTX 1060 6GB",
-          "max_total": 1,
-          "classes": [
-            "watcher",
-            "utility"
-          ],
-          "model_limits": {
-            "phi3.5:latest": 1,
-            "nomic-embed-text:latest": 1
-          },
-          "model_preferences": {
+              "nomic-embed-text:latest"
+            ],
             "watcher": [
               "phi3.5:latest"
-            ],
-            "utility": [
-              "phi3.5:latest",
-              "nomic-embed-text:latest"
             ]
           }
         }
@@ -256,14 +227,11 @@
     "spot-worker-03": {
       "base_url": "http://192.168.10.13:11434",
       "primary_role": "coding",
-      "secondary_roles": [
-        "heavy",
-        "general"
-      ],
+      "secondary_roles": [],
       "max_total": 2,
       "class_limits": {
-        "general": 1,
-        "heavy": 1,
+        "general": 0,
+        "heavy": 0,
         "coding": 2,
         "utility": 0,
         "watcher": 0
@@ -279,8 +247,7 @@
           "label": "GTX 1070 8GB",
           "max_total": 1,
           "classes": [
-            "coding",
-            "general"
+            "coding"
           ],
           "model_limits": {
             "qwen2.5-coder:7b": 1,
@@ -292,10 +259,6 @@
               "qwen2.5-coder:7b",
               "deepseek-coder:6.7b",
               "codellama:7b"
-            ],
-            "general": [
-              "qwen2.5-coder:7b",
-              "codellama:7b"
             ]
           }
         },
@@ -303,8 +266,7 @@
           "label": "RTX 3060 12GB",
           "max_total": 1,
           "classes": [
-            "coding",
-            "general"
+            "coding"
           ],
           "model_limits": {
             "qwen2.5-coder:7b": 1
@@ -312,9 +274,6 @@
           "model_preferences": {
             "coding": [
               "qwen2.5-coder:7b"
-            ],
-            "general": [
-              "qwen2.5:14b"
             ]
           }
         }
@@ -330,12 +289,10 @@
     "spot-worker-04": {
       "base_url": "http://192.168.10.14:11434",
       "primary_role": "heavy",
-      "secondary_roles": [
-        "general"
-      ],
+      "secondary_roles": [],
       "max_total": 1,
       "class_limits": {
-        "general": 1,
+        "general": 0,
         "heavy": 1,
         "coding": 0,
         "utility": 0,
@@ -349,17 +306,13 @@
           "label": "TITAN Xp 12GB",
           "max_total": 1,
           "classes": [
-            "heavy",
-            "general"
+            "heavy"
           ],
           "model_limits": {
             "qwen2.5:14b": 1
           },
           "model_preferences": {
             "heavy": [
-              "qwen2.5:14b"
-            ],
-            "general": [
               "qwen2.5:14b"
             ]
           }
