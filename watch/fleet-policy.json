@@ -31,5 +31,12 @@
     "spot-worker-02": 2,
     "spot-worker-03": 2,
     "spot-worker-04": 1
+  },
+  "routing_remediation": {
+    "enabled": true,
+    "audit_limit": 200,
+    "min_violations": 1,
+    "quarantine_seconds": 1800,
+    "auto_unquarantine": true
   }
 }

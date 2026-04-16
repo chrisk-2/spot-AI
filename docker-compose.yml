@@ -7,6 +7,7 @@ services:
       - ./spot-core:/srv/spot-core
       - ./watch:/srv/watch
       - /mnt/collective/fleet/spot-core/shared_memory:/srv/spot-core/shared_memory
+      - ./watch:/watch
     environment:
       SPOTCORE_CONFIG: /srv/spot-core/config/cluster_config.json
       SPOTCORE_WATCH_STATE: /srv/watch/state/fleet-status.json

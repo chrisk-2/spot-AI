@@ -6,6 +6,7 @@ STATE_DIR="${BASE_DIR}/state"
 LOG_DIR="${BASE_DIR}/logs"
 POLICY_FILE="${BASE_DIR}/fleet-policy.json"
 REMEDIATION_STATE_FILE="${BASE_DIR}/state/remediation-state.json"
+ROUTING_AUDIT_SUMMARY_FILE="${STATE_DIR}/routing-audit-summary.json"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR"
 [[ -f "$REMEDIATION_STATE_FILE" ]] || echo "{}" > "$REMEDIATION_STATE_FILE"
@@ -56,9 +57,32 @@ check_http() {
   curl -fsS --max-time 5 "$url" >/dev/null 2>&1
 }
 
+fetch_routing_audit_summary() {
+  local url="http://127.0.0.1:8787/stats/routing-audit?limit=200"
+  if curl -fsS --max-time 5 "$url" > "$ROUTING_AUDIT_SUMMARY_FILE.tmp"; then
+    if jq empty "$ROUTING_AUDIT_SUMMARY_FILE.tmp" >/dev/null 2>&1; then
+      mv "$ROUTING_AUDIT_SUMMARY_FILE.tmp" "$ROUTING_AUDIT_SUMMARY_FILE"
+      return 0
+    fi
+  fi
+
+  rm -f "$ROUTING_AUDIT_SUMMARY_FILE.tmp"
+  cat > "$ROUTING_AUDIT_SUMMARY_FILE" <<'JSON'
+{"ok":false,"error":"routing_audit_unavailable","primaries":0,"fallbacks":0,"violations":0,"manual_overrides":0,"window_count":0,"last_violation_ts":null,"by_role":{}, "items":[]}
+JSON
+  return 1
+}
+
+routing_audit_ok=true
+if ! fetch_routing_audit_summary; then
+  routing_audit_ok=false
+fi
+ROUTING_AUDIT_JSON="$(cat "$ROUTING_AUDIT_SUMMARY_FILE")"
+
 {
   echo "{"
   echo "  \"timestamp\": $(json_escape "$STAMP"),"
+  echo "  \"routing_audit\": ${ROUTING_AUDIT_JSON},"
   echo "  \"hosts\": {"
 
   first=1
@@ -89,8 +113,7 @@ check_http() {
     if [[ "$host" == spot-worker-* ]]; then
       if check_http "http://${HOST_IPS[$host]}:11434/api/tags"; then
         service_ok=true
-        models_json="$(curl -fsS --max-time 5 "http://${HOST_IPS[$host]}:11434/api/tags" \
-          | jq -c '[.models[].name]')"
+        models_json="$(curl -fsS --max-time 5 "http://${HOST_IPS[$host]}:11434/api/tags" | jq -c '[.models[].name]')"
       else
         service_ok=false
       fi
@@ -219,10 +242,13 @@ PY
 
 mv "$TMP_FILE" "$STATE_FILE"
 
-python3 - <<'PY' "$STATE_FILE" | tee -a "$LOG_FILE"
+python3 - <<'PY' "$STATE_FILE" "$routing_audit_ok" | tee -a "$LOG_FILE"
 import json, sys
 
-with open(sys.argv[1], "r", encoding="utf-8") as f:
+state_path = sys.argv[1]
+routing_fetch_ok = sys.argv[2] == "true"
+
+with open(state_path, "r", encoding="utf-8") as f:
     data = json.load(f)
 
 alerts = []
@@ -232,8 +258,17 @@ for host, info in data["hosts"].items():
     if info.get("quarantined"):
         alerts.append(f"{host}:quarantined")
 
+audit = data.get("routing_audit", {})
+violations = int(audit.get("violations", 0) or 0)
+fallbacks = int(audit.get("fallbacks", 0) or 0)
+
+if not routing_fetch_ok:
+    alerts.append("spot-core:routing_audit_unavailable")
+if violations > 0:
+    alerts.append(f"routing_audit:violations={violations}")
+
 if alerts:
     print("ALERT " + " | ".join(alerts))
 else:
-    print("OK fleet healthy")
+    print(f"OK fleet healthy | routing_fallbacks={fallbacks} | routing_violations={violations}")
 PY
