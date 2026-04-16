@@ -19,7 +19,6 @@ WATCH_STATE_PATH = Path(os.environ.get("SPOTCORE_WATCH_STATE", "/watch/state/fle
 EXEC_HISTORY_PATH = Path(os.environ.get("SPOTCORE_EXEC_HISTORY", "/app/shared_memory/exec-history.jsonl"))
 DECISION_LOG_PATH = Path(os.environ.get("SPOTCORE_DECISION_LOG", "/app/shared_memory/decision-history.jsonl"))
 ROUTING_AUDIT_PATH = Path(os.environ.get("SPOTCORE_ROUTING_AUDIT_LOG", "/watch/state/routing-audit.jsonl"))
-REMEDIATION_STATE_PATH = Path(os.environ.get("SPOTCORE_REMEDIATION_STATE", "/watch/state/remediation-state.json"))
 
 HTTP_TIMEOUT = float(os.environ.get("SPOTCORE_HTTP_TIMEOUT", "240"))
 LATENCY_WINDOW = int(os.environ.get("SPOTCORE_LATENCY_WINDOW", "100"))
@@ -127,75 +126,6 @@ def get_retry_policy() -> dict[str, Any]:
 
 def load_watch_state() -> dict[str, Any]:
     return read_json(WATCH_STATE_PATH, {"timestamp": None, "hosts": {}})
-
-
-
-def write_json_atomic(path: Path, payload: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    tmp.replace(path)
-
-
-def load_remediation_state() -> dict[str, Any]:
-    data = read_json(REMEDIATION_STATE_PATH, {})
-    return data if isinstance(data, dict) else {}
-
-
-def save_remediation_state(data: dict[str, Any]) -> None:
-    write_json_atomic(REMEDIATION_STATE_PATH, data)
-
-
-def update_remediation_quarantine(worker_name: str, quarantined: bool, reason: str | None = None) -> None:
-    state = load_remediation_state()
-    entry = state.get(worker_name, {})
-    if not isinstance(entry, dict):
-        entry = {}
-
-    entry["quarantined"] = quarantined
-    entry["last_updated_ts"] = _now()
-    entry["last_updated_by"] = "spot-core-api"
-
-    if reason is not None:
-        entry["reason"] = reason
-
-    if quarantined:
-        entry["since_ts"] = entry.get("since_ts", _now())
-    else:
-        entry["release_ts"] = _now()
-
-    state[worker_name] = entry
-
-    meta = state.get("_meta", {})
-    if not isinstance(meta, dict):
-        meta = {}
-    meta["last_runtime_quarantine_update_ts"] = _now()
-    state["_meta"] = meta
-
-    save_remediation_state(state)
-
-
-def update_watch_state_quarantine(worker_name: str, quarantined: bool) -> None:
-    state = load_watch_state()
-    hosts = state.get("hosts")
-
-    if not isinstance(hosts, dict):
-        return
-    if worker_name not in hosts:
-        return
-    if not isinstance(hosts[worker_name], dict):
-        return
-
-    host = hosts[worker_name]
-    host["quarantined"] = quarantined
-    host["eligible"] = False if quarantined else bool(host.get("ssh_ok")) and (host.get("service_ok") is True) and not host.get("alerts")
-    hosts[worker_name] = host
-    state["hosts"] = hosts
-
-    if "timestamp" not in state or state["timestamp"] is None:
-        state["timestamp"] = _now()
-
-    write_json_atomic(WATCH_STATE_PATH, state)
 
 
 def worker_status(name: str) -> dict[str, Any]:
@@ -1207,28 +1137,21 @@ async def quarantine_worker(worker_name: str, seconds: int = 1800, reason: str =
     cfg = load_config()
     if worker_name not in cfg["workers"]:
         raise HTTPException(status_code=404, detail={"message": "unknown worker"})
-
-    penalty = {
+    PENALTY_BOX[worker_name] = {
         "reason": reason,
         "until": _now() + max(60, seconds),
         "ts": _now(),
         "quarantined": True,
         "failure_count_window": failure_window_count(worker_name, 3600),
     }
-    PENALTY_BOX[worker_name] = penalty
-    update_remediation_quarantine(worker_name, True, reason)
-    update_watch_state_quarantine(worker_name, True)
-
-    return {"ok": True, "worker": worker_name, "penalty": penalty}
+    return {"ok": True, "worker": worker_name, "penalty": PENALTY_BOX[worker_name]}
 
 
 @app.delete("/quarantine/{worker_name}")
 async def unquarantine_worker(worker_name: str) -> dict[str, Any]:
-    removed_penalty = PENALTY_BOX.pop(worker_name, None)
+    PENALTY_BOX.pop(worker_name, None)
     FAILURE_HISTORY.pop(worker_name, None)
-    update_remediation_quarantine(worker_name, False, "manual_release")
-    update_watch_state_quarantine(worker_name, False)
-    return {"ok": True, "worker": worker_name, "removed_penalty": removed_penalty is not None}
+    return {"ok": True, "worker": worker_name}
 
 
 @app.post("/exec", response_model=ExecResult)
