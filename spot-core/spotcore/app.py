@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import statistics
 import time
@@ -41,6 +42,8 @@ ACTIVE_LOCK = asyncio.Lock()
 
 CONFIG_CACHE: dict[str, Any] | None = None
 CONFIG_MTIME: float | None = None
+
+LOGGER = logging.getLogger("spotcore.app")
 
 ROLE = Literal["heavy", "coding", "general", "utility", "watcher"]
 ROLE_OWNERS: dict[str, str] = {
@@ -347,8 +350,18 @@ def append_decision(payload: dict[str, Any]) -> None:
 
 def append_routing_audit(payload: dict[str, Any]) -> None:
     RECENT_ROUTING_AUDIT.append(payload)
-    append_jsonl(ROUTING_AUDIT_PATH, payload)
-
+    try:
+        append_jsonl(ROUTING_AUDIT_PATH, payload)
+    except Exception as exc:
+        LOGGER.exception(
+            "routing_audit_write_failed path=%s ts=%s role=%s status=%s worker=%s error=%r",
+            str(ROUTING_AUDIT_PATH),
+            payload.get("ts"),
+            payload.get("role"),
+            payload.get("status"),
+            payload.get("final_worker") or payload.get("selected_worker") or payload.get("worker"),
+            exc,
+        )
 
 def installed_models_for_worker(worker_name: str, cfg: dict[str, Any]) -> set[str]:
     status = worker_status(worker_name)

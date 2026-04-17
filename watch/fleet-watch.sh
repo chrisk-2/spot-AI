@@ -79,9 +79,18 @@ if ! fetch_routing_audit_summary; then
 fi
 ROUTING_AUDIT_JSON="$(cat "$ROUTING_AUDIT_SUMMARY_FILE")"
 
+CORE_HEALTH_RAW="$(curl -fsS --max-time 5 http://127.0.0.1:8787/health 2>/dev/null || true)"
+
+if echo "$CORE_HEALTH_RAW" | jq -e '.ok' >/dev/null 2>&1; then
+  CORE_HEALTH_JSON="$CORE_HEALTH_RAW"
+else
+  CORE_HEALTH_JSON='{"ok":false,"uptime_sec":0}'
+fi
+
 {
   echo "{"
   echo "  \"timestamp\": $(json_escape "$STAMP"),"
+  echo "  \"core_health\": ${CORE_HEALTH_JSON},"  
   echo "  \"routing_audit\": ${ROUTING_AUDIT_JSON},"
   echo "  \"hosts\": {"
 
