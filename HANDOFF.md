@@ -28,6 +28,15 @@ Rules:
   - utility -> spot-worker-02
   - coding -> spot-worker-03
   - heavy -> spot-worker-04
+- for every new chat move:
+  - run spot_save first
+  - read HANDOFF.md first
+  - read spot-core/STATE.md second
+  - use GitHub repo as source of truth first
+  - if runtime verification is needed, ask for exact file contents from spot-core with sed/cat
+  - do not assume local filesystem paths are mounted in your environment
+  - do not patch anything without reading the real file first
+
 
 Primary repo:
 https://github.com/chrisk-2/spot-AI
