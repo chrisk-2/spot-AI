@@ -71,10 +71,22 @@ WARN_COUNT=0
 
 log() { printf '%s\n' "$*"; }
 info() { printf '[INFO] %s\n' "$*"; }
-pass() { PASS_COUNT=$((PASS_COUNT + 1)); printf '[PASS] %s\n' "$*"; }
-warn() { WARN_COUNT=$((WARN_COUNT + 1)); printf '[WARN] %s\n' "$*"; }
-fail() { FAIL_COUNT=$((FAIL_COUNT + 1)); printf '[FAIL] %s\n' "$*"; }
-debug() { [[ "$VERBOSE" -eq 1 ]] && printf '[DBG] %s\n' "$*"; }
+pass() { PASS_COUNT=$((PASS_COUNT + 1)); echo "[PASS] $*"; }
+fail() { FAIL_COUNT=$((FAIL_COUNT + 1)); echo "[FAIL] $*"; }
+warn() {
+  WARN_COUNT=$((WARN_COUNT + 1))
+  if [[ "$VERBOSE" -eq 1 ]]; then
+    echo "[WARN] $*"
+  fi
+  return 0
+}
+
+debug() {
+  if [[ "$VERBOSE" -eq 1 ]]; then
+    printf '[DBG] %s\n' "$*"
+  fi
+  return 0
+}
 
 ts() { date -u +'%Y-%m-%dT%H:%M:%SZ'; }
 
@@ -170,9 +182,9 @@ check_role_route() {
   fi
 
   if [[ "$actual_worker" == "$expected_worker" ]]; then
-    pass "${role} routed to ${actual_worker}"
+    pass "${role} -> ${actual_worker}"
   else
-    fail "${role} routed to ${actual_worker}, expected ${expected_worker}"
+    fail "${role} -> ${actual_worker} (expected ${expected_worker})"
     return 1
   fi
 }
@@ -214,9 +226,7 @@ check_audit_file_append() {
   if ! awk 'NF { print }' "$AUDIT_FILE" | tail -n 20 | jq -R 'fromjson? | type == "object"' >/dev/null 2>&1; then
     bad_jsonl=1
   fi
-  if [[ "$bad_jsonl" -eq 0 ]]; then
-    pass 'recent routing audit entries are valid JSON objects'
-  else
+  if [[ "$bad_jsonl" -ne 0 ]]; then
     fail 'recent routing audit entries include invalid JSONL'
     return 1
   fi
@@ -257,7 +267,7 @@ check_routing_audit_endpoint() {
     if [[ "$compact" == *"$role"* && "$compact" == *"$worker"* && "$compact" == *"primary"* ]]; then
       debug "/stats/routing-audit contains ${role}/${worker}/primary"
     else
-      fail "/stats/routing-audit missing expected primary evidence for ${role} -> ${worker}"
+      fail "audit missing ${role} -> ${worker}"
       missing=1
     fi
   done
@@ -305,7 +315,11 @@ check_watch_health() {
     warn "fleet-status still shows quarantined hosts: $(echo "$expected_quarantine_false" | paste -sd ', ' -)"
   fi
 
-  return "$fleet_ok"
+  if [[ "$fleet_ok" -eq 1 ]]; then
+  return 0
+else
+  return 1
+fi
 }
 
 fetch_fleet_ping() {
@@ -432,13 +446,19 @@ main() {
     info 'smoke mode skipped'
   fi
 
-  log
-  log "=== SUMMARY ==="
-  log "pass=${PASS_COUNT} warn=${WARN_COUNT} fail=${FAIL_COUNT}"
+log
+log "=== SUMMARY ==="
+log "pass=${PASS_COUNT} warn=${WARN_COUNT} fail=${FAIL_COUNT}"
 
-  if [[ "$FAIL_COUNT" -gt 0 ]]; then
-    exit 1
-  fi
+echo
+if [[ "$FAIL_COUNT" -gt 0 ]]; then
+  echo "RESULT: FAIL (${FAIL_COUNT} failed, ${PASS_COUNT} passed)"
+  exit 1
+else
+  echo "RESULT: PASS (${PASS_COUNT} checks)"
+  exit 0
+fi
 }
 
 main "$@"
+
