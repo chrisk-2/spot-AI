@@ -78,12 +78,6 @@ debug() { [[ "$VERBOSE" -eq 1 ]] && printf '[DBG] %s\n' "$*"; }
 
 ts() { date -u +'%Y-%m-%dT%H:%M:%SZ'; }
 
-json_get() {
-  local file="$1"
-  local expr="$2"
-  jq -er "$expr" "$file" 2>/dev/null
-}
-
 http_json() {
   local method="$1"
   local url="$2"
@@ -183,6 +177,51 @@ check_role_route() {
   fi
 }
 
+run_role_route_checks() {
+  local before_lines=0
+  [[ -f "$AUDIT_FILE" ]] && before_lines="$(wc -l < "$AUDIT_FILE")"
+  debug "routing audit lines before route checks: ${before_lines}"
+
+  check_role_route general spot-worker-01 || true
+  check_role_route coding spot-worker-03 || true
+  check_role_route heavy spot-worker-04 || true
+  check_role_route utility spot-worker-02 || true
+
+  local after_lines=0
+  [[ -f "$AUDIT_FILE" ]] && after_lines="$(wc -l < "$AUDIT_FILE")"
+  ROUTE_CHECK_BEFORE_LINES="$before_lines"
+  ROUTE_CHECK_AFTER_LINES="$after_lines"
+  debug "routing audit lines after route checks: ${after_lines}"
+}
+
+check_audit_file_append() {
+  if [[ ! -f "$AUDIT_FILE" ]]; then
+    fail "routing audit file missing after exec validation: $AUDIT_FILE"
+    return 1
+  fi
+
+  local before_lines="${ROUTE_CHECK_BEFORE_LINES:-0}"
+  local after_lines="${ROUTE_CHECK_AFTER_LINES:-0}"
+
+  if (( after_lines >= before_lines + 4 )); then
+    pass "routing audit file appended by validation traffic (${before_lines} -> ${after_lines})"
+  else
+    fail "routing audit file did not append expected entries (${before_lines} -> ${after_lines})"
+    return 1
+  fi
+
+  local bad_jsonl=0
+  if ! awk 'NF { print }' "$AUDIT_FILE" | tail -n 20 | jq -R 'fromjson? | type == "object"' >/dev/null 2>&1; then
+    bad_jsonl=1
+  fi
+  if [[ "$bad_jsonl" -eq 0 ]]; then
+    pass 'recent routing audit entries are valid JSON objects'
+  else
+    fail 'recent routing audit entries include invalid JSONL'
+    return 1
+  fi
+}
+
 check_routing_audit_endpoint() {
   local out="$TMPDIR/routing-audit-stats.json"
   local code_file="$TMPDIR/routing-audit-stats.http"
@@ -267,44 +306,6 @@ check_watch_health() {
   fi
 
   return "$fleet_ok"
-}
-
-check_audit_file_append() {
-  local before_lines after_lines
-  before_lines=0
-  [[ -f "$AUDIT_FILE" ]] && before_lines="$(wc -l < "$AUDIT_FILE")"
-  debug "routing audit lines before validation: ${before_lines}"
-
-  check_role_route general spot-worker-01
-  check_role_route coding spot-worker-03
-  check_role_route heavy spot-worker-04
-  check_role_route utility spot-worker-02
-
-  if [[ ! -f "$AUDIT_FILE" ]]; then
-    fail "routing audit file missing after exec validation: $AUDIT_FILE"
-    return 1
-  fi
-
-  after_lines="$(wc -l < "$AUDIT_FILE")"
-  debug "routing audit lines after validation: ${after_lines}"
-
-  if (( after_lines >= before_lines + 4 )); then
-    pass "routing audit file appended by validation traffic (${before_lines} -> ${after_lines})"
-  else
-    fail "routing audit file did not append expected entries (${before_lines} -> ${after_lines})"
-    return 1
-  fi
-
-  local bad_jsonl=0
-  if ! awk 'NF { print }' "$AUDIT_FILE" | tail -n 20 | jq -R 'fromjson? | type == "object"' >/dev/null 2>&1; then
-    bad_jsonl=1
-  fi
-  if [[ "$bad_jsonl" -eq 0 ]]; then
-    pass 'recent routing audit entries are valid JSON objects'
-  else
-    fail 'recent routing audit entries include invalid JSONL'
-    return 1
-  fi
 }
 
 fetch_fleet_ping() {
@@ -420,6 +421,7 @@ main() {
     fail "routing audit file missing: $AUDIT_FILE"
   fi
 
+  run_role_route_checks
   check_audit_file_append || true
   check_routing_audit_endpoint || true
   check_watch_health || true

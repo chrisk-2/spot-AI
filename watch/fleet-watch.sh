@@ -270,14 +270,22 @@ for host, info in data["hosts"].items():
 audit = data.get("routing_audit", {})
 violations = int(audit.get("violations", 0) or 0)
 fallbacks = int(audit.get("fallbacks", 0) or 0)
+last_violation_ts = audit.get("last_violation_ts")
 
 if not routing_fetch_ok:
     alerts.append("spot-core:routing_audit_unavailable")
+
 if violations > 0:
     alerts.append(f"routing_audit:violations={violations}")
+
+if fallbacks > 0:
+    alerts.append(f"routing_audit:fallbacks={fallbacks}")
+
+if last_violation_ts is not None:
+    alerts.append(f"routing_audit:last_violation_ts={last_violation_ts}")
 
 if alerts:
     print("ALERT " + " | ".join(alerts))
 else:
-    print(f"OK fleet healthy | routing_fallbacks={fallbacks} | routing_violations={violations}")
+    print("OK fleet healthy | routing clean")
 PY

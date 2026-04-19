@@ -16,6 +16,7 @@
   "role_priority": {
     "heavy": [
       "spot-worker-04",
+      "spot-worker-03",
       "spot-worker-01"
     ],
     "coding": [
@@ -103,7 +104,7 @@
     "quarantine_sec": 1800
   },
   "score_weights": {
-    "role_rank_bonus": 150,
+    "role_rank_bonus": 30,
     "gpu_free_ratio_bonus": 200,
     "load_penalty": 18,
     "worker_active_penalty": 25,
@@ -112,7 +113,9 @@
     "warm_model_bonus": 80,
     "latency_bonus": 8,
     "penalty_box_penalty": 500,
-    "burst_penalty": 125
+    "burst_penalty": 125,
+    "degraded_worker_penalty": 180,
+    "degraded_fallback_step_penalty": 20
   },
   "retry_policy": {
     "same_worker_retries": 1,
@@ -227,11 +230,13 @@
     "spot-worker-03": {
       "base_url": "http://192.168.10.13:11434",
       "primary_role": "coding",
-      "secondary_roles": [],
+      "secondary_roles": [
+         "heavy"
+      ],
       "max_total": 2,
       "class_limits": {
         "general": 0,
-        "heavy": 0,
+        "heavy": 1,
         "coding": 2,
         "utility": 0,
         "watcher": 0
@@ -266,14 +271,19 @@
           "label": "RTX 3060 12GB",
           "max_total": 1,
           "classes": [
-            "coding"
+            "coding",
+            "heavy"
           ],
           "model_limits": {
-            "qwen2.5-coder:7b": 1
+            "qwen2.5-coder:7b": 1,
+            "qwen2.5:14b": 1
           },
           "model_preferences": {
             "coding": [
               "qwen2.5-coder:7b"
+            ],
+            "heavy": [
+              "qwen2.5:14b"
             ]
           }
         }

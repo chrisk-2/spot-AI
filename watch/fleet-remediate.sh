@@ -130,6 +130,13 @@ AUDIT_LIMIT="$(get_policy_value "routing_remediation.audit_limit" "200")"
 MIN_VIOLATIONS="$(get_policy_value "routing_remediation.min_violations" "1")"
 QUARANTINE_SECONDS="$(get_policy_value "routing_remediation.quarantine_seconds" "1800")"
 AUTO_UNQUARANTINE="$(get_policy_value "routing_remediation.auto_unquarantine" "true")"
+FALLBACK_NOTE_THRESHOLD="$(get_policy_value "routing_remediation.fallback_note_threshold" "1")"
+FALLBACK_DEGRADED_THRESHOLD="$(get_policy_value "routing_remediation.fallback_degraded_threshold" "3")"
+FALLBACK_ESCALATE_THRESHOLD="$(get_policy_value "routing_remediation.fallback_escalate_threshold" "5")"
+
+DEGRADED_CLEAR_RUNS="$(get_policy_value "routing_remediation.degraded_clear_runs" "2")"
+DEGRADED_CLEAR_MAX_FALLBACKS="$(get_policy_value "routing_remediation.degraded_clear_max_fallbacks" "0")"
+FALLBACK_RECENT_WINDOW_SEC="$(get_policy_value "routing_remediation.fallback_recent_window_sec" "120")"
 
 if [[ "$ENABLED" != "true" ]]; then
   log "remediation_disabled"
@@ -138,7 +145,8 @@ fi
 
 if ! fetch_routing_audit; then
   log "routing_audit_fetch_failed"
-  exit 1
+  log "remediation_skipped_due_to_missing_audit"
+  exit 0
 fi
 
 backup_state
@@ -152,7 +160,14 @@ python3 - <<'PY' \
   "$EPOCH_NOW" \
   "$MIN_VIOLATIONS" \
   "$QUARANTINE_SECONDS" \
-  "$AUTO_UNQUARANTINE"
+  "$AUTO_UNQUARANTINE" \
+  "$FALLBACK_NOTE_THRESHOLD" \
+  "$FALLBACK_DEGRADED_THRESHOLD" \
+  "$FALLBACK_ESCALATE_THRESHOLD" \
+  "$DEGRADED_CLEAR_RUNS" \
+  "$DEGRADED_CLEAR_MAX_FALLBACKS" \
+  "$FALLBACK_RECENT_WINDOW_SEC"
+
 import json
 import sys
 from collections import defaultdict
@@ -164,6 +179,12 @@ now = int(sys.argv[4])
 min_violations = int(sys.argv[5])
 quarantine_seconds = int(sys.argv[6])
 auto_unquarantine = sys.argv[7].lower() == "true"
+fallback_note_threshold = int(sys.argv[8])
+fallback_degraded_threshold = int(sys.argv[9])
+fallback_escalate_threshold = int(sys.argv[10])
+degraded_clear_runs = int(sys.argv[11])
+degraded_clear_max_fallbacks = int(sys.argv[12])
+fallback_recent_window_sec = int(sys.argv[13])
 
 try:
     with open(audit_path, "r", encoding="utf-8") as f:
@@ -183,6 +204,27 @@ if not isinstance(state, dict):
 items = audit.get("items", [])
 if not isinstance(items, list):
     items = []
+
+fallbacks_by_worker = defaultdict(list)
+recent_fallbacks_by_worker = defaultdict(list)
+
+cutoff = now - fallback_recent_window_sec
+
+for item in items:
+    if not isinstance(item, dict):
+        continue
+    if item.get("route_class") != "fallback":
+        continue
+
+    worker = item.get("selected_worker") or item.get("final_worker")
+    if not worker:
+        continue
+
+    fallbacks_by_worker[worker].append(item)
+
+    ts = item.get("ts")
+    if isinstance(ts, int) and ts >= cutoff:
+        recent_fallbacks_by_worker[worker].append(item)
 
 violations_by_worker = defaultdict(list)
 latest_violation_ts_by_worker = {}
@@ -212,6 +254,8 @@ state["_meta"]["last_audit_violations"] = int(audit.get("violations", 0) or 0)
 actions = {
     "quarantine": [],
     "release": [],
+    "degraded": [],
+    "escalated": [],
     "unchanged": [],
 }
 
@@ -243,6 +287,7 @@ for worker, entries in violations_by_worker.items():
             "last_route_class": "violation",
             "last_updated_ts": now,
             "last_updated_by": "fleet-remediate.sh",
+            "fallback_count_window": len(fallbacks_by_worker.get(worker, [])),
         }
     )
     state[worker] = entry
@@ -266,6 +311,73 @@ for worker, entry in list(state.items()):
 
     quarantined = bool(entry.get("quarantined", False))
     until_ts = int(entry.get("until_ts", 0) or 0)
+    fallback_count = len(fallbacks_by_worker.get(worker, []))
+    recent_fallback_count = len(recent_fallbacks_by_worker.get(worker, []))
+
+    clean_runs = int(entry.get("degraded_clean_runs", 0) or 0)
+    if recent_fallback_count <= degraded_clear_max_fallbacks:
+        clean_runs += 1
+    else:
+        clean_runs = 0
+    entry["degraded_clean_runs"] = clean_runs
+    entry["recent_fallback_count_window"] = recent_fallback_count
+
+    # Fallback pressure tracking only; no quarantine from fallback yet
+    if recent_fallback_count >= fallback_note_threshold:
+        entry["last_fallback_ts"] = now
+        entry["fallback_count_window"] = fallback_count
+        entry["last_route_class"] = "fallback"
+        entry["last_updated_ts"] = now
+        entry["last_updated_by"] = "fleet-remediate.sh"
+
+        if recent_fallback_count >= fallback_degraded_threshold:
+            entry["degraded"] = True
+            entry["degraded_reason"] = f"routing_fallback_pressure:{recent_fallback_count}"
+            actions["degraded"].append(
+                {
+                    "worker": worker,
+                    "fallback_count_window": fallback_count,
+                    "reason": "fallback_pressure",
+                }
+            )
+
+        if recent_fallback_count >= fallback_escalate_threshold:
+            actions["escalated"].append(
+                {
+                    "worker": worker,
+                    "fallback_count_window": fallback_count,
+                    "reason": "fallback_pressure_high",
+                }
+            )
+
+        if recent_fallback_count < fallback_degraded_threshold:
+            actions["unchanged"].append(
+                {
+                    "worker": worker,
+                    "reason": "fallback_detected",
+                    "fallback_count_window": fallback_count,
+                }
+            )
+
+        state[worker] = entry
+
+    elif entry.get("degraded") is True:
+        if clean_runs >= degraded_clear_runs:
+            entry["degraded"] = False
+            entry["degraded_reason"] = ""
+            entry["fallback_count_window"] = fallback_count
+            entry["last_updated_ts"] = now
+            entry["last_updated_by"] = "fleet-remediate.sh"
+            state[worker] = entry
+
+            actions["release"].append(
+                {
+                    "worker": worker,
+                    "reason": "degraded_cleared",
+                }
+            )
+        else:
+            state[worker] = entry
 
     if quarantined:
         if worker in violations_by_worker:
@@ -341,6 +453,8 @@ with open(sys.argv[1], "r", encoding="utf-8") as f:
 
 q = data.get("actions", {}).get("quarantine", [])
 r = data.get("actions", {}).get("release", [])
+d = data.get("actions", {}).get("degraded", [])
+e = data.get("actions", {}).get("escalated", [])
 u = data.get("actions", {}).get("unchanged", [])
 
 parts = []
@@ -348,10 +462,15 @@ if q:
     parts.append("quarantine=" + ",".join(sorted(item["worker"] for item in q)))
 if r:
     parts.append("release=" + ",".join(sorted(item["worker"] for item in r)))
+if d:
+    parts.append("degraded=" + ",".join(sorted(item["worker"] for item in d)))
+if e:
+    parts.append("escalated=" + ",".join(sorted(item["worker"] for item in e)))
 if not parts:
     parts.append("no_remediation_changes")
 
 print("REMEDIATE " + " | ".join(parts) + f" | unchanged={len(u)}")
+
 PY
 
 rm -f "$TMP_UPDATED_STATE"

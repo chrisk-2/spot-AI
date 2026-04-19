@@ -148,6 +148,10 @@ def load_remediation_state() -> dict[str, Any]:
 def save_remediation_state(data: dict[str, Any]) -> None:
     write_json_atomic(REMEDIATION_STATE_PATH, data)
 
+def remediation_entry(worker_name: str) -> dict[str, Any]:
+    state = load_remediation_state()
+    entry = state.get(worker_name, {})
+    return entry if isinstance(entry, dict) else {}
 
 def update_remediation_quarantine(worker_name: str, quarantined: bool, reason: str | None = None) -> None:
     state = load_remediation_state()
@@ -486,10 +490,23 @@ def score_candidate(cfg: dict[str, Any], worker_name: str, gpu_lane: str, role: 
         score += max(0.0, 1500 - float(lat["avg_total_ms"])) / 100.0 * float(weights.get("latency_bonus", 8))
     if current_penalty(worker_name):
         score -= float(weights.get("penalty_box_penalty", 500))
+
+    remediation = remediation_entry(worker_name)
+    if remediation.get("degraded") is True:
+        fallback_count_window = 0
+        try:
+            fallback_count_window = int(remediation.get("fallback_count_window", 0) or 0)
+        except Exception:
+            fallback_count_window = 0
+
+        degraded_penalty = float(weights.get("degraded_worker_penalty", 180))
+        degraded_step_penalty = float(weights.get("degraded_fallback_step_penalty", 20))
+        score -= degraded_penalty
+        score -= fallback_count_window * degraded_step_penalty
+
     if burst_mode:
         score -= float(weights.get("burst_penalty", 125))
     return round(score, 4)
-
 
 def increment_active(worker_name: str, gpu_lane: str, model: str) -> None:
     ACTIVE_REQUESTS[worker_name] = ACTIVE_REQUESTS.get(worker_name, 0) + 1
@@ -1173,6 +1190,7 @@ async def fleet_ping() -> dict[str, Any]:
     for name, worker_cfg in cfg["workers"].items():
         status = worker_status(name)
         healthy, reason = is_worker_healthy(name, cfg)
+        remediation = remediation_entry(name)
         out[name] = {
             "ok": healthy,
             "reason": reason,
@@ -1189,6 +1207,9 @@ async def fleet_ping() -> dict[str, Any]:
             "warm_models": WARM_MODELS.get(name, {}),
             "latency": worker_latency_summary(name),
             "penalty": current_penalty(name),
+            "degraded": bool(remediation.get("degraded", False)),
+            "degraded_reason": remediation.get("degraded_reason"),
+            "fallback_count_window": remediation.get("fallback_count_window", 0),
         }
     return out
 

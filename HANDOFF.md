@@ -53,3 +53,219 @@ Primary runtime paths:
 Next recommended step:
 Build /home/ogre/spot-stack/watch/spot-ops.sh with subcommands:
 validate, smoke, health, routing, audit, quarantine, release, logs
+
+
+Continuing Spot fleet work.
+
+Repo:
+https://github.com/chrisk-2/spot-AI
+
+Current commit:
+(use latest from spot-core via `spot_save` before handoff)
+
+Source of truth:
+
+* GitHub repo
+* Runtime files only when explicitly provided via sed/cat
+
+Read first:
+
+* HANDOFF.md
+* spot-core/STATE.md
+
+---
+
+## CURRENT SYSTEM STATE
+
+### Fleet topology
+
+spot-core:
+
+* scheduler + routing API (:8787)
+
+Workers:
+
+spot-worker-01:
+
+* role: general (primary), heavy fallback
+* GPU: RTX 3060 12GB
+* max_total: 1
+* models: llama3.1:8b, mistral:7b, qwen2.5:14b
+
+spot-worker-02:
+
+* role: utility
+* GPUs: M4000 8GB + GTX 1060 6GB
+* models: embedding + phi3.5
+
+spot-worker-03:
+
+* role: coding primary, heavy fallback (gpu1 only)
+* GPUs:
+
+  * gpu0: GTX 1070 8GB (coding only)
+  * gpu1: RTX 3060 12GB (coding + heavy)
+* max_total: 2
+* models: qwen2.5-coder:7b, qwen2.5:14b, codellama, deepseek
+
+spot-worker-04:
+
+* role: heavy primary
+* GPU: TITAN Xp 12GB
+* model: qwen2.5:14b
+
+---
+
+## ROUTING POLICY
+
+STRICT ROLE OWNERSHIP
+
+heavy:
+
+1. spot-worker-04 (primary)
+2. spot-worker-03 (fallback, gpu1 only)
+3. spot-worker-01 (fallback)
+
+coding:
+
+* spot-worker-03 primary
+
+general:
+
+* spot-worker-01 only
+
+utility:
+
+* spot-worker-02
+
+---
+
+## SYSTEM CAPABILITIES (ALL WORKING)
+
+✔ deterministic routing
+✔ strict role ownership
+✔ fallback routing
+✔ routing audit system
+✔ remediation engine
+✔ degraded state tracking
+✔ degraded penalty in scoring
+✔ degraded persistence + decay (clean-run based)
+✔ recent fallback window (time-based, not historical)
+✔ multi-node fallback distribution (03 + 01)
+✔ hard admission control (no overload thrashing)
+
+---
+
+## VERIFIED BEHAVIOR
+
+### Failure scenario (worker-04 down)
+
+* heavy routes to worker-03 first
+* spills to worker-01 when 03 hits capacity
+* excess requests are rejected (not queued)
+
+### Concurrency test result
+
+* worker-03 selected first (best capacity)
+* worker-01 used as secondary fallback
+* additional requests rejected with:
+
+  * gpu_lane_at_capacity
+  * worker_at_capacity
+
+System is behaving correctly.
+
+---
+
+## CURRENT LIMITATION
+
+Heavy capacity under failure:
+
+* worker-03 gpu1: 1–2 concurrent (12GB)
+* worker-01: 1 concurrent
+* worker-04: 0 (down scenario)
+
+Total effective heavy concurrency ≈ 2–3
+
+Worker-03 gpu0 (8GB) is intentionally NOT used for heavy:
+
+* insufficient VRAM for qwen2.5:14b
+* avoiding unstable runtime behavior
+
+---
+
+## DESIGN DECISION (IMPORTANT)
+
+Do NOT enable heavy on 8GB GPUs.
+
+Reason:
+
+* prevents unstable execution / OOM / thrashing
+* maintains deterministic admission behavior
+
+---
+
+## CURRENT PROBLEM SPACE
+
+System is now:
+
+* stable
+* correct
+* capacity-limited under burst load
+
+Not broken.
+
+---
+
+## NEXT PHASE OPTIONS
+
+Choose one direction (do not mix blindly):
+
+### Option A — Queueing (recommended next step)
+
+* add short wait/queue before rejection
+* improves UX under burst without lying about capacity
+
+### Option B — Capacity expansion
+
+* additional 12GB+ GPU nodes
+* or redistribute heavy models
+
+### Option C — Multi-model heavy tier
+
+* introduce smaller heavy model for 8GB lanes
+* requires explicit routing tier split
+
+---
+
+## RULES
+
+* do not redesign architecture
+* do not remove admission control
+* do not assume capacity that does not exist
+* use real runtime data, not assumptions
+* prefer small, testable changes
+
+---
+
+## CURRENT GOAL
+
+Implement controlled request queueing for heavy role:
+
+* short wait window
+* retry scheduling before hard rejection
+* must respect existing admission + scoring system
+
+---
+
+## LAST VERIFIED STATE
+
+* remediation-state.json stable
+* degraded clears correctly
+* recent_fallback_count_window working
+* routing distributing across 03 + 01
+* rejection behavior confirmed under load
+
+---
+
+END HANDOFF
