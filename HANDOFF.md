@@ -1,135 +1,113 @@
-Continuing Spot fleet work.
+# SPOT HANDOFF (LOCKED)
 
-Repo:
-https://github.com/chrisk-2/spot-AI
+## PURPOSE
+This file defines rules and workflow.
+It does NOT track state.
 
-Current commit:
-(use latest from spot-core via spot_save before handoff)
+State lives in:
+spot-core/STATE.md
+
+---
+
+## SOURCE OF TRUTH
+
+1. Runtime files (when explicitly provided via sed/cat)
+2. GitHub repo
+
+Never assume filesystem access.
+
+---
+
+## READ ORDER (MANDATORY)
+
+1. HANDOFF.md
+2. spot-core/STATE.md
 
 ---
 
 ## RULES
 
-- no guessing ever  
-- use runtime file as source of truth first  
-- read real files with sed/cat before patching  
-- do not redesign system unless asked  
-- no ad hoc edits  
-- use scripted validation  
+- no guessing ever
+- read real files before patching
+- use runtime or repo as source of truth
+- do not redesign system unless explicitly asked
+- do not do ad hoc edits
+- use scripted validation
 
-Routing ownership (LOCKED):
-- general -> spot-worker-01  
-- utility -> spot-worker-02  
-- coding  -> spot-worker-03  
-- heavy   -> spot-worker-04  
+---
 
-New chat flow:
-- run spot_save first  
-- read HANDOFF.md  
-- read spot-core/STATE.md  
-- use repo as source of truth  
-- request runtime files if needed  
+## ROUTING OWNERSHIP (LOCKED)
+
+- general -> spot-worker-01
+- utility -> spot-worker-02
+- coding  -> spot-worker-03
+- heavy   -> spot-worker-04
+
+Do not change.
 
 ---
 
 ## PATHS
 
-- repo: /home/ogre/spot-stack  
-- app: /home/ogre/spot-stack/spot-core/spotcore/app.py  
-- watch: /home/ogre/spot-stack/watch/fleet-watch.sh  
-- remediate: /home/ogre/spot-stack/watch/fleet-remediate.sh  
-- validator: /home/ogre/spot-stack/watch/fleet-validate.sh  
-- policy: /home/ogre/spot-stack/watch/fleet-policy.json  
-- state: /home/ogre/spot-stack/spot-core/STATE.md  
+Repo root:
+- /home/ogre/spot-stack
+
+Core:
+- /home/ogre/spot-stack/spot-core/spotcore/app.py
+
+Watch layer:
+- /home/ogre/spot-stack/watch/fleet-watch.sh
+- /home/ogre/spot-stack/watch/fleet-remediate.sh
+- /home/ogre/spot-stack/watch/fleet-validate.sh
+- /home/ogre/spot-stack/watch/spot-ops.sh
+
+State:
+- /home/ogre/spot-stack/spot-core/STATE.md
 
 ---
 
-## CURRENT STATE
+## WORKFLOW
 
-System stable and correct.
+Before any change:
+- read STATE.md
+- identify files in scope
+- read those files with sed/cat or repo
 
-✔ routing deterministic  
-✔ strict role ownership enforced  
-✔ fallback working  
-✔ audit + remediation working  
-✔ admission control working  
-✔ queueing implemented (bounded wait, retry, reject)  
-
----
-
-## FLEET
-
-- worker-01 → general + fallback  
-- worker-02 → utility  
-- worker-03 → coding primary + heavy fallback (gpu1 only)  
-- worker-04 → heavy primary  
+Then:
+- make minimal change
+- validate using scripts
 
 ---
 
-## BEHAVIOR (VERIFIED)
+## HANDOFF PROCESS
 
-Failure (worker-04 down):
-- heavy → worker-03 → worker-01 → reject  
+When switching chats:
 
-Concurrency:
-- fills 03 first  
-- spills to 01  
-- rejects excess cleanly  
+1. run:
+   spot_save
 
----
+2. update:
+   STATE.md
 
-## LIMITATION
+3. start new chat with:
 
-Heavy capacity under failure ≈ 2–3 concurrent  
+Continuing Spot fleet work.
 
-- worker-03 gpu1 → 1–2  
-- worker-01 → 1  
-- worker-04 → 0 (down case)  
+Repo:
+https://github.com/chrisk-2/spot-AI
 
-8GB GPUs NOT used for heavy (intentional)
+Run:
+- spot_save
+- read HANDOFF.md
+- read STATE.md
 
----
+Rules:
+- no guessing
+- read real files before patching
+- use repo/runtime source of truth
 
-## DESIGN LOCK
-
-Do NOT enable heavy on 8GB GPUs.
-
----
-
-## CURRENT REALITY
-
-System is:
-- stable  
-- correct  
-- capacity-limited  
-
-Not broken.
-
----
-
-## CURRENT GOAL
-
-Stage 2 — Operator layer
-
-Do next:
-- build ~/spot-stack/watch/spot-ops.sh  
-- clean fleet-validate.sh output  
-
----
-
-## OPTIONAL CLEANUP (SMALL)
-
-- dedupe rejection failure output  
-- normalize reason → role_not_allowed:heavy  
-
----
-
-## LAST VERIFIED
-
-- remediation stable  
-- degraded clears correctly  
-- routing distribution correct  
-- rejection behavior correct  
+Task:
+(read STATE.md and continue)
 
 ---
 
