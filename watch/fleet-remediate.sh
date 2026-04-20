@@ -8,6 +8,7 @@ BACKUP_DIR="${BASE_DIR}/backups"
 POLICY_FILE="${BASE_DIR}/fleet-policy.json"
 REMEDIATION_STATE_FILE="${STATE_DIR}/remediation-state.json"
 ROUTING_AUDIT_SUMMARY_FILE="${STATE_DIR}/routing-audit-summary.json"
+FLEET_STATUS_FILE="${STATE_DIR}/fleet-status.json"
 LOCAL_BACKUP_ROOT="${BACKUP_DIR}/remediation-state"
 REMOTE_BACKUP_ROOT="/mnt/collective/fleet/backups/routing-remediation"
 
@@ -125,6 +126,87 @@ unquarantine_worker() {
   return 1
 }
 
+restart_worker_service_via_api() {
+  local worker="$1"
+  local service="$2"
+  local url="http://127.0.0.1:8787/actions/restart-service/${worker}/${service}"
+
+  local payload
+  if ! payload="$(curl -fsS --max-time 30 -X POST "$url" 2>/dev/null)"; then
+    log "service_restart_api_failed worker=${worker} service=${service} reason=request_failed"
+    return 1
+  fi
+
+  if ! jq empty >/dev/null 2>&1 <<<"$payload"; then
+    log "service_restart_api_failed worker=${worker} service=${service} reason=invalid_json"
+    return 1
+  fi
+
+  local ok restart_returncode remote_after backup_path action_log_path
+  ok="$(jq -r '.ok // false' <<<"$payload")"
+  restart_returncode="$(jq -r '
+    .restart_returncode
+    // .verification.restart_returncode
+    // .result.restart_returncode
+    // "null"
+  ' <<<"$payload")"
+  remote_after="$(jq -r '
+    .remote_after
+    // .verification.remote_after
+    // .result.remote_after
+    // "unknown"
+  ' <<<"$payload")"
+  backup_path="$(jq -r '
+    .backup_path
+    // .backup.path
+    // .result.backup_path
+    // ""
+  ' <<<"$payload")"
+  action_log_path="$(jq -r '
+    .action_log_path
+    // .log_path
+    // .result.action_log_path
+    // ""
+  ' <<<"$payload")"
+
+  if [[ "$ok" == "true" && "$restart_returncode" == "0" && "$remote_after" == "active" ]]; then
+    log "service_restart_api_ok worker=${worker} service=${service} restart_returncode=${restart_returncode} remote_after=${remote_after} backup_path=${backup_path} action_log_path=${action_log_path}"
+    return 0
+  fi
+
+  log "service_restart_api_failed worker=${worker} service=${service} ok=${ok} restart_returncode=${restart_returncode} remote_after=${remote_after} backup_path=${backup_path} action_log_path=${action_log_path}"
+  return 1
+}
+
+service_down_workers_from_status() {
+  local status_file="$1"
+  python3 - "$status_file" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+
+try:
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+except Exception:
+    raise SystemExit(0)
+
+hosts = data.get("hosts", {})
+if not isinstance(hosts, dict):
+    raise SystemExit(0)
+
+for worker, info in hosts.items():
+    if not isinstance(info, dict):
+        continue
+    alerts = info.get("alerts", [])
+    if not isinstance(alerts, list):
+        alerts = []
+    if "service_down" in alerts:
+        print(worker)
+PY
+}
+
 ENABLED="$(get_policy_value "routing_remediation.enabled" "true")"
 AUDIT_LIMIT="$(get_policy_value "routing_remediation.audit_limit" "200")"
 MIN_VIOLATIONS="$(get_policy_value "routing_remediation.min_violations" "1")"
@@ -137,6 +219,9 @@ FALLBACK_ESCALATE_THRESHOLD="$(get_policy_value "routing_remediation.fallback_es
 DEGRADED_CLEAR_RUNS="$(get_policy_value "routing_remediation.degraded_clear_runs" "2")"
 DEGRADED_CLEAR_MAX_FALLBACKS="$(get_policy_value "routing_remediation.degraded_clear_max_fallbacks" "0")"
 FALLBACK_RECENT_WINDOW_SEC="$(get_policy_value "routing_remediation.fallback_recent_window_sec" "120")"
+
+SERVICE_REMEDIATION_ENABLED="$(get_policy_value "service_remediation.enabled" "true")"
+SERVICE_REMEDIATION_TARGET_SERVICE="$(get_policy_value "service_remediation.target_service" "ollama")"
 
 if [[ "$ENABLED" != "true" ]]; then
   log "remediation_disabled"
@@ -444,12 +529,35 @@ fi
 jq '.state' "$TMP_UPDATED_STATE" > "${REMEDIATION_STATE_FILE}.tmp"
 mv "${REMEDIATION_STATE_FILE}.tmp" "$REMEDIATION_STATE_FILE"
 
+# Service remediation via spot-core API (separate from quarantine logic)
+SERVICE_RESTARTS_ATTEMPTED=0
+SERVICE_RESTARTS_SUCCEEDED=0
+
+if [[ "$SERVICE_REMEDIATION_ENABLED" == "true" ]]; then
+  if [[ -f "$FLEET_STATUS_FILE" ]]; then
+    while IFS= read -r worker; do
+      [[ -n "$worker" ]] || continue
+      SERVICE_RESTARTS_ATTEMPTED=$((SERVICE_RESTARTS_ATTEMPTED + 1))
+      if restart_worker_service_via_api "$worker" "$SERVICE_REMEDIATION_TARGET_SERVICE"; then
+        SERVICE_RESTARTS_SUCCEEDED=$((SERVICE_RESTARTS_SUCCEEDED + 1))
+      fi
+    done < <(service_down_workers_from_status "$FLEET_STATUS_FILE")
+  else
+    log "service_remediation_skipped reason=fleet_status_missing path=${FLEET_STATUS_FILE}"
+  fi
+else
+  log "service_remediation_disabled"
+fi
+
 # Final human-readable summary
-python3 - <<'PY' "$TMP_UPDATED_STATE"
+python3 - <<'PY' "$TMP_UPDATED_STATE" "$SERVICE_RESTARTS_ATTEMPTED" "$SERVICE_RESTARTS_SUCCEEDED"
 import json, sys
 
 with open(sys.argv[1], "r", encoding="utf-8") as f:
     data = json.load(f)
+
+service_restarts_attempted = int(sys.argv[2])
+service_restarts_succeeded = int(sys.argv[3])
 
 q = data.get("actions", {}).get("quarantine", [])
 r = data.get("actions", {}).get("release", [])
@@ -466,11 +574,12 @@ if d:
     parts.append("degraded=" + ",".join(sorted(item["worker"] for item in d)))
 if e:
     parts.append("escalated=" + ",".join(sorted(item["worker"] for item in e)))
+if service_restarts_attempted:
+    parts.append(f"service_restarts={service_restarts_succeeded}/{service_restarts_attempted}")
 if not parts:
     parts.append("no_remediation_changes")
 
 print("REMEDIATE " + " | ".join(parts) + f" | unchanged={len(u)}")
-
 PY
 
 rm -f "$TMP_UPDATED_STATE"

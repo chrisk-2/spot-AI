@@ -19,18 +19,22 @@ Current state:
 - enforcement wrapper is ACTIVE in spot-core/app.py
 - quarantine + unquarantine fully enforced
 - restart-service hook implemented and WORKING
+- service remediation added to watch/fleet-remediate.sh
+- restart via POST /actions/restart-service/{worker}/ollama
 
 Verified:
 - spot-core container can SSH to workers (key-based)
 - restart endpoint works:
-  POST /actions/restart-service/{worker}/ollama
+- POST /actions/restart-service/{worker}/ollama
 - returns ok:true with:
-  restart_returncode=0
-  remote_after=active
+- restart_returncode=0
+- remote_after=active
+- validated live on spot-worker-01
+- backup + action logging confirmed
 
 Infra fixes completed:
 - openssh-client installed in container
-- SSH keys copied into container at runtime (/host-ssh → /root/.ssh)
+- SSH keys copied into container at runtime (/host-ssh -> /root/.ssh)
 - permissions corrected
 - /mnt/collective mounted into container
 - backup + logs writing correctly
@@ -64,4 +68,4 @@ Validation:
 - confirm service returns active
 
 Note:
-Routing issues exist but are unrelated—ignore for this task.
+
