@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import shlex
 import json
 import logging
 import os
@@ -8,8 +9,9 @@ import statistics
 import time
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Any, Literal
-
+from typing import Any, Awaitable, Callable, Literal
+import hashlib
+import shutil
 import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -21,6 +23,18 @@ EXEC_HISTORY_PATH = Path(os.environ.get("SPOTCORE_EXEC_HISTORY", "/app/shared_me
 DECISION_LOG_PATH = Path(os.environ.get("SPOTCORE_DECISION_LOG", "/app/shared_memory/decision-history.jsonl"))
 ROUTING_AUDIT_PATH = Path(os.environ.get("SPOTCORE_ROUTING_AUDIT_LOG", "/watch/state/routing-audit.jsonl"))
 REMEDIATION_STATE_PATH = Path(os.environ.get("SPOTCORE_REMEDIATION_STATE", "/watch/state/remediation-state.json"))
+BACKUP_ROOT_PATH = Path(os.environ.get("SPOTCORE_BACKUP_ROOT", "/mnt/collective/backups"))
+ACTION_LOG_ROOT = Path(os.environ.get("SPOTCORE_ACTION_LOG_ROOT", "/mnt/collective/logs/spot"))
+AUTONOMY_ALLOW_HIGH_RISK = os.environ.get("SPOTCORE_ALLOW_HIGH_RISK_AUTONOMY", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
+ALLOWED_REMOTE_SERVICES = {"ollama"}
+SSH_USER = os.environ.get("SPOTCORE_SSH_USER", "ogre")
+SSH_CONNECT_TIMEOUT = int(os.environ.get("SPOTCORE_SSH_CONNECT_TIMEOUT", "10"))
 
 HTTP_TIMEOUT = float(os.environ.get("SPOTCORE_HTTP_TIMEOUT", "240"))
 LATENCY_WINDOW = int(os.environ.get("SPOTCORE_LATENCY_WINDOW", "100"))
@@ -96,6 +110,232 @@ def append_jsonl(path: Path, payload: dict[str, Any]) -> None:
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(payload, sort_keys=True) + "\n")
 
+def classify_action_risk(action_name: str, target: str, service: str, metadata: dict[str, Any] | None = None) -> str:
+    text = " ".join(
+        [
+            action_name.lower(),
+            target.lower(),
+            service.lower(),
+            json.dumps(metadata or {}, sort_keys=True).lower(),
+        ]
+    )
+    if any(
+        token in text
+        for token in ["firewall", "opnsense", "gateway", "vlan", "route", "routing", "dhcp", "dns", "acl"]
+    ):
+        return "high"
+    if any(token in text for token in ["config", "deploy", "replace", "reload"]):
+        return "medium"
+    return "low"
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _copy_backup_source(src: Path, dest_root: Path) -> dict[str, Any]:
+    if not src.exists():
+        raise FileNotFoundError(f"backup source missing: {src}")
+
+    dest = dest_root / src.name
+    if src.is_dir():
+        shutil.copytree(src, dest, dirs_exist_ok=False)
+        return {
+            "source": str(src),
+            "dest": str(dest),
+            "type": "dir",
+        }
+
+    shutil.copy2(src, dest)
+    return {
+        "source": str(src),
+        "dest": str(dest),
+        "type": "file",
+        "size": src.stat().st_size,
+        "sha256": _sha256_file(dest),
+    }
+
+
+def create_verified_backup(
+    *,
+    target: str,
+    service: str,
+    action_name: str,
+    backup_sources: list[Path],
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    timestamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
+    unique_suffix = str(time.time_ns())
+    backup_dir = BACKUP_ROOT_PATH / target / service / f"{timestamp}-{unique_suffix}"
+    backup_dir.mkdir(parents=True, exist_ok=False)
+
+    artifacts: list[dict[str, Any]] = []
+    for src in backup_sources:
+        artifacts.append(_copy_backup_source(src, backup_dir))
+
+    marker = {
+        "ts": _now(),
+        "action": action_name,
+        "target": target,
+        "service": service,
+        "backup_dir": str(backup_dir),
+        "artifacts": artifacts,
+        "metadata": metadata or {},
+        "verified": True,
+    }
+    (backup_dir / "metadata.json").write_text(json.dumps(marker, indent=2, sort_keys=True), encoding="utf-8")
+    return marker
+
+
+def append_action_log(payload: dict[str, Any]) -> None:
+    append_jsonl(ACTION_LOG_ROOT / "actions.jsonl", payload)
+
+
+async def execute_with_enforcement(
+    *,
+    action_name: str,
+    target: str,
+    service: str,
+    backup_sources: list[Path],
+    execute_fn: Callable[[], Awaitable[dict[str, Any]]],
+    verify_fn: Callable[[dict[str, Any]], Awaitable[tuple[bool, dict[str, Any]]]],
+    rollback_fn: Callable[[dict[str, Any], dict[str, Any]], Awaitable[dict[str, Any]]] | None = None,
+    metadata: dict[str, Any] | None = None,
+    require_backup: bool = True,
+) -> dict[str, Any]:
+    started_ts = _now()
+    risk_class = classify_action_risk(action_name, target, service, metadata)
+
+    if risk_class == "high" and not AUTONOMY_ALLOW_HIGH_RISK:
+        append_action_log(
+            {
+                "ts": started_ts,
+                "status": "blocked",
+                "action": action_name,
+                "target": target,
+                "service": service,
+                "risk_class": risk_class,
+                "reason": "high_risk_requires_explicit_approval",
+                "metadata": metadata or {},
+            }
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={"message": "high-risk action blocked by policy", "action": action_name},
+        )
+
+    backup_record = None
+    if require_backup:
+        try:
+            backup_record = create_verified_backup(
+                target=target,
+                service=service,
+                action_name=action_name,
+                backup_sources=backup_sources,
+                metadata=metadata,
+            )
+        except Exception as exc:
+            append_action_log(
+                {
+                    "ts": started_ts,
+                    "status": "blocked",
+                    "action": action_name,
+                    "target": target,
+                    "service": service,
+                    "risk_class": risk_class,
+                    "reason": "backup_failed",
+                    "error": repr(exc),
+                    "metadata": metadata or {},
+                }
+            )
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "message": "backup gate failed; action blocked",
+                    "action": action_name,
+                    "error": repr(exc),
+                },
+            ) from exc
+
+    append_action_log(
+        {
+            "ts": started_ts,
+            "status": "starting",
+            "action": action_name,
+            "target": target,
+            "service": service,
+            "risk_class": risk_class,
+            "backup_path": backup_record["backup_dir"] if backup_record else None,
+            "metadata": metadata or {},
+        }
+    )
+
+    execution_result = await execute_fn()
+
+    verify_ok = False
+    verify_data: dict[str, Any] = {}
+    rollback_data: dict[str, Any] | None = None
+
+    try:
+        verify_ok, verify_data = await verify_fn(execution_result)
+    except Exception as exc:
+        verify_ok = False
+        verify_data = {"error": repr(exc), "stage": "verify_exception"}
+
+    if not verify_ok:
+        if rollback_fn is not None and risk_class in {"low", "medium"} and backup_record is not None:
+            rollback_data = await rollback_fn(backup_record, execution_result)
+
+        append_action_log(
+            {
+                "ts": _now(),
+                "status": "failed_verification",
+                "action": action_name,
+                "target": target,
+                "service": service,
+                "risk_class": risk_class,
+                "backup_path": backup_record["backup_dir"] if backup_record else None,
+                "verification": verify_data,
+                "rollback": rollback_data,
+                "metadata": metadata or {},
+            }
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "post-change verification failed",
+                "action": action_name,
+                "verification": verify_data,
+                "rollback": rollback_data,
+            },
+        )
+
+    append_action_log(
+        {
+            "ts": _now(),
+            "status": "ok",
+            "action": action_name,
+            "target": target,
+            "service": service,
+            "risk_class": risk_class,
+            "backup_path": backup_record["backup_dir"] if backup_record else None,
+            "verification": verify_data,
+            "metadata": metadata or {},
+        }
+    )
+
+    return {
+        "ok": True,
+        "action": action_name,
+        "risk_class": risk_class,
+        "backup": backup_record,
+        "verification": verify_data,
+        "result": execution_result,
+    }
 
 def load_config() -> dict[str, Any]:
     global CONFIG_CACHE, CONFIG_MTIME
@@ -208,6 +448,36 @@ def update_watch_state_quarantine(worker_name: str, quarantined: bool) -> None:
 def worker_status(name: str) -> dict[str, Any]:
     return (load_watch_state().get("hosts") or {}).get(name, {})
 
+def worker_host(worker_name: str, cfg: dict[str, Any]) -> str:
+    worker = cfg["workers"].get(worker_name)
+    if not worker:
+        raise HTTPException(status_code=404, detail={"message": "unknown worker"})
+    base_url = str(worker.get("base_url", ""))
+    if "://" in base_url:
+        hostport = base_url.split("://", 1)[1]
+    else:
+        hostport = base_url
+    return hostport.split(":", 1)[0]
+
+
+async def run_ssh_command(host: str, remote_cmd: str) -> dict[str, Any]:
+    proc = await asyncio.create_subprocess_exec(
+        "ssh",
+        "-o",
+        f"ConnectTimeout={SSH_CONNECT_TIMEOUT}",
+        "-o",
+        "BatchMode=yes",
+        f"{SSH_USER}@{host}",
+        remote_cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await proc.communicate()
+    return {
+        "returncode": proc.returncode,
+        "stdout": stdout.decode("utf-8", errors="replace"),
+        "stderr": stderr.decode("utf-8", errors="replace"),
+    }
 
 def worker_metric_int(status: dict[str, Any], key: str, default: int = 0) -> int:
     try:
@@ -1242,28 +1512,196 @@ async def quarantine_worker(worker_name: str, seconds: int = 1800, reason: str =
     if worker_name not in cfg["workers"]:
         raise HTTPException(status_code=404, detail={"message": "unknown worker"})
 
-    penalty = {
-        "reason": reason,
-        "until": _now() + max(60, seconds),
-        "ts": _now(),
-        "quarantined": True,
-        "failure_count_window": failure_window_count(worker_name, 3600),
-    }
-    PENALTY_BOX[worker_name] = penalty
-    update_remediation_quarantine(worker_name, True, reason)
-    update_watch_state_quarantine(worker_name, True)
+    async def do_execute() -> dict[str, Any]:
+        penalty = {
+            "reason": reason,
+            "until": _now() + max(60, seconds),
+            "ts": _now(),
+            "quarantined": True,
+            "failure_count_window": failure_window_count(worker_name, 3600),
+        }
+        PENALTY_BOX[worker_name] = penalty
+        update_remediation_quarantine(worker_name, True, reason)
+        update_watch_state_quarantine(worker_name, True)
+        return {"worker": worker_name, "penalty": penalty}
 
-    return {"ok": True, "worker": worker_name, "penalty": penalty}
+    async def do_verify(execution_result: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        status = worker_status(worker_name)
+        remediation = remediation_entry(worker_name)
+        ok = status.get("quarantined") is True and remediation.get("quarantined") is True
+        return ok, {
+            "watch_quarantined": status.get("quarantined"),
+            "watch_eligible": status.get("eligible"),
+            "remediation_quarantined": remediation.get("quarantined"),
+        }
 
+    async def do_rollback(backup_record: dict[str, Any], execution_result: dict[str, Any]) -> dict[str, Any]:
+        remediation_backup = next(
+            Path(item["dest"])
+            for item in backup_record["artifacts"]
+            if item["source"] == str(REMEDIATION_STATE_PATH)
+        )
+        watch_backup = next(
+            Path(item["dest"])
+            for item in backup_record["artifacts"]
+            if item["source"] == str(WATCH_STATE_PATH)
+        )
+
+        shutil.copy2(remediation_backup, REMEDIATION_STATE_PATH)
+        shutil.copy2(watch_backup, WATCH_STATE_PATH)
+        PENALTY_BOX.pop(worker_name, None)
+
+        return {
+            "restored_files": [str(REMEDIATION_STATE_PATH), str(WATCH_STATE_PATH)],
+            "cleared_penalty": True,
+        }
+
+    return await execute_with_enforcement(
+        action_name="quarantine_worker",
+        target=worker_name,
+        service="fleet_runtime_state",
+        backup_sources=[REMEDIATION_STATE_PATH, WATCH_STATE_PATH],
+        execute_fn=do_execute,
+        verify_fn=do_verify,
+        rollback_fn=do_rollback,
+        metadata={"reason": reason, "seconds": seconds},
+        require_backup=True,
+    )
 
 @app.delete("/quarantine/{worker_name}")
 async def unquarantine_worker(worker_name: str) -> dict[str, Any]:
-    removed_penalty = PENALTY_BOX.pop(worker_name, None)
-    FAILURE_HISTORY.pop(worker_name, None)
-    update_remediation_quarantine(worker_name, False, "manual_release")
-    update_watch_state_quarantine(worker_name, False)
-    return {"ok": True, "worker": worker_name, "removed_penalty": removed_penalty is not None}
+    cfg = load_config()
+    if worker_name not in cfg["workers"]:
+        raise HTTPException(status_code=404, detail={"message": "unknown worker"})
 
+    async def do_execute() -> dict[str, Any]:
+        removed_penalty = PENALTY_BOX.pop(worker_name, None)
+        FAILURE_HISTORY.pop(worker_name, None)
+        update_remediation_quarantine(worker_name, False, "manual_release")
+        update_watch_state_quarantine(worker_name, False)
+        return {"worker": worker_name, "removed_penalty": removed_penalty is not None}
+
+    async def do_verify(execution_result: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        status = worker_status(worker_name)
+        remediation = remediation_entry(worker_name)
+        ok = status.get("quarantined") is False and remediation.get("quarantined") is False
+        return ok, {
+            "watch_quarantined": status.get("quarantined"),
+            "watch_eligible": status.get("eligible"),
+            "remediation_quarantined": remediation.get("quarantined"),
+        }
+
+    async def do_rollback(backup_record: dict[str, Any], execution_result: dict[str, Any]) -> dict[str, Any]:
+        remediation_backup = next(
+            Path(item["dest"])
+            for item in backup_record["artifacts"]
+            if item["source"] == str(REMEDIATION_STATE_PATH)
+        )
+        watch_backup = next(
+            Path(item["dest"])
+            for item in backup_record["artifacts"]
+            if item["source"] == str(WATCH_STATE_PATH)
+        )
+
+        shutil.copy2(remediation_backup, REMEDIATION_STATE_PATH)
+        shutil.copy2(watch_backup, WATCH_STATE_PATH)
+
+        return {
+            "restored_files": [str(REMEDIATION_STATE_PATH), str(WATCH_STATE_PATH)],
+            "cleared_penalty": False,
+        }
+
+    return await execute_with_enforcement(
+        action_name="unquarantine_worker",
+        target=worker_name,
+        service="fleet_runtime_state",
+        backup_sources=[REMEDIATION_STATE_PATH, WATCH_STATE_PATH],
+        execute_fn=do_execute,
+        verify_fn=do_verify,
+        rollback_fn=do_rollback,
+        metadata={"reason": "manual_release"},
+        require_backup=True,
+    )
+
+@app.post("/actions/restart-service/{worker_name}/{service_name}")
+async def restart_service(worker_name: str, service_name: str) -> dict[str, Any]:
+    cfg = load_config()
+
+    if worker_name not in cfg["workers"]:
+        raise HTTPException(status_code=404, detail={"message": "unknown worker"})
+
+    if service_name not in ALLOWED_REMOTE_SERVICES:
+        raise HTTPException(
+            status_code=403,
+            detail={"message": "service not allowlisted", "service": service_name},
+        )
+
+    host = worker_host(worker_name, cfg)
+
+    async def do_execute() -> dict[str, Any]:
+        before = await run_ssh_command(
+            host,
+            f"systemctl is-active {shlex.quote(service_name)} || true",
+        )
+
+        restart = await run_ssh_command(
+            host,
+            f"sudo systemctl restart {shlex.quote(service_name)}",
+        )
+
+        after = await run_ssh_command(
+            host,
+            f"systemctl is-active {shlex.quote(service_name)} || true",
+        )
+
+        return {
+            "worker": worker_name,
+            "host": host,
+            "service": service_name,
+            "before": before,
+            "restart": restart,
+            "after": after,
+        }
+
+    async def do_verify(execution_result: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        status = worker_status(worker_name)
+        ssh_ok = status.get("ssh_ok")
+        service_ok = status.get("service_ok")
+        remote_after = execution_result.get("after", {}).get("stdout", "").strip()
+
+        ok = (
+            execution_result.get("restart", {}).get("returncode") == 0
+            and remote_after == "active"
+            and ssh_ok is not False
+        )
+
+        if service_name == "ollama":
+            ok = ok and (service_ok is True or remote_after == "active")
+
+        return ok, {
+            "restart_returncode": execution_result.get("restart", {}).get("returncode"),
+            "remote_after": remote_after,
+            "watch_ssh_ok": ssh_ok,
+            "watch_service_ok": service_ok,
+        }
+
+    async def do_rollback(backup_record: dict[str, Any], execution_result: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "rollback": "not_applicable_for_service_restart",
+            "backup_path": backup_record.get("backup_dir"),
+        }
+
+    return await execute_with_enforcement(
+        action_name="restart_service",
+        target=worker_name,
+        service=service_name,
+        backup_sources=[REMEDIATION_STATE_PATH, WATCH_STATE_PATH],
+        execute_fn=do_execute,
+        verify_fn=do_verify,
+        rollback_fn=do_rollback,
+        metadata={"worker": worker_name, "host": host, "service": service_name},
+        require_backup=True,
+    )
 
 @app.post("/exec", response_model=ExecResult)
 async def exec_route(req: ExecRequest) -> ExecResult:

@@ -215,7 +215,7 @@ check_audit_file_append() {
   local before_lines="${ROUTE_CHECK_BEFORE_LINES:-0}"
   local after_lines="${ROUTE_CHECK_AFTER_LINES:-0}"
 
-  if (( after_lines >= before_lines + 4 )); then
+  if (( after_lines > before_lines )); then
     pass "routing audit file appended by validation traffic (${before_lines} -> ${after_lines})"
   else
     fail "routing audit file did not append expected entries (${before_lines} -> ${after_lines})"

@@ -1,63 +1,67 @@
-# SPOT STATE
-
 Continuing Spot fleet work.
 
 Repo:
 https://github.com/chrisk-2/spot-AI
 
-Current state:
-- spot-core running in Docker on :8787
-- fleet registration working
-- /fleet and /fleet/ping working
-- workers healthy and reachable via Ollama
-- system stable after restart (re-registration required)
-
-Fleet:
-- spot-worker-01 → general (192.168.10.10)
-- spot-worker-02 → utility (192.168.10.11)
-- spot-worker-03 → coding (192.168.10.13)
-- spot-worker-04 → heavy (192.168.10.14)
-
-Key rule:
-- NO BACKUP = NO CHANGE (autonomy policy locked)
-
-Docs:
-- Autonomy policy finalized
-- Roadmap stages defined
-
-Files to reference:
-- Autonomy policy: :contentReference[oaicite:0]{index=0}
-- Roadmap: :contentReference[oaicite:1]{index=1}
-- Worker specs:
-  - worker-01: :contentReference[oaicite:2]{index=2}
-  - worker-02: :contentReference[oaicite:3]{index=3}
-  - worker-03: :contentReference[oaicite:4]{index=4}
-  - worker-04: :contentReference[oaicite:5]{index=5}
+Run first:
+- spot_save
+- read HANDOFF.md
+- read spot-core/STATE.md
 
 Rules:
 - no guessing
-- read real code before modifying
-- do not redesign architecture
-- enforce autonomy policy in code (not just docs)
+- read real files before patching
+- use repo/runtime as source of truth
+- do not redesign system unless asked
+- use scripted validation
 
-Current phase:
-Stage 1 — Spot Core completion (late phase)
+Current status:
+- enforcement wrapper is now implemented in spot-core/spotcore/app.py
+- quarantine hook is enforced through:
+  classify -> backup -> execute -> verify -> rollback path
+- unquarantine hook is enforced through:
+  classify -> backup -> execute -> verify -> rollback path
+- real service mutation hook is now working:
+  POST /actions/restart-service/{worker_name}/{service_name}
+- verified successful restart of:
+  spot-worker-01 / ollama
+- backups and logs are writing to:
+  /mnt/collective/backups
+  /mnt/collective/logs/spot/actions.jsonl
 
-Next goal:
-Wire autonomy enforcement into spot-core:
-1. risk classification
-2. backup gate (/mnt/collective/backups)
-3. execution wrapper (log + verify + rollback)
+Important implementation details now in place:
+- unique backup dir naming uses time.time_ns()
+- docker-compose.yml now mounts /mnt/collective into container
+- docker-compose.yml also mounts host SSH material to /host-ssh and copies keys/known_hosts into /root/.ssh at container startup with corrected permissions
+- spot-core container installs openssh-client at startup
+- restart hook uses SSH from inside container successfully
 
-Constraints:
-- fleet currently re-registers on restart (stateless)
-- do not introduce persistence redesign unless asked
+Verified working behavior:
+- docker compose exec spot-core ssh ogre@192.168.10.10 "echo ok" works
+- curl -s -X POST "http://127.0.0.1:8787/actions/restart-service/spot-worker-01/ollama" | jq returns ok:true
+- verification showed:
+  restart_returncode=0
+  remote_after=active
 
-Success criteria:
-- every mutating action forced through:
-  classify → backup → execute → verify → rollback if needed
-- backup path logged before execution
-- failure blocks execution cleanly
+Worker-01 service control is now standardized enough for this path:
+- ollama is controllable by systemd
+- sudo NOPASSWD path for restart/is-active works
 
-Task:
-Start implementing enforcement hooks in spot-core/app.py
+Next task:
+Wire fleet-remediate.sh into spot-core so remediation uses the policy-enforced restart API instead of direct shell/SSH restart logic.
+
+Files likely in scope:
+- /home/ogre/spot-stack/watch/fleet-remediate.sh
+- /home/ogre/spot-stack/spot-core/spotcore/app.py
+- /home/ogre/spot-stack/docker-compose.yml
+- /home/ogre/spot-stack/spot-core/STATE.md
+
+Expected direction:
+- replace direct restart action in fleet-remediate.sh with call to spot-core endpoint:
+  POST /actions/restart-service/{worker}/{service}
+- keep backup-first behavior and logging through spot-core as source of mutation control
+- preserve existing remediation flow and avoid redesign
+- validate with scripted test against a controlled ollama stop/restart scenario
+
+Known separate issues:
+- fleet routing validator still has unrelated routing failures from earlier work; do not confuse those with enforcement hook success

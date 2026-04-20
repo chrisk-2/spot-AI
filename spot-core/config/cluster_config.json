@@ -20,8 +20,7 @@
       "spot-worker-01"
     ],
     "coding": [
-      "spot-worker-03",
-      "spot-worker-01"
+      "spot-worker-03"
     ],
     "general": [
       "spot-worker-01"
@@ -132,14 +131,13 @@
       "base_url": "http://192.168.10.10:11434",
       "primary_role": "general",
       "secondary_roles": [
-        "heavy",
-        "coding"
+        "heavy"
       ],
       "max_total": 1,
       "class_limits": {
         "general": 1,
         "heavy": 1,
-        "coding": 1,
+        "coding": 0,
         "utility": 0,
         "watcher": 0
       },
@@ -155,8 +153,7 @@
           "max_total": 1,
           "classes": [
             "general",
-            "heavy",
-            "coding"
+            "heavy"
           ],
           "model_limits": {
             "llama3.1:8b": 1,
@@ -168,10 +165,6 @@
             "general": [
               "llama3.1:8b",
               "mistral:7b"
-            ],
-            "coding": [
-              "qwen2.5-coder:7b",
-              "llama3.1:8b"
             ],
             "heavy": [
               "qwen2.5:14b"
