@@ -275,6 +275,117 @@ check_routing_audit_endpoint() {
   [[ "$missing" -eq 0 ]]
 }
 
+ADMIN_TOKEN=""
+
+get_admin_token() {
+  if ! command -v docker >/dev/null 2>&1; then
+    fail "docker is required for admin endpoint validation"
+    return 1
+  fi
+
+  local token
+  token="$(docker exec spot-core /bin/sh -lc 'printf %s "$SPOTCORE_ADMIN_API_TOKEN"' 2>/dev/null || true)"
+
+  if [[ -z "$token" ]]; then
+    fail "could not read SPOTCORE_ADMIN_API_TOKEN from running spot-core container"
+    return 1
+  fi
+
+  ADMIN_TOKEN="$token"
+  pass "admin token fetched from running spot-core container"
+}
+
+check_admin_validate_endpoint() {
+  local payload="$TMPDIR/admin-validate.json"
+  local response="$TMPDIR/admin-validate.response.json"
+  local code_file="$TMPDIR/admin-validate.http"
+
+  jq -n \
+    --arg worker "spot-worker-01" \
+    '{
+      worker: $worker,
+      commands: [
+        "test -f /etc/os-release",
+        "systemctl is-active ollama"
+      ]
+    }' > "$payload"
+
+  if ! http_json POST "${SPOT_BASE_URL}/admin/validate" "$payload" "$response" "$code_file"; then
+    fail "/admin/validate request failed"
+    return 1
+  fi
+
+  local http_code
+  http_code="$(<"$code_file")"
+
+  if [[ ! "$http_code" =~ ^2 ]]; then
+    fail "/admin/validate returned HTTP ${http_code}"
+    [[ -s "$response" ]] && warn "/admin/validate body: $(tr -d '\n' < "$response" | head -c 300)"
+    return 1
+  fi
+
+  if ! jq -e . "$response" >/dev/null 2>&1; then
+    fail "/admin/validate returned non-JSON body"
+    return 1
+  fi
+
+  if jq -e '.ok != null and (.results | type == "array")' "$response" >/dev/null 2>&1; then
+    pass "/admin/validate returned expected JSON structure"
+  else
+    fail "/admin/validate JSON structure was not as expected"
+    return 1
+  fi
+}
+
+check_admin_read_file_endpoint() {
+  local payload="$TMPDIR/admin-read-file.json"
+  local response="$TMPDIR/admin-read-file.response.json"
+  local code_file="$TMPDIR/admin-read-file.http"
+
+  jq -n \
+    --arg token "$ADMIN_TOKEN" \
+    --arg worker "spot-worker-01" \
+    --arg path "/etc/os-release" \
+    '{
+      token: $token,
+      worker: $worker,
+      path: $path
+    }' > "$payload"
+
+  if ! http_json POST "${SPOT_BASE_URL}/admin/read-file" "$payload" "$response" "$code_file"; then
+    fail "/admin/read-file request failed"
+    return 1
+  fi
+
+  local http_code
+  http_code="$(<"$code_file")"
+
+  if [[ ! "$http_code" =~ ^2 ]]; then
+    fail "/admin/read-file returned HTTP ${http_code}"
+    [[ -s "$response" ]] && warn "/admin/read-file body: $(tr -d '\n' < "$response" | head -c 300)"
+    return 1
+  fi
+
+  if ! jq -e . "$response" >/dev/null 2>&1; then
+    fail "/admin/read-file returned non-JSON body"
+    return 1
+  fi
+
+  if jq -e '.content | strings | length > 0' "$response" >/dev/null 2>&1; then
+    pass "/admin/read-file returned file content"
+  else
+    fail "/admin/read-file did not return content"
+    return 1
+  fi
+
+  if jq -e '.content | contains("PRETTY_NAME=") or contains("Ubuntu")' "$response" >/dev/null 2>&1; then
+    pass "/admin/read-file content matches /etc/os-release"
+  else
+    fail "/admin/read-file content did not look like /etc/os-release"
+    return 1
+  fi
+}
+
 check_watch_health() {
   require_file_json "$FLEET_STATUS_FILE" "fleet status" || return 1
   require_file_json "$AUDIT_SUMMARY_FILE" "routing audit summary" || return 1
@@ -439,6 +550,11 @@ main() {
   check_audit_file_append || true
   check_routing_audit_endpoint || true
   check_watch_health || true
+  get_admin_token || true
+  if [[ -n "${ADMIN_TOKEN:-}" ]]; then
+    check_admin_validate_endpoint || true
+    check_admin_read_file_endpoint || true
+  fi
 
   if [[ "$SMOKE_MODE" -eq 1 ]]; then
     smoke_quarantine_cycle "$SMOKE_WORKER" || true

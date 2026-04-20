@@ -22,6 +22,14 @@ Rules:
 
 Current commit:
 60f2709 checkpoint: 2026-04-20-23:17:28
+fleet-validate.sh now validates:
+
+routing ownership
+audit append
+watch health
+admin token fetch from container
+/admin/validate
+/admin/read-file
 
 Current confirmed state:
 - admin endpoints in app.py already use Pydantic request models
@@ -33,6 +41,8 @@ Current confirmed state:
 - /admin/restart-service is working
 - app.py compiles
 - spot-core container restarts cleanly
+- all workers eligible
+- no workers quarantined
 
 Exact current /admin endpoints from runtime app.py:
 - POST /admin/validate
