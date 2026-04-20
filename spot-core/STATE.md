@@ -1,71 +1,56 @@
-Continuing Spot fleet work.
+Continuing Spot admin bridge work.
 
-Repo:
-https://github.com/chrisk-2/spot-AI
+Current confirmed state:
 
-Run first:
-- spot_save
-- read HANDOFF.md
-- read spot-core/STATE.md
+* only `spot-core` is the direct control node
+* all A-1 fleet changes must be brokered through `spot-core`
+* backup-first enforcement is active
+* remote backup over SSH works
+* rollback on failed verification works
+* rollback logging was upgraded
+* admin auth token is now active and enforced
+* missing token returns 403
+* wrong token returns 403 invalid admin token
 
-Rules:
-- no guessing
-- read real files before patching
-- use repo/runtime as source of truth
-- do not redesign system
-- use scripted validation
+Working endpoints:
 
-Current state:
-- enforcement wrapper is ACTIVE in spot-core/app.py
-- quarantine + unquarantine fully enforced
-- restart-service hook implemented and WORKING
-- service remediation added to watch/fleet-remediate.sh
-- restart via POST /actions/restart-service/{worker}/ollama
+* `/admin/read-file`
+* `/admin/write-file`
+* `/admin/restart-service`
+* `/admin/validate`
 
 Verified:
-- spot-core container can SSH to workers (key-based)
-- restart endpoint works:
-- POST /actions/restart-service/{worker}/ollama
-- returns ok:true with:
-- restart_returncode=0
-- remote_after=active
-- validated live on spot-worker-01
-- backup + action logging confirmed
 
-Infra fixes completed:
-- openssh-client installed in container
-- SSH keys copied into container at runtime (/host-ssh -> /root/.ssh)
-- permissions corrected
-- /mnt/collective mounted into container
-- backup + logs writing correctly
-- unique backup dirs using time.time_ns()
+* `read-file` works against `spot-worker-01`
+* `write-file` success path works
+* `write-file` forced-failure path rolls back correctly
+* `restart-service` for `ollama` works
+* `validate` works for safe allowed commands
+* auth token works when passed in payload
 
-Worker-01:
-- ollama now systemd-managed
-- sudo NOPASSWD for restart/is-active configured
+Important current rule:
 
-Paths:
-- backups: /mnt/collective/backups
-- logs: /mnt/collective/logs/spot/actions.jsonl
+* token is read from Docker env via:
+  `ADMIN_API_TOKEN = os.environ.get("SPOTCORE_ADMIN_API_TOKEN", "").strip()`
+* do NOT paste token literals into `app.py`
+* token must live in docker compose env for `spot-core`
 
-Current goal:
-Add service remediation into fleet-remediate.sh using spot-core API
+Need next:
 
-Target change:
-- detect service-down condition (ollama)
-- call:
-  curl -s -X POST http://127.0.0.1:8787/actions/restart-service/{worker}/ollama
-- DO NOT modify existing quarantine logic
-- DO NOT redesign script
+* add Pydantic request models for admin endpoints
+* replace raw `payload: dict` on:
 
-Scope:
-- file: ~/spot-stack/watch/fleet-remediate.sh
+  * `/admin/read-file`
+  * `/admin/write-file`
+  * `/admin/restart-service`
+  * `/admin/validate`
+* keep behavior the same, no redesign
+* goal is clean 422 responses instead of sloppy bad-input handling
 
-Validation:
-- stop ollama on worker
-- ensure remediation triggers restart via API
-- confirm backup + log entries created
-- confirm service returns active
+Use real file as source of truth.
+Read current:
 
-Note:
+* `/home/ogre/spot-stack/spot-core/spotcore/app.py`
+* active docker compose for `spot-core`
 
+Do not recap. Just move to request models cleanly with exact placement and full replacement blocks where needed.

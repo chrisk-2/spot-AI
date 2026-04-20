@@ -35,6 +35,7 @@ AUTONOMY_ALLOW_HIGH_RISK = os.environ.get("SPOTCORE_ALLOW_HIGH_RISK_AUTONOMY", "
 ALLOWED_REMOTE_SERVICES = {"ollama"}
 SSH_USER = os.environ.get("SPOTCORE_SSH_USER", "ogre")
 SSH_CONNECT_TIMEOUT = int(os.environ.get("SPOTCORE_SSH_CONNECT_TIMEOUT", "10"))
+ADMIN_API_TOKEN = os.environ.get("SPOTCORE_ADMIN_API_TOKEN", "").strip()
 
 HTTP_TIMEOUT = float(os.environ.get("SPOTCORE_HTTP_TIMEOUT", "240"))
 LATENCY_WINDOW = int(os.environ.get("SPOTCORE_LATENCY_WINDOW", "100"))
@@ -97,6 +98,20 @@ class ExecResult(BaseModel):
 def _now() -> int:
     return int(time.time())
 
+def require_admin_token(payload: dict) -> None:
+    provided = str(payload.get("token", "")).strip()
+
+    if not ADMIN_API_TOKEN:
+        raise HTTPException(
+            status_code=503,
+            detail={"message": "admin api token is not configured"},
+        )
+
+    if provided != ADMIN_API_TOKEN:
+        raise HTTPException(
+            status_code=403,
+            detail={"message": "invalid admin token"},
+        )
 
 def read_json(path: Path, default: Any) -> Any:
     try:
@@ -137,11 +152,44 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _copy_backup_source(src: Path, dest_root: Path) -> dict[str, Any]:
+async def _copy_backup_source(src: Path, dest_root: Path, host: str | None = None) -> dict[str, Any]:
+    """
+    Supports:
+    - local backup (existing behavior)
+    - remote backup via SSH if host is provided
+    """
+
+    dest = dest_root / src.name
+
+    # --- REMOTE BACKUP ---
+    if host:
+        # check existence remotely
+        check = await run_ssh_command(host, f"test -e {shlex.quote(str(src))}")
+        if check["returncode"] != 0:
+            raise FileNotFoundError(f"remote backup source missing: {src} on {host}")
+
+        # fetch file content
+        result = await run_ssh_command(host, f"cat {shlex.quote(str(src))}")
+
+        if result["returncode"] != 0:
+            raise RuntimeError(f"failed to read remote file: {src} on {host}")
+
+        # write locally into backup dir
+        dest.write_text(result["stdout"], encoding="utf-8")
+
+        return {
+            "source": str(src),
+            "dest": str(dest),
+            "type": "remote_file",
+            "host": host,
+            "size": len(result["stdout"]),
+            "sha256": hashlib.sha256(result["stdout"].encode()).hexdigest(),
+        }
+
+    # --- LOCAL BACKUP (existing behavior) ---
     if not src.exists():
         raise FileNotFoundError(f"backup source missing: {src}")
 
-    dest = dest_root / src.name
     if src.is_dir():
         shutil.copytree(src, dest, dirs_exist_ok=False)
         return {
@@ -159,8 +207,7 @@ def _copy_backup_source(src: Path, dest_root: Path) -> dict[str, Any]:
         "sha256": _sha256_file(dest),
     }
 
-
-def create_verified_backup(
+async def create_verified_backup(
     *,
     target: str,
     service: str,
@@ -174,8 +221,10 @@ def create_verified_backup(
     backup_dir.mkdir(parents=True, exist_ok=False)
 
     artifacts: list[dict[str, Any]] = []
+    host = metadata.get("host") if metadata else None
+
     for src in backup_sources:
-        artifacts.append(_copy_backup_source(src, backup_dir))
+        artifacts.append(await _copy_backup_source(src, backup_dir, host=host))
 
     marker = {
         "ts": _now(),
@@ -231,7 +280,7 @@ async def execute_with_enforcement(
     backup_record = None
     if require_backup:
         try:
-            backup_record = create_verified_backup(
+            backup_record = await create_verified_backup(
                 target=target,
                 service=service,
                 action_name=action_name,
@@ -288,7 +337,20 @@ async def execute_with_enforcement(
 
     if not verify_ok:
         if rollback_fn is not None and risk_class in {"low", "medium"} and backup_record is not None:
-            rollback_data = await rollback_fn(backup_record, execution_result)
+            try:
+                raw = await rollback_fn(backup_record, execution_result)
+                rollback_data = {
+                    "ok": raw.get("returncode", 1) == 0,
+                    "restored_from": backup_record.get("backup_dir"),
+                    "artifacts": backup_record.get("artifacts", []),
+                    "ssh": raw,
+                }
+            except Exception as exc:
+                rollback_data = {
+                    "ok": False,
+                    "error": repr(exc),
+                    "stage": "rollback_exception",
+                }
 
         append_action_log(
             {
@@ -304,6 +366,7 @@ async def execute_with_enforcement(
                 "metadata": metadata or {},
             }
         )
+
         raise HTTPException(
             status_code=503,
             detail={
@@ -1417,6 +1480,210 @@ async def call_embed(worker_url: str, req: ExecRequest, model: str) -> dict[str,
 
 app = FastAPI(title="Spot Core Control Plane", version="final-v6-routing-audit")
 
+@app.post("/admin/validate")
+async def admin_validate(payload: dict):
+    cfg = load_config()
+
+    worker = payload["worker"]
+    commands = payload["commands"]
+
+    if not isinstance(commands, list) or not commands:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "commands must be a non-empty list"},
+        )
+
+    host = worker_host(worker, cfg)
+
+    allowed_prefixes = [
+        "test ",
+        "cat ",
+        "ls ",
+        "systemctl is-active ",
+        "systemctl status ",
+        "systemd-analyze verify ",
+        "bash -n ",
+        "python3 -m py_compile ",
+        "docker compose config",
+        "docker compose ps",
+        "jq ",
+    ]
+
+    results: list[dict[str, Any]] = []
+
+    for cmd in commands:
+        if not isinstance(cmd, str) or not cmd.strip():
+            results.append(
+                {
+                    "ok": False,
+                    "command": cmd,
+                    "error": "invalid_command",
+                }
+            )
+            continue
+
+        if not any(cmd.startswith(prefix) for prefix in allowed_prefixes):
+            results.append(
+                {
+                    "ok": False,
+                    "command": cmd,
+                    "error": "command_not_allowed",
+                }
+            )
+            continue
+
+        res = await run_ssh_command(host, cmd)
+        results.append(
+            {
+                "ok": res["returncode"] == 0,
+                "command": cmd,
+                "result": res,
+            }
+        )
+
+    overall_ok = all(item.get("ok") is True for item in results)
+
+    return {
+        "ok": overall_ok,
+        "worker": worker,
+        "results": results,
+    }
+
+@app.post("/admin/restart-service")
+async def admin_restart_service(payload: dict):
+    require_admin_token(payload)
+    cfg = load_config()
+
+    worker = payload["worker"]
+    service = payload["service"]
+
+    if service not in ALLOWED_REMOTE_SERVICES:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "message": "service not allowed",
+                "worker": worker,
+                "service": service,
+            },
+        )
+
+    host = worker_host(worker, cfg)
+
+    async def execute():
+        return await run_ssh_command(host, f"sudo systemctl restart {shlex.quote(service)}")
+
+    async def verify(result):
+        check = await run_ssh_command(host, f"systemctl is-active {shlex.quote(service)}")
+        return (
+            check["stdout"].strip() == "active",
+            {
+                "state": check["stdout"].strip(),
+                "ssh": check,
+            },
+        )
+
+    async def rollback(backup, result):
+        return {
+            "ok": False,
+            "rollback": "not_applicable_for_service_restart",
+            "backup_path": backup.get("backup_dir"),
+        }
+
+    return await execute_with_enforcement(
+        action_name="restart_service",
+        target=worker,
+        service=service,
+        backup_sources=[],
+        execute_fn=execute,
+        verify_fn=verify,
+        rollback_fn=rollback,
+        metadata={
+            "worker": worker,
+            "service": service,
+            "host": host,
+        },
+        require_backup=False,
+    )
+
+@app.post("/admin/read-file")
+async def admin_read_file(payload: dict):
+    require_admin_token(payload)
+    cfg = load_config()
+
+    worker = payload["worker"]
+    path = Path(payload["path"])
+
+    host = worker_host(worker, cfg)
+    result = await run_ssh_command(host, f"cat {shlex.quote(str(path))}")
+
+    if result["returncode"] != 0:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "failed to read remote file",
+                "worker": worker,
+                "path": str(path),
+                "ssh": result,
+            },
+        )
+
+    return {
+        "ok": True,
+        "worker": worker,
+        "path": str(path),
+        "content": result["stdout"],
+    }
+
+@app.post("/admin/write-file")
+async def admin_write_file(payload: dict):
+    require_admin_token(payload)
+    cfg = load_config()
+
+    worker = payload["worker"]
+    path = Path(payload["path"])
+    content = payload["content"]
+
+    host = worker_host(worker, cfg)
+
+    tmp_path = f"/tmp/spot_write_{int(time.time())}.tmp"
+
+    async def execute():
+        # write temp file
+        await run_ssh_command(host, f"printf %s {shlex.quote(content)} > {tmp_path}")
+
+        # move into place
+        return await run_ssh_command(host, f"sudo mv {tmp_path} {path}")
+
+    async def verify(result):
+        check = await run_ssh_command(host, f"test -f {path}")
+        return (check["returncode"] == 0, {"exists": check["returncode"] == 0})
+
+    async def rollback(backup, result):
+        artifact = next(
+            (a for a in backup["artifacts"] if Path(a["source"]).name == path.name),
+            None
+        )
+
+        if not artifact:
+            raise RuntimeError(f"No backup artifact found for {path}")
+
+        backup_file = artifact["dest"]
+
+        return await run_ssh_command(host, f"sudo cp {backup_file} {path} && sudo systemctl daemon-reload || true")
+
+    return await execute_with_enforcement(
+        action_name="write_file",
+        target=worker,
+        service="filesystem",
+        backup_sources=[path],
+        execute_fn=execute,
+        verify_fn=verify,
+        rollback_fn=rollback,
+        metadata={
+            "path": str(path),
+            "host": host
+        }
+    )
 
 @app.on_event("startup")
 async def startup_event() -> None:
@@ -1636,7 +1903,21 @@ async def restart_service(worker_name: str, service_name: str) -> dict[str, Any]
             detail={"message": "service not allowlisted", "service": service_name},
         )
 
-    host = worker_host(worker_name, cfg)
+    host = worker_host(worker, cfg)
+
+    return await execute_with_enforcement(
+        action_name="write_file",
+        target=worker,
+        service="filesystem",
+        backup_sources=[path],
+        execute_fn=execute,
+        verify_fn=verify,
+        rollback_fn=rollback,
+        metadata={
+            "path": str(path),
+            "host": host   # 🔴 THIS LINE IS REQUIRED
+        }
+    )
 
     async def do_execute() -> dict[str, Any]:
         before = await run_ssh_command(

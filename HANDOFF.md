@@ -104,7 +104,7 @@ Run:
 Rules:
 - no guessing
 - read real files before patching
-- use repo/runtime source of truth
+- use repo/runtime as source of truth
 
 Task:
 (read STATE.md and continue)
