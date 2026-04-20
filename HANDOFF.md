@@ -93,6 +93,9 @@ When switching chats:
 
 3. start new chat with:
 
+4. Do not ask the user to paste code blocks that already exist at known runtime paths.
+Read the live runtime file paths listed in this handoff first.
+
 Continuing Spot bridge work.
 
 Run first:
@@ -116,6 +119,8 @@ Task:
 - read STATE.md
 - read the file(s) in scope
 - continue exactly from current state
+- Do not provide generic example models first.
+Read the current /admin handlers in /home/ogre/spot-stack/spot-core/spotcore/app.py, then patch the live shapes only.
 
 ---
 
