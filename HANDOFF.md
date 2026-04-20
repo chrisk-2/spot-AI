@@ -11,10 +11,12 @@ spot-core/STATE.md
 
 ## SOURCE OF TRUTH
 
-1. Runtime files (when explicitly provided via sed/cat)
-2. GitHub repo
+1. Runtime files explicitly provided by the user with sed/cat
+2. Current live runtime paths listed in this handoff and STATE.md
+3. GitHub repo only as fallback when runtime file content is not yet provided
 
-Never assume filesystem access.
+Do not guess paths.
+Do not prefer repo over live runtime when live runtime content is available.
 
 ---
 
@@ -29,7 +31,7 @@ Never assume filesystem access.
 
 - no guessing ever
 - read real files before patching
-- use runtime or repo as source of truth
+- use live runtime as source of truth when provided; use GitHub only as fallback
 - do not redesign system unless explicitly asked
 - do not do ad hoc edits
 - use scripted validation
@@ -71,7 +73,7 @@ State:
 Before any change:
 - read STATE.md
 - identify files in scope
-- read those files with sed/cat or repo
+- read those files with sed/cat; use repo only if runtime not provided
 
 Then:
 - make minimal change
@@ -91,23 +93,29 @@ When switching chats:
 
 3. start new chat with:
 
-Continuing Spot fleet work.
+Continuing Spot bridge work.
 
-Repo:
-https://github.com/chrisk-2/spot-AI
-
-Run:
+Run first:
 - spot_save
-- read HANDOFF.md
-- read STATE.md
+- read /home/ogre/spot-stack/HANDOFF.md
+- read /home/ogre/spot-stack/spot-core/STATE.md
 
 Rules:
 - no guessing
-- read real files before patching
-- use repo/runtime as source of truth
+- read real runtime files before patching
+- use live runtime as source of truth when provided
+- use GitHub only as fallback
+- do not redesign system
+- make minimal changes only
+- validate with py_compile and scripted checks
+
+Current core path:
+- /home/ogre/spot-stack/spot-core/spotcore/app.py
 
 Task:
-(read STATE.md and continue)
+- read STATE.md
+- read the file(s) in scope
+- continue exactly from current state
 
 ---
 
