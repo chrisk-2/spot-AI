@@ -215,7 +215,6 @@ AUTO_UNQUARANTINE="$(get_policy_value "routing_remediation.auto_unquarantine" "t
 FALLBACK_NOTE_THRESHOLD="$(get_policy_value "routing_remediation.fallback_note_threshold" "1")"
 FALLBACK_DEGRADED_THRESHOLD="$(get_policy_value "routing_remediation.fallback_degraded_threshold" "3")"
 FALLBACK_ESCALATE_THRESHOLD="$(get_policy_value "routing_remediation.fallback_escalate_threshold" "5")"
-
 DEGRADED_CLEAR_RUNS="$(get_policy_value "routing_remediation.degraded_clear_runs" "2")"
 DEGRADED_CLEAR_MAX_FALLBACKS="$(get_policy_value "routing_remediation.degraded_clear_max_fallbacks" "0")"
 FALLBACK_RECENT_WINDOW_SEC="$(get_policy_value "routing_remediation.fallback_recent_window_sec" "120")"
@@ -252,7 +251,6 @@ python3 - <<'PY' \
   "$DEGRADED_CLEAR_RUNS" \
   "$DEGRADED_CLEAR_MAX_FALLBACKS" \
   "$FALLBACK_RECENT_WINDOW_SEC"
-
 import json
 import sys
 from collections import defaultdict
@@ -312,22 +310,18 @@ for item in items:
         recent_fallbacks_by_worker[worker].append(item)
 
 violations_by_worker = defaultdict(list)
-latest_violation_ts_by_worker = {}
 
 for item in items:
     if not isinstance(item, dict):
         continue
     if item.get("route_class") != "violation":
         continue
+
     worker = item.get("selected_worker") or item.get("final_worker")
     if not worker:
         continue
+
     violations_by_worker[worker].append(item)
-    ts = item.get("ts")
-    if isinstance(ts, int):
-        latest_violation_ts_by_worker[worker] = max(
-            ts, latest_violation_ts_by_worker.get(worker, 0)
-        )
 
 if "_meta" not in state or not isinstance(state.get("_meta"), dict):
     state["_meta"] = {}
@@ -344,20 +338,29 @@ actions = {
     "unchanged": [],
 }
 
-# Mark workers that should be quarantined
-for worker, entries in violations_by_worker.items():
-    if len(entries) < min_violations:
-        continue
+fresh_violations_by_worker = {}
 
+for worker, entries in violations_by_worker.items():
     entry = state.get(worker, {})
     if not isinstance(entry, dict):
         entry = {}
 
-    last_violation_ts = latest_violation_ts_by_worker.get(worker, now)
-    reason = "routing_violation"
-    if entries:
-        reason = str(entries[0].get("violation_reason") or "routing_violation")
+    release_ts = int(entry.get("release_ts", 0) or 0)
+    fresh_entries = []
 
+    for item in entries:
+        item_ts = int(item.get("ts", 0) or 0)
+        if release_ts > 0 and item_ts <= release_ts:
+            continue
+        fresh_entries.append(item)
+
+    if len(fresh_entries) < min_violations:
+        continue
+
+    fresh_violations_by_worker[worker] = fresh_entries
+
+    last_violation_ts = max(int(item.get("ts", 0) or 0) for item in fresh_entries)
+    reason = str(fresh_entries[0].get("violation_reason") or "routing_violation")
     until = now + quarantine_seconds
     already_quarantined = bool(entry.get("quarantined", False))
 
@@ -368,7 +371,7 @@ for worker, entries in violations_by_worker.items():
             "since_ts": entry.get("since_ts", now if not already_quarantined else entry.get("since_ts", now)),
             "until_ts": until,
             "last_violation_ts": last_violation_ts,
-            "violation_count_window": len(entries),
+            "violation_count_window": len(fresh_entries),
             "last_route_class": "violation",
             "last_updated_ts": now,
             "last_updated_by": "fleet-remediate.sh",
@@ -382,12 +385,11 @@ for worker, entries in violations_by_worker.items():
             "worker": worker,
             "reason": entry["reason"],
             "until_ts": until,
-            "violation_count_window": len(entries),
+            "violation_count_window": len(fresh_entries),
             "already_quarantined": already_quarantined,
         }
     )
 
-# Release expired quarantines if no recent violations still in the audit window
 for worker, entry in list(state.items()):
     if worker == "_meta":
         continue
@@ -404,10 +406,10 @@ for worker, entry in list(state.items()):
         clean_runs += 1
     else:
         clean_runs = 0
+
     entry["degraded_clean_runs"] = clean_runs
     entry["recent_fallback_count_window"] = recent_fallback_count
 
-    # Fallback pressure tracking only; no quarantine from fallback yet
     if recent_fallback_count >= fallback_note_threshold:
         entry["last_fallback_ts"] = now
         entry["fallback_count_window"] = fallback_count
@@ -465,11 +467,11 @@ for worker, entry in list(state.items()):
             state[worker] = entry
 
     if quarantined:
-        if worker in violations_by_worker:
+        if worker in fresh_violations_by_worker:
             actions["unchanged"].append(
                 {
                     "worker": worker,
-                    "reason": "still_has_violation_in_window",
+                    "reason": "still_has_fresh_violation_in_window",
                     "quarantined": True,
                 }
             )
@@ -501,7 +503,6 @@ with open(out_path, "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2, sort_keys=True)
 PY
 
-# Apply scheduler quarantines first
 QUARANTINE_COUNT="$(jq '.actions.quarantine | length' "$TMP_UPDATED_STATE")"
 if [[ "$QUARANTINE_COUNT" -gt 0 ]]; then
   while IFS= read -r row; do
@@ -516,7 +517,6 @@ if [[ "$QUARANTINE_COUNT" -gt 0 ]]; then
   done < <(jq -c '.actions.quarantine[]' "$TMP_UPDATED_STATE")
 fi
 
-# Release scheduler quarantines
 RELEASE_COUNT="$(jq '.actions.release | length' "$TMP_UPDATED_STATE")"
 if [[ "$RELEASE_COUNT" -gt 0 ]]; then
   while IFS= read -r row; do
@@ -525,11 +525,9 @@ if [[ "$RELEASE_COUNT" -gt 0 ]]; then
   done < <(jq -c '.actions.release[]' "$TMP_UPDATED_STATE")
 fi
 
-# Save updated remediation state after API actions
 jq '.state' "$TMP_UPDATED_STATE" > "${REMEDIATION_STATE_FILE}.tmp"
-mv "${REMEDIATION_STATE_FILE}.tmp" "$REMEDIATION_STATE_FILE"
+command mv -f "${REMEDIATION_STATE_FILE}.tmp" "$REMEDIATION_STATE_FILE"
 
-# Service remediation via spot-core API (separate from quarantine logic)
 SERVICE_RESTARTS_ATTEMPTED=0
 SERVICE_RESTARTS_SUCCEEDED=0
 
@@ -549,7 +547,6 @@ else
   log "service_remediation_disabled"
 fi
 
-# Final human-readable summary
 python3 - <<'PY' "$TMP_UPDATED_STATE" "$SERVICE_RESTARTS_ATTEMPTED" "$SERVICE_RESTARTS_SUCCEEDED"
 import json, sys
 

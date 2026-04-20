@@ -1263,6 +1263,24 @@ def evaluate_owner_state(cfg: dict[str, Any], req: ExecRequest, owner_worker: st
         "owner_reason": owner_reason,
     }
 
+def alternate_worker_allowed(cfg: dict[str, Any], req: ExecRequest, candidate_worker: str) -> bool:
+    if req.worker:
+        return candidate_worker == req.worker
+
+    owner_worker = role_owner(req.role)
+    if owner_worker is None:
+        return True
+
+    if candidate_worker == owner_worker:
+        return True
+
+    owner_state = evaluate_owner_state(cfg, req, owner_worker)
+    if not owner_state["owner_healthy"]:
+        return True
+    if not owner_state["owner_admissible"]:
+        return True
+
+    return False
 
 def classify_route(
     cfg: dict[str, Any],
@@ -1382,6 +1400,8 @@ async def claim_alternate_candidate(
 
     for item in shortlist:
         if item.get("reason"):
+            continue
+        if not alternate_worker_allowed(cfg, req, item["worker"]):
             continue
         return {
             "worker": item["worker"],
