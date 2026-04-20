@@ -1,159 +1,236 @@
 # SPOT HANDOFF (LOCKED)
 
 ## PURPOSE
+
 This file defines rules and workflow.
 It does NOT track state.
 
 State lives in:
-spot-core/STATE.md
+
+* /home/ogre/spot-stack/spot-core/STATE.md
 
 ---
 
-## SOURCE OF TRUTH
+## SOURCE OF TRUTH (STRICT ORDER)
 
-1. Runtime files explicitly provided by the user with sed/cat
-2. Current live runtime paths listed in this handoff and STATE.md
-3. GitHub repo only as fallback when runtime file content is not yet provided
+1. Runtime files explicitly readable at known paths
+2. Runtime paths defined in this file or STATE.md
+3. GitHub repo ONLY as fallback:
+   https://github.com/chrisk-2/spot-AI
 
-Do not guess paths.
-Do not prefer repo over live runtime when live runtime content is available.
+Rules:
+
+* NEVER prefer repo over runtime
+* NEVER guess file contents
+* If runtime path exists → read it
+* If runtime cannot be read → fallback to repo
+* If neither available → STOP
 
 ---
 
 ## READ ORDER (MANDATORY)
 
-1. HANDOFF.md
-2. spot-core/STATE.md
+1. /home/ogre/spot-stack/HANDOFF.md
+2. /home/ogre/spot-stack/spot-core/STATE.md
 
 ---
 
-## RULES
+## GLOBAL RULES (HARD LOCK)
 
-- no guessing ever
-- read real files before patching
-- use live runtime as source of truth when provided; use GitHub only as fallback
-- do not redesign system unless explicitly asked
-- do not do ad hoc edits
-- use scripted validation
-- all code changes must be verified with python3 -m py_compile before restart
-- runtime file paths provided in this handoff are accessible and must be read directly
-- do not claim repo or filesystem is unavailable
-- do not generate example endpoints or models before reading real code
-- do not change request/response formats (including auth style)
-- when a live runtime file path is already known, read it before proposing any code
-- do not ask the user to paste files that exist at known runtime paths
-- do not present generic route/model examples in place of live patching
-- preserve the current auth mechanism exactly; do not substitute bearer auth or header auth unless explicitly asked
-- endpoint names must match the current implementation exactly; do not shorten, rename, or normalize paths
-- before proposing any code changes, output the exact current /admin endpoint names and current auth mechanism found in app.py
-- If runtime file cannot be accessed, read from repo instead of stopping.
-- Before proposing any changes, read ...
-  1. the exact current /admin endpoint names
-  2. the exact current auth mechanism
-- If that exact live file path is unavailable, read the same file from:
-https://github.com/chrisk-2/spot-AI
-- Do not invent routes, models, or auth changes.
+* no guessing ever
+* read real files before patching
+* do not redesign system
+* do not perform speculative fixes
+* make minimal changes only
+* do not expand scope
+* do not “improve” unrelated code
+* do not generate example routes/models before reading real code
+* do not ask user for files that exist at known runtime paths
+* do not claim runtime paths are unavailable
+* endpoint names MUST match existing implementation exactly
+* request/response formats MUST NOT change
+* auth mechanism MUST remain exactly as implemented
+* do not introduce new auth patterns
+* all changes must pass:
+  python3 -m py_compile
+
+---
+
+## POLICY LOCK (NON-NEGOTIABLE)
+
+* NO BACKUP → NO CHANGE
+* preserve backup-first behavior
+* do not weaken logging, verification, or rollback
+* do not bypass enforcement wrappers
+* all admin/mutating behavior must remain compliant
 
 ---
 
 ## ROUTING OWNERSHIP (LOCKED)
 
-- general -> spot-worker-01
-- utility -> spot-worker-02
-- coding  -> spot-worker-03
-- heavy   -> spot-worker-04
+* general → spot-worker-01
+* utility → spot-worker-02
+* coding  → spot-worker-03
+* heavy   → spot-worker-04
 
 Do not change.
 
 ---
 
-## PATHS
+## PATHS (LIVE RUNTIME)
 
 Repo root:
-- /home/ogre/spot-stack
+
+* /home/ogre/spot-stack
 
 Core:
-- /home/ogre/spot-stack/spot-core/spotcore/app.py
+
+* /home/ogre/spot-stack/spot-core/spotcore/app.py
 
 Watch layer:
-- /home/ogre/spot-stack/watch/fleet-watch.sh
-- /home/ogre/spot-stack/watch/fleet-remediate.sh
-- /home/ogre/spot-stack/watch/fleet-validate.sh
-- /home/ogre/spot-stack/watch/spot-ops.sh
+
+* /home/ogre/spot-stack/watch/fleet-watch.sh
+* /home/ogre/spot-stack/watch/fleet-remediate.sh
+* /home/ogre/spot-stack/watch/fleet-validate.sh
+* /home/ogre/spot-stack/watch/spot-ops.sh
 
 State:
-- /home/ogre/spot-stack/spot-core/STATE.md
 
-Active compose (must be verified, not assumed):
-- /home/ogre/spot-stack/docker-compose.yml
-- /home/ogre/spot-stack/spot-core/docker-compose.yml
+* /home/ogre/spot-stack/spot-core/STATE.md
 
-Current admin endpoints (must be verified in app.py, not assumed):
-- /admin/read-file
-- /admin/write-file
-- /admin/restart-service
-- /admin/validate
+Compose:
+
+* /home/ogre/spot-stack/docker-compose.yml
+* /home/ogre/spot-stack/spot-core/docker-compose.yml
 
 ---
 
-## WORKFLOW
+## WORKFLOW (MANDATORY)
 
-Before any change:
-- read STATE.md
-- identify files in scope
-- read those files with sed/cat; use repo only if runtime not provided
+### BEFORE ANY CHANGE
 
-Then:
-- make minimal change
-- validate using scripts
+* read STATE.md
+* identify exact files in scope
+* read those files from runtime path
+
+### THEN
+
+* extract current behavior EXACTLY
+* confirm:
+
+  1. endpoint names
+  2. auth mechanism
+  3. request payload structure
+
+### ONLY THEN
+
+* apply minimal patch to exact targets
+
+### AFTER
+
+* run python3 -m py_compile
+* validate via scripts/endpoints
 
 ---
 
-## HANDOFF PROCESS
+## SCOPE CONTROL (CRITICAL)
 
-When switching chats:
+* ONLY modify explicitly requested endpoints
+* DO NOT touch unrelated routes
+* DO NOT fix unrelated bugs
+* DO NOT refactor
+* DO NOT restructure files
 
-1. run:
-   spot_save
+If something else is broken:
+→ ignore it unless it blocks this task
 
-2. update:
-   STATE.md
+---
 
-3. start new chat with:
+## ADMIN ENDPOINT RULE
+
+Admin endpoints must be discovered from app.py.
+
+NEVER trust:
+
+* previous chats
+* handoff summaries
+* assumed naming
+
+ALWAYS read actual file.
+
+---
+
+## HANDOFF PROCESS (CHAT TO CHAT)
+
+### Step 1
+
+Run:
+
+* spot_save
+
+### Step 2
+
+Update:
+
+* /home/ogre/spot-stack/spot-core/STATE.md
+
+### Step 3 (NEW CHAT START)
+
+Paste:
+
+---
 
 Continuing Spot bridge work.
 
 Run first:
-- spot_save
-- read /home/ogre/spot-stack/HANDOFF.md
-- read /home/ogre/spot-stack/spot-core/STATE.md
-- read /home/ogre/spot-stack/spot-core/spotcore/app.py
+
+* spot_save
+* read /home/ogre/spot-stack/HANDOFF.md
+* read /home/ogre/spot-stack/spot-core/STATE.md
+* read /home/ogre/spot-stack/spot-core/spotcore/app.py
 
 Rules:
-- no guessing
-- read real runtime files before patching
-- use live runtime as source of truth when provided
-- use GitHub only as fallback
-- do not redesign system
-- make minimal changes only
-- validate with py_compile and scripted checks
-- do not ask the user to paste code blocks that already exist at known runtime paths
-- do not provide generic example models first
-- do not invent new routes or payload shapes
-- do not change request/response formats, including auth style
 
-Current core path:
-- /home/ogre/spot-stack/spot-core/spotcore/app.py
+* no guessing
+* read real runtime files before patching
+* use runtime as source of truth
+* fallback to GitHub only if runtime unavailable
+* do not redesign system
+* minimal changes only
+* preserve auth and payload formats
+* do not invent endpoints or models
+* do not modify unrelated code
+* enforce backup-first policy
+* validate with python3 -m py_compile before restart
 
 Task:
-- read STATE.md
-- read /home/ogre/spot-stack/spot-core/spotcore/app.py
-- identify actual /admin endpoints
-- apply models to those exact endpoints only
-- do not invent route names, payload fields, or auth flow
-- continue exactly from current state
-- after listing endpoints and auth mechanism, wait for confirmation or proceed directly to patch
+
+* read app.py
+* identify EXACT /admin endpoints
+* identify EXACT auth mechanism
+* identify EXACT request payload structure
+* THEN apply Pydantic models to those endpoints only
+* do not change behavior
+* enforce structure only (422 on invalid input)
+
+Fallback rule:
+If /home/ogre/spot-stack/spot-core/spotcore/app.py cannot be read:
+
+* read from https://github.com/chrisk-2/spot-AI
+* use that file ONLY
+
+If neither is available:
+
+* STOP
+
+Output BEFORE patch:
+
+1. exact /admin endpoints
+2. exact auth mechanism
+3. exact request fields
+
+Then patch.
 
 ---
 
-END HANDOFF
+## END HANDOFF
