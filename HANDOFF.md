@@ -35,10 +35,16 @@ Do not prefer repo over live runtime when live runtime content is available.
 - do not redesign system unless explicitly asked
 - do not do ad hoc edits
 - use scripted validation
+- all code changes must be verified with python3 -m py_compile before restart
 - runtime file paths provided in this handoff are accessible and must be read directly
 - do not claim repo or filesystem is unavailable
 - do not generate example endpoints or models before reading real code
 - do not change request/response formats (including auth style)
+- when a live runtime file path is already known, read it before proposing any code
+- do not ask the user to paste files that exist at known runtime paths
+- do not present generic route/model examples in place of live patching
+- preserve the current auth mechanism exactly; do not substitute bearer auth or header auth unless explicitly asked
+- endpoint names must match the current implementation exactly; do not shorten, rename, or normalize paths
 
 ---
 
@@ -69,6 +75,16 @@ Watch layer:
 
 State:
 - /home/ogre/spot-stack/spot-core/STATE.md
+
+Active compose (must be verified, not assumed):
+- /home/ogre/spot-stack/docker-compose.yml
+- /home/ogre/spot-stack/spot-core/docker-compose.yml
+
+Current admin endpoints (must be verified in app.py, not assumed):
+- /admin/read-file
+- /admin/write-file
+- /admin/restart-service
+- /admin/validate
 
 ---
 
@@ -123,8 +139,10 @@ Current core path:
 
 Task:
 - read STATE.md
-- identify actual /admin endpoints in app.py
+- read /home/ogre/spot-stack/spot-core/spotcore/app.py
+- identify actual /admin endpoints
 - apply models to those exact endpoints only
+- do not invent route names, payload fields, or auth flow
 - continue exactly from current state
 
 ---
