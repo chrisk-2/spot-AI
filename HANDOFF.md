@@ -35,6 +35,10 @@ Do not prefer repo over live runtime when live runtime content is available.
 - do not redesign system unless explicitly asked
 - do not do ad hoc edits
 - use scripted validation
+- runtime file paths provided in this handoff are accessible and must be read directly
+- do not claim repo or filesystem is unavailable
+- do not generate example endpoints or models before reading real code
+- do not change request/response formats (including auth style)
 
 ---
 
@@ -121,6 +125,10 @@ Task:
 - continue exactly from current state
 - Do not provide generic example models first.
 Read the current /admin handlers in /home/ogre/spot-stack/spot-core/spotcore/app.py, then patch the live shapes only.
+- read /home/ogre/spot-stack/spot-core/spotcore/app.py
+- identify actual /admin endpoints
+- apply models to those exact endpoints only
+- do not invent new routes or payload shapes
 
 ---
 
