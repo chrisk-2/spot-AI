@@ -1,56 +1,107 @@
-Continuing Spot admin bridge work.
+Continuing Spot bridge work.
+
+Run first:
+- spot_save
+- read /home/ogre/spot-stack/HANDOFF.md
+- read /home/ogre/spot-stack/spot-core/STATE.md
+- read /home/ogre/spot-stack/spot-core/spotcore/app.py
+- read /home/ogre/spot-stack/docker-compose.yml
+
+Rules:
+- no guessing
+- read real runtime files before patching
+- use runtime as source of truth
+- fallback to GitHub only if runtime unavailable
+- do not redesign system
+- minimal changes only
+- preserve auth and payload formats
+- do not invent endpoints or models
+- do not modify unrelated code
+- enforce backup-first policy where applicable
+- validate with python3 -m py_compile before restart
+
+Current commit:
+60f2709 checkpoint: 2026-04-20-23:17:28
 
 Current confirmed state:
+- admin endpoints in app.py already use Pydantic request models
+- /admin/validate uses AdminValidateRequest
+- /admin/restart-service uses AdminRestartServiceRequest
+- /admin/read-file uses AdminReadFileRequest
+- /admin/write-file uses AdminWriteFileRequest
+- /actions/restart-service/{worker_name}/{service_name} is working
+- /admin/restart-service is working
+- app.py compiles
+- spot-core container restarts cleanly
 
-* only `spot-core` is the direct control node
-* all A-1 fleet changes must be brokered through `spot-core`
-* backup-first enforcement is active
-* remote backup over SSH works
-* rollback on failed verification works
-* rollback logging was upgraded
-* admin auth token is now active and enforced
-* missing token returns 403
-* wrong token returns 403 invalid admin token
+Exact current /admin endpoints from runtime app.py:
+- POST /admin/validate
+- POST /admin/restart-service
+- POST /admin/read-file
+- POST /admin/write-file
 
-Working endpoints:
+Exact current auth mechanism from runtime app.py:
+- token is read from env:
+  ADMIN_API_TOKEN = os.environ.get("SPOTCORE_ADMIN_API_TOKEN", "").strip()
+- auth is payload token auth via require_admin_token(payload)
+- /admin/restart-service, /admin/read-file, /admin/write-file require token in JSON body
+- /admin/validate currently does NOT require token
+- do not change that unless explicitly asked
 
-* `/admin/read-file`
-* `/admin/write-file`
-* `/admin/restart-service`
-* `/admin/validate`
+Exact current request fields:
+- /admin/validate:
+  - worker
+  - commands
+- /admin/restart-service:
+  - token
+  - worker
+  - service
+- /admin/read-file:
+  - token
+  - worker
+  - path
+- /admin/write-file:
+  - token
+  - worker
+  - path
+  - content
 
-Verified:
+Important verified token detail:
+- host shell SPOTCORE_ADMIN_API_TOKEN was empty
+- container SPOTCORE_ADMIN_API_TOKEN is set and was length 64
+- admin route worked only when using the token read from inside the container
+- do not treat earlier invalid admin token response as an app.py bug
 
-* `read-file` works against `spot-worker-01`
-* `write-file` success path works
-* `write-file` forced-failure path rolls back correctly
-* `restart-service` for `ollama` works
-* `validate` works for safe allowed commands
-* auth token works when passed in payload
+Important runtime compose detail:
+- active compose file is /home/ogre/spot-stack/docker-compose.yml
+- root compose contains SPOTCORE_ADMIN_API_TOKEN in environment for spot-core
+- /home/ogre/spot-stack/spot-core/docker-compose.yml was not present during verification
 
-Important current rule:
+Key code facts already verified in runtime app.py:
+- admin restart route has:
+  - backup_sources=[]
+  - require_backup=False
+  - rollback backup_path uses: backup.get("backup_dir") if backup else None
+- action restart route has:
+  - backup_sources=[]
+  - require_backup=False
+- no further app.py surgery is needed unless a newly requested task requires it
 
-* token is read from Docker env via:
-  `ADMIN_API_TOKEN = os.environ.get("SPOTCORE_ADMIN_API_TOKEN", "").strip()`
-* do NOT paste token literals into `app.py`
-* token must live in docker compose env for `spot-core`
+What was verified live:
+- POST /actions/restart-service/spot-worker-01/ollama returned ok:true
+- POST /admin/restart-service returned ok:true when using container token
+- app.py compiled and spot-core restarted cleanly
 
-Need next:
+Next recommended task:
+- build a scripted admin endpoint validation pass
+- preferably in watch layer, either:
+  - extend /home/ogre/spot-stack/watch/fleet-validate.sh
+  - or add a dedicated /home/ogre/spot-stack/watch/spot-admin-validate.sh
+- script should pull token from container, not assume host shell token exists
 
-* add Pydantic request models for admin endpoints
-* replace raw `payload: dict` on:
-
-  * `/admin/read-file`
-  * `/admin/write-file`
-  * `/admin/restart-service`
-  * `/admin/validate`
-* keep behavior the same, no redesign
-* goal is clean 422 responses instead of sloppy bad-input handling
-
-Use real file as source of truth.
-Read current:
-
-* `/home/ogre/spot-stack/spot-core/spotcore/app.py`
-* active docker compose for `spot-core`
-
-Do not recap. Just move to request models cleanly with exact placement and full replacement blocks where needed.
+Task for this chat:
+- inspect current validation scripts first
+- identify safest place to add admin endpoint validation
+- keep changes minimal
+- do not redesign validation framework
+- use runtime files only
