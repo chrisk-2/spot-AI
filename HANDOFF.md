@@ -45,6 +45,7 @@ Do not prefer repo over live runtime when live runtime content is available.
 - do not present generic route/model examples in place of live patching
 - preserve the current auth mechanism exactly; do not substitute bearer auth or header auth unless explicitly asked
 - endpoint names must match the current implementation exactly; do not shorten, rename, or normalize paths
+- before proposing any code changes, output the exact current /admin endpoint names and current auth mechanism found in app.py
 
 ---
 
@@ -144,6 +145,7 @@ Task:
 - apply models to those exact endpoints only
 - do not invent route names, payload fields, or auth flow
 - continue exactly from current state
+- after listing endpoints and auth mechanism, wait for confirmation or proceed directly to patch
 
 ---
 
