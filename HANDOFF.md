@@ -46,6 +46,13 @@ Do not prefer repo over live runtime when live runtime content is available.
 - preserve the current auth mechanism exactly; do not substitute bearer auth or header auth unless explicitly asked
 - endpoint names must match the current implementation exactly; do not shorten, rename, or normalize paths
 - before proposing any code changes, output the exact current /admin endpoint names and current auth mechanism found in app.py
+- If runtime file cannot be accessed, read from repo instead of stopping.
+- Before proposing any changes, read ...
+  1. the exact current /admin endpoint names
+  2. the exact current auth mechanism
+- If that exact live file path is unavailable, read the same file from:
+https://github.com/chrisk-2/spot-AI
+- Do not invent routes, models, or auth changes.
 
 ---
 
