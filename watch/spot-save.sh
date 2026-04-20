@@ -20,14 +20,24 @@ header() {
     printf '\n===== %s =====\n' "$1"
 }
 
+print_file_if_exists() {
+    local label="$1"
+    local path="$2"
+
+    header "$label"
+    if [[ -f "$path" ]]; then
+        nl -ba "$path"
+    else
+        echo "[SKIP] File not present: $path"
+    fi
+}
+
 main() {
     cd "$REPO" || exit 1
 
     require_file "$HANDOFF_FILE"
     require_file "$STATE_FILE"
     require_file "$APP_FILE"
-    require_file "$ROOT_COMPOSE"
-    require_file "$CORE_COMPOSE"
 
     echo "Opening STATE.md..."
     nano "$STATE_FILE"
@@ -45,20 +55,11 @@ main() {
     header "CURRENT COMMIT"
     git log -1 --oneline
 
-    header "HANDOFF.MD"
-    nl -ba "$HANDOFF_FILE"
-
-    header "STATE.MD"
-    nl -ba "$STATE_FILE"
-
-    header "APP.PY"
-    nl -ba "$APP_FILE"
-
-    header "ROOT DOCKER-COMPOSE"
-    nl -ba "$ROOT_COMPOSE"
-
-    header "SPOT-CORE DOCKER-COMPOSE"
-    nl -ba "$CORE_COMPOSE"
+    print_file_if_exists "HANDOFF.MD" "$HANDOFF_FILE"
+    print_file_if_exists "STATE.MD" "$STATE_FILE"
+    print_file_if_exists "APP.PY" "$APP_FILE"
+    print_file_if_exists "ROOT DOCKER-COMPOSE" "$ROOT_COMPOSE"
+    print_file_if_exists "SPOT-CORE DOCKER-COMPOSE" "$CORE_COMPOSE"
 
     header "NEW CHAT BLOCK"
     cat <<'BLOCK'
