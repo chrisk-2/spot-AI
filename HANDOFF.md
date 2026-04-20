@@ -97,15 +97,13 @@ When switching chats:
 
 3. start new chat with:
 
-4. Do not ask the user to paste code blocks that already exist at known runtime paths.
-Read the live runtime file paths listed in this handoff first.
-
 Continuing Spot bridge work.
 
 Run first:
 - spot_save
 - read /home/ogre/spot-stack/HANDOFF.md
 - read /home/ogre/spot-stack/spot-core/STATE.md
+- read /home/ogre/spot-stack/spot-core/spotcore/app.py
 
 Rules:
 - no guessing
@@ -115,20 +113,19 @@ Rules:
 - do not redesign system
 - make minimal changes only
 - validate with py_compile and scripted checks
+- do not ask the user to paste code blocks that already exist at known runtime paths
+- do not provide generic example models first
+- do not invent new routes or payload shapes
+- do not change request/response formats, including auth style
 
 Current core path:
 - /home/ogre/spot-stack/spot-core/spotcore/app.py
 
 Task:
 - read STATE.md
-- read the file(s) in scope
-- continue exactly from current state
-- Do not provide generic example models first.
-Read the current /admin handlers in /home/ogre/spot-stack/spot-core/spotcore/app.py, then patch the live shapes only.
-- read /home/ogre/spot-stack/spot-core/spotcore/app.py
-- identify actual /admin endpoints
+- identify actual /admin endpoints in app.py
 - apply models to those exact endpoints only
-- do not invent new routes or payload shapes
+- continue exactly from current state
 
 ---
 
