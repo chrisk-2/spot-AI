@@ -95,8 +95,33 @@ class ExecResult(BaseModel):
     raw: dict[str, Any]
 
 
+class AdminValidateRequest(BaseModel):
+    worker: str
+    commands: list[str]
+
+
+class AdminRestartServiceRequest(BaseModel):
+    token: str
+    worker: str
+    service: str
+
+
+class AdminReadFileRequest(BaseModel):
+    token: str
+    worker: str
+    path: str
+
+
+class AdminWriteFileRequest(BaseModel):
+    token: str
+    worker: str
+    path: str
+    content: str
+
+
 def _now() -> int:
     return int(time.time())
+
 
 def require_admin_token(payload: dict) -> None:
     provided = str(payload.get("token", "")).strip()
@@ -1481,11 +1506,11 @@ async def call_embed(worker_url: str, req: ExecRequest, model: str) -> dict[str,
 app = FastAPI(title="Spot Core Control Plane", version="final-v6-routing-audit")
 
 @app.post("/admin/validate")
-async def admin_validate(payload: dict):
+async def admin_validate(payload: AdminValidateRequest):
     cfg = load_config()
 
-    worker = payload["worker"]
-    commands = payload["commands"]
+    worker = payload.worker
+    commands = payload.commands
 
     if not isinstance(commands, list) or not commands:
         raise HTTPException(
@@ -1550,12 +1575,12 @@ async def admin_validate(payload: dict):
     }
 
 @app.post("/admin/restart-service")
-async def admin_restart_service(payload: dict):
-    require_admin_token(payload)
+async def admin_restart_service(payload: AdminRestartServiceRequest):
+    require_admin_token(payload.model_dump())
     cfg = load_config()
 
-    worker = payload["worker"]
-    service = payload["service"]
+    worker = payload.worker
+    service = payload.service
 
     if service not in ALLOWED_REMOTE_SERVICES:
         raise HTTPException(
@@ -1586,7 +1611,7 @@ async def admin_restart_service(payload: dict):
         return {
             "ok": False,
             "rollback": "not_applicable_for_service_restart",
-            "backup_path": backup.get("backup_dir"),
+            "backup_path": backup.get("backup_dir") if backup else None,
         }
 
     return await execute_with_enforcement(
@@ -1606,12 +1631,12 @@ async def admin_restart_service(payload: dict):
     )
 
 @app.post("/admin/read-file")
-async def admin_read_file(payload: dict):
-    require_admin_token(payload)
+async def admin_read_file(payload: AdminReadFileRequest):
+    require_admin_token(payload.model_dump())
     cfg = load_config()
 
-    worker = payload["worker"]
-    path = Path(payload["path"])
+    worker = payload.worker
+    path = Path(payload.path)
 
     host = worker_host(worker, cfg)
     result = await run_ssh_command(host, f"cat {shlex.quote(str(path))}")
@@ -1635,13 +1660,13 @@ async def admin_read_file(payload: dict):
     }
 
 @app.post("/admin/write-file")
-async def admin_write_file(payload: dict):
-    require_admin_token(payload)
+async def admin_write_file(payload: AdminWriteFileRequest):
+    require_admin_token(payload.model_dump())
     cfg = load_config()
 
-    worker = payload["worker"]
-    path = Path(payload["path"])
-    content = payload["content"]
+    worker = payload.worker
+    path = Path(payload.path)
+    content = payload.content
 
     host = worker_host(worker, cfg)
 
@@ -1903,21 +1928,7 @@ async def restart_service(worker_name: str, service_name: str) -> dict[str, Any]
             detail={"message": "service not allowlisted", "service": service_name},
         )
 
-    host = worker_host(worker, cfg)
-
-    return await execute_with_enforcement(
-        action_name="write_file",
-        target=worker,
-        service="filesystem",
-        backup_sources=[path],
-        execute_fn=execute,
-        verify_fn=verify,
-        rollback_fn=rollback,
-        metadata={
-            "path": str(path),
-            "host": host   # 🔴 THIS LINE IS REQUIRED
-        }
-    )
+    host = worker_host(worker_name, cfg)
 
     async def do_execute() -> dict[str, Any]:
         before = await run_ssh_command(
@@ -1976,12 +1987,12 @@ async def restart_service(worker_name: str, service_name: str) -> dict[str, Any]
         action_name="restart_service",
         target=worker_name,
         service=service_name,
-        backup_sources=[REMEDIATION_STATE_PATH, WATCH_STATE_PATH],
+        backup_sources=[],
         execute_fn=do_execute,
         verify_fn=do_verify,
         rollback_fn=do_rollback,
         metadata={"worker": worker_name, "host": host, "service": service_name},
-        require_backup=True,
+        require_backup=False,
     )
 
 @app.post("/exec", response_model=ExecResult)
