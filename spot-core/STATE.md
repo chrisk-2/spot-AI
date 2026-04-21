@@ -4,6 +4,7 @@ Run first:
 - spot_save
 - read /home/ogre/spot-stack/HANDOFF.md
 - read /home/ogre/spot-stack/spot-core/STATE.md
+- read /home/ogre/spot-stack/watch/spot-ops.sh
 - read /home/ogre/spot-stack/watch/fleet-validate.sh
 - read /home/ogre/spot-stack/spot-core/spotcore/app.py
 
@@ -20,19 +21,33 @@ Rules:
 - validate with the correct tool before restart
 
 Current confirmed state:
-- routing-audit write failure logging already exists in spot-core/spotcore/app.py
-- fleet-validate.sh output was cleaned
+- Stage 1 / Milestone A (Spot Core Trusted) is locked
 - fleet-validate.sh passes in normal mode
 - fleet-validate.sh --smoke passes
-- smoke mode confirms quarantine=true/eligible=false and release back to quarantined=false/eligible=true without restart
-- Stage 1 / Milestone A (Spot Core Trusted) is now the locked baseline
+- spot-ops.sh now provides:
+ - status
+  - validate
+  - validate-smoke
+  - health
+  - routing
+  - audit
+  - quarantine-state
+  - quarantine
+  - release
+  - logs
+- operator-facing Stage 2 v1 command surface is working
+- spot-ops.sh status shows fleet health and routing audit summary cleanly
+- spot-ops.sh quarantine-state exposes runtime eligibility/quarantine/degraded state
+- current notable signal: spot-worker-03 fallback_count_window is nonzero while still healthy
 
 Next task:
-- begin Stage 2 — Spot Operator Ready
-- define the first operator-facing entry points
-- standardize a small safe command set for:
-  - fleet validation
-  - routing state
-  - quarantine state
-  - recent routing audit
-  - watch logs
+- extend spot-ops.sh with a remediation command
+- summarize remediation-state.json in operator-friendly form
+- expose:
+  - worker
+  - quarantined
+  - degraded
+  - degraded_reason
+  - fallback_count_window
+  - reason
+  - last_updated_ts

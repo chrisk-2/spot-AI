@@ -21,16 +21,19 @@ usage() {
 Usage: $(basename "$0") <command> [args]
 
 Operator commands:
+  status                   Show concise operator status summary
   validate                 Run scripted fleet validation
-  smoke [worker]           Run validation with quarantine/unquarantine smoke test
+  validate-smoke [worker]  Run validation with quarantine/unquarantine smoke test
+  smoke [worker]           Alias for validate-smoke
   health                   Show /health, fleet-status.json, and /fleet/ping summary
   routing                  Show routing ownership and scheduler routing state
   audit [limit]            Show routing audit summary and recent items
+  quarantine-state         Show worker eligibility/quarantine/degraded state
   quarantine <worker> [seconds] [reason]
                            Quarantine a worker through spot-core API
   release <worker>         Release a quarantined worker through spot-core API
   logs [watch|remediate|both] [lines]
-                           Tail or print recent operator logs
+                           Print recent operator logs
 
 Environment overrides:
   BASE_DIR
@@ -47,13 +50,15 @@ Environment overrides:
   CURL_TIMEOUT
 
 Examples:
+  $(basename "$0") status
   $(basename "$0") validate
-  $(basename "$0") smoke
-  $(basename "$0") smoke spot-worker-01
+  $(basename "$0") validate-smoke
+  $(basename "$0") validate-smoke spot-worker-01
   $(basename "$0") health
   $(basename "$0") routing
   $(basename "$0") audit
   $(basename "$0") audit 25
+  $(basename "$0") quarantine-state
   $(basename "$0") quarantine spot-worker-03 1800 manual_test
   $(basename "$0") release spot-worker-03
   $(basename "$0") logs both 100
@@ -82,15 +87,6 @@ need_http() {
   curl -fsS --connect-timeout 5 --max-time "$CURL_TIMEOUT" "${SPOT_BASE_URL}${endpoint}" >/dev/null
 }
 
-json_pp() {
-  local src="$1"
-  if [[ -f "$src" ]]; then
-    jq . "$src"
-  else
-    printf '%s\n' "$src" | jq .
-  fi
-}
-
 api_get() {
   local endpoint="$1"
   curl -fsS --connect-timeout 5 --max-time "$CURL_TIMEOUT" "${SPOT_BASE_URL}${endpoint}"
@@ -110,13 +106,69 @@ print_header() {
   printf '\n=== %s ===\n' "$1"
 }
 
+urlencode() {
+  local raw="${1:-}"
+  local out=""
+  local i ch hex
+  for ((i=0; i<${#raw}; i++)); do
+    ch="${raw:i:1}"
+    case "$ch" in
+      [a-zA-Z0-9.~_-]) out+="$ch" ;;
+      ' ') out+='%20' ;;
+      *)
+        printf -v hex '%%%02X' "'$ch"
+        out+="$hex"
+        ;;
+    esac
+  done
+  printf '%s' "$out"
+}
+
+cmd_status() {
+  need_cmd jq
+  need_http "/health"
+
+  print_header "operator status"
+  jq -n \
+    --argjson health "$(api_get "/health")" \
+    --argjson ping "$(api_get "/fleet/ping")" \
+    --argjson audit "$(api_get "/stats/routing-audit?limit=20")" \
+    '{
+      health: $health,
+      routing_audit: {
+        ok: $audit.ok,
+        window_count: $audit.window_count,
+        primaries: $audit.primaries,
+        fallbacks: $audit.fallbacks,
+        violations: $audit.violations,
+        manual_overrides: $audit.manual_overrides,
+        last_violation_ts: $audit.last_violation_ts
+      },
+      workers: (
+        $ping
+        | to_entries
+        | map({
+            worker: .key,
+            ok: .value.ok,
+            reason: .value.reason,
+            primary_role: .value.primary_role,
+            eligible: .value.eligible,
+            quarantined: .value.quarantined,
+            degraded: .value.degraded,
+            degraded_reason: .value.degraded_reason,
+            running_jobs: .value.running_jobs
+          })
+      )
+    }'
+}
+
 cmd_validate() {
   need_cmd bash
   need_file "$VALIDATOR"
   bash "$VALIDATOR"
 }
 
-cmd_smoke() {
+cmd_validate_smoke() {
   need_cmd bash
   need_file "$VALIDATOR"
   local worker="${1:-spot-worker-01}"
@@ -231,6 +283,23 @@ cmd_audit() {
   fi
 }
 
+cmd_quarantine_state() {
+  need_cmd jq
+  need_http "/fleet/ping"
+
+  print_header "quarantine state"
+  api_get "/fleet/ping" | jq 'to_entries | map({
+    worker: .key,
+    ok: .value.ok,
+    reason: .value.reason,
+    eligible: .value.eligible,
+    quarantined: .value.quarantined,
+    degraded: .value.degraded,
+    degraded_reason: .value.degraded_reason,
+    fallback_count_window: .value.fallback_count_window
+  })'
+}
+
 cmd_quarantine() {
   need_cmd jq
   local worker="${1:-}"
@@ -243,8 +312,11 @@ cmd_quarantine() {
     exit 2
   }
 
+  local encoded_reason
+  encoded_reason="$(urlencode "$reason")"
+
   print_header "quarantine ${worker}"
-  api_post "/quarantine/${worker}?seconds=${seconds}&reason=${reason}" | jq .
+  api_post "/quarantine/${worker}?seconds=${seconds}&reason=${encoded_reason}" | jq .
 }
 
 cmd_release() {
@@ -302,15 +374,18 @@ main() {
   shift || true
 
   case "$cmd" in
-    validate)   cmd_validate "$@" ;;
-    smoke)      cmd_smoke "$@" ;;
-    health)     cmd_health "$@" ;;
-    routing)    cmd_routing "$@" ;;
-    audit)      cmd_audit "$@" ;;
-    quarantine) cmd_quarantine "$@" ;;
-    release)    cmd_release "$@" ;;
-    logs)       cmd_logs "$@" ;;
-    -h|--help|"") usage ;;
+    status)           cmd_status "$@" ;;
+    validate)         cmd_validate "$@" ;;
+    validate-smoke)   cmd_validate_smoke "$@" ;;
+    smoke)            cmd_validate_smoke "$@" ;;
+    health)           cmd_health "$@" ;;
+    routing)          cmd_routing "$@" ;;
+    audit)            cmd_audit "$@" ;;
+    quarantine-state) cmd_quarantine_state "$@" ;;
+    quarantine)       cmd_quarantine "$@" ;;
+    release)          cmd_release "$@" ;;
+    logs)             cmd_logs "$@" ;;
+    -h|--help|"")     usage ;;
     *)
       echo "ERROR: unknown command: $cmd" >&2
       usage
