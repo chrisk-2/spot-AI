@@ -18,8 +18,13 @@ Rules:
 - preserve current working behavior
 - keep network work read-only unless explicitly asked otherwise
 
+Milestone status:
+- Milestone A — Spot Core Trusted: COMPLETE
+- Milestone B — Spot Operator Ready: NEXT
+- Stage 3 network ops work remains read-only until explicitly changed
+
 Current confirmed state:
-- Stage 1 / Milestone A is effectively locked
+- Stage 1 / Milestone A is now locked complete
 - Stage 2 operator shell is working
 - spot-ops.sh now provides:
   - status
@@ -36,6 +41,25 @@ Current confirmed state:
   - quarantine
   - release
   - logs
+
+Validation status:
+- fleet-validate.sh passed on 2026-04-21
+- result: PASS
+- checks: 15
+- warnings: 0
+- failures: 0
+- smoke mode was skipped on that run
+- confirmed by runtime output:
+  - routing audit file exists
+  - role ownership validated
+  - routing audit append validated
+  - fleet status present and valid JSON
+  - routing audit summary present and valid JSON
+  - fleet-status core_health.ok is true
+  - fleet-status hosts report ssh_ok/service_ok
+  - fleet-status shows no quarantined hosts
+  - /admin/validate returned expected JSON structure
+  - /admin/read-file returned expected content
 
 Network checks completed:
 - spot-ops endpoints passed
@@ -63,6 +87,11 @@ Important reality:
 - 192.168.60.20 root web is NPM default site
 - direct AdGuard #2 UI works on its direct AdGuard port
 - DNS pair is now genuinely active and in sync
+- Spot Core validation is now clean and passing
+- current baseline should be treated as trusted until a new verified change is made
+
+Current phase:
+- Milestone B — Spot Operator Ready
 
 Next task:
 - add spot-ops reverse-proxy-check
@@ -72,3 +101,15 @@ Next task:
   - dashboard.starfleet.local
 - report response codes and whether each route behaves as expected
 - keep this read-only
+
+Do not do next:
+- do not redesign spot-core
+- do not expand autonomy scope
+- do not change network configuration as part of reverse-proxy-check work
+- do not touch unrelated routes or validation logic unless required by the requested task
+
+If moving to a new chat:
+- run spot_save
+- use HANDOFF.md + this STATE.md as the startup context
+- treat this file as the current state source of truth
+
