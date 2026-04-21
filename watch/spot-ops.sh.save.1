@@ -33,7 +33,6 @@ Operator commands:
   net-basics               Show current basic network facts and cleanup targets
   endpoints                Show basic live endpoint reachability checks
   dns-check                Verify key starfleet.local records against both DNS servers
-  reverse-proxy-check      Verify named-host reverse proxy behavior through 192.168.60.20
   quarantine-state         Show worker eligibility/quarantine/degraded state
   remediation              Show remediation-state.json in operator-friendly form
   quarantine <worker> [seconds] [reason]
@@ -69,7 +68,6 @@ Examples:
   $(basename "$0") net-basics
   $(basename "$0") endpoints
   $(basename "$0") dns-check
-  $(basename "$0") reverse-proxy-check
   $(basename "$0") quarantine-state
   $(basename "$0") remediation
   $(basename "$0") quarantine spot-worker-03 1800 manual_test
@@ -155,28 +153,7 @@ http_check() {
   return 1
 }
 
-named_https_check() {
-  local host="$1"
-  local ip="$2"
-  local port="${3:-443}"
-  local path="${4:-/}"
-  local code
 
-  code="$(
-    curl -k -sS -o /dev/null \
-      -w '%{http_code}' \
-      --connect-timeout 5 \
-      --max-time "$CURL_TIMEOUT" \
-      --resolve "${host}:${port}:${ip}" \
-      "https://${host}:${port}${path}" 2>/dev/null || true
-  )"
-
-  if [[ "$code" =~ ^[0-9]{3}$ && "$code" != "000" ]]; then
-    printf '%s' "$code"
-    return 0
-  fi
-  return 1
-}
 
 endpoint_result_tcp() {
   local name="$1"
@@ -572,164 +549,6 @@ cmd_dns_check() {
     }'
 }
 
-cmd_reverse_proxy_check() {
-  need_cmd jq
-  need_cmd curl
-
-  local items=()
-  local code expected_ok note
-
-  code=""
-  expected_ok=false
-  note=""
-
-  if code="$(named_https_check 'unifi.starfleet.local' '192.168.60.20' 443 '/')"; then
-    expected_ok=false
-    [[ "$code" == "200" || "$code" == "302" || "$code" == "401" || "$code" == "403" ]] && expected_ok=true
-    note="expected named-host proxy response for UniFi should be auth or app redirect, not root default-site behavior"
-    items+=("$(
-      jq -n \
-        --arg name 'unifi.starfleet.local' \
-        --arg ip '192.168.60.20' \
-        --argjson port 443 \
-        --arg scheme 'https' \
-        --arg path '/' \
-        --arg code "$code" \
-        --arg note "$note" \
-        --argjson expected_ok "$expected_ok" \
-        '{
-          name:$name,
-          target_ip:$ip,
-          port:$port,
-          scheme:$scheme,
-          path:$path,
-          http_code:($code|tonumber),
-          ok:$expected_ok,
-          note:$note
-        }'
-    )")
-  else
-    items+=("$(
-      jq -n \
-        --arg name 'unifi.starfleet.local' \
-        --arg ip '192.168.60.20' \
-        --argjson port 443 \
-        --arg scheme 'https' \
-        --arg path '/' \
-        '{
-          name:$name,
-          target_ip:$ip,
-          port:$port,
-          scheme:$scheme,
-          path:$path,
-          ok:false,
-          detail:"named_https_request_failed"
-        }'
-    )")
-  fi
-
-  if code="$(named_https_check 'adguard.starfleet.local' '192.168.60.20' 443 '/')"; then
-    expected_ok=false
-    [[ "$code" == "200" || "$code" == "302" || "$code" == "401" || "$code" == "403" ]] && expected_ok=true
-    note="expected named-host proxy response for AdGuard should be backend/app response, not root default-site behavior"
-    items+=("$(
-      jq -n \
-        --arg name 'adguard.starfleet.local' \
-        --arg ip '192.168.60.20' \
-        --argjson port 443 \
-        --arg scheme 'https' \
-        --arg path '/' \
-        --arg code "$code" \
-        --arg note "$note" \
-        --argjson expected_ok "$expected_ok" \
-        '{
-          name:$name,
-          target_ip:$ip,
-          port:$port,
-          scheme:$scheme,
-          path:$path,
-          http_code:($code|tonumber),
-          ok:$expected_ok,
-          note:$note
-        }'
-    )")
-  else
-    items+=("$(
-      jq -n \
-        --arg name 'adguard.starfleet.local' \
-        --arg ip '192.168.60.20' \
-        --argjson port 443 \
-        --arg scheme 'https' \
-        --arg path '/' \
-        '{
-          name:$name,
-          target_ip:$ip,
-          port:$port,
-          scheme:$scheme,
-          path:$path,
-          ok:false,
-          detail:"named_https_request_failed"
-        }'
-    )")
-  fi
-
-  if code="$(named_https_check 'dashboard.starfleet.local' '192.168.60.20' 443 '/')"; then
-    expected_ok=false
-    [[ "$code" == "200" || "$code" == "301" || "$code" == "302" || "$code" == "307" || "$code" == "308" ]] && expected_ok=true
-    note="expected dashboard path should resolve through proxy and may redirect to /board"
-    items+=("$(
-      jq -n \
-        --arg name 'dashboard.starfleet.local' \
-        --arg ip '192.168.60.20' \
-        --argjson port 443 \
-        --arg scheme 'https' \
-        --arg path '/' \
-        --arg code "$code" \
-        --arg note "$note" \
-        --argjson expected_ok "$expected_ok" \
-        '{
-          name:$name,
-          target_ip:$ip,
-          port:$port,
-          scheme:$scheme,
-          path:$path,
-          http_code:($code|tonumber),
-          ok:$expected_ok,
-          note:$note
-        }'
-    )")
-  else
-    items+=("$(
-      jq -n \
-        --arg name 'dashboard.starfleet.local' \
-        --arg ip '192.168.60.20' \
-        --argjson port 443 \
-        --arg scheme 'https' \
-        --arg path '/' \
-        '{
-          name:$name,
-          target_ip:$ip,
-          port:$port,
-          scheme:$scheme,
-          path:$path,
-          ok:false,
-          detail:"named_https_request_failed"
-        }'
-    )")
-  fi
-
-  print_header "reverse proxy checks"
-  jq -n \
-    --argjson items "$(printf '%s\n' "${items[@]}" | jq -s '.')" \
-    '{
-      summary: {
-        ok_count: ($items | map(select(.ok == true)) | length),
-        fail_count: ($items | map(select(.ok != true)) | length)
-      },
-      items: $items
-    }'
-}
-
 cmd_quarantine_state() {
   need_cmd jq
   need_http "/fleet/ping"
@@ -855,7 +674,6 @@ main() {
     net-basics)       cmd_net_basics "$@" ;;
     endpoints)        cmd_endpoints "$@" ;;
     dns-check)        cmd_dns_check "$@" ;;
-    reverse-proxy-check) cmd_reverse_proxy_check "$@" ;;
     quarantine-state) cmd_quarantine_state "$@" ;;
     remediation)      cmd_remediation "$@" ;;
     quarantine)       cmd_quarantine "$@" ;;

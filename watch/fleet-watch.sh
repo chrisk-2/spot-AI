@@ -375,12 +375,8 @@ if not routing_fetch_ok:
 
 if violations > 0:
     alerts.append(f"routing_audit:violations={violations}")
-
-if fallbacks > 0:
-    alerts.append(f"routing_audit:fallbacks={fallbacks}")
-
-if last_violation_ts is not None:
-    alerts.append(f"routing_audit:last_violation_ts={last_violation_ts}")
+    if last_violation_ts is not None:
+        alerts.append(f"routing_audit:last_violation_ts={last_violation_ts}")
 
 if alerts:
     print("ALERT " + " | ".join(alerts))
