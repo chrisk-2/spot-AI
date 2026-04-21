@@ -5,6 +5,8 @@ Run first:
 - read /home/ogre/spot-stack/HANDOFF.md
 - read /home/ogre/spot-stack/spot-core/STATE.md
 - read /home/ogre/spot-stack/spot-core/spotcore/app.py
+- read /home/ogre/spot-stack/watch/fleet-remediate.sh
+- read /home/ogre/spot-stack/watch/fleet-validate.sh
 - read /home/ogre/spot-stack/docker-compose.yml
 
 Rules:
@@ -18,10 +20,7 @@ Rules:
 - do not invent endpoints or models
 - do not modify unrelated code
 - enforce backup-first policy where applicable
-- validate with python3 -m py_compile before restart
-
-Current commit:
-6681008 checkpoint: 2026-04-20-23:31:18
+- validate with the correct tool for the file type before restart
 
 Current confirmed state:
 - admin endpoints in app.py already use Pydantic request models
@@ -36,19 +35,22 @@ Current confirmed state:
 - all workers eligible
 - no workers quarantined
 
-fleet-validate.sh now validates:
+Validator status:
+- fleet-validate.sh passes clean
+- latest result:
+  - pass=17
+  - warn=0
+  - fail=0
+  - result=PASS
+
+Admin validation coverage in fleet-validate.sh:
 - routing ownership
 - audit append
 - watch health
+- no quarantined hosts
 - admin token fetch from container
 - /admin/validate
 - /admin/read-file
-
-Latest live validator result:
-- pass=17
-- warn=0
-- fail=0
-- result=PASS
 
 Exact current /admin endpoints from runtime app.py:
 - POST /admin/validate
@@ -84,7 +86,7 @@ Exact current request fields:
 
 Important verified token detail:
 - host shell SPOTCORE_ADMIN_API_TOKEN was empty
-- container SPOTCORE_ADMIN_API_TOKEN is set and was length 64
+- container SPOTCORE_ADMIN_API_TOKEN is set
 - admin route worked only when using the token read from inside the container
 - do not treat earlier invalid admin token response as an app.py bug
 
@@ -93,36 +95,35 @@ Important runtime compose detail:
 - root compose contains SPOTCORE_ADMIN_API_TOKEN in environment for spot-core
 - /home/ogre/spot-stack/spot-core/docker-compose.yml was not present during verification
 
-Key code facts already verified in runtime app.py:
-- admin restart route has:
-  - backup_sources=[]
-  - require_backup=False
-  - rollback backup_path uses: backup.get("backup_dir") if backup else None
-- action restart route has:
-  - backup_sources=[]
-  - require_backup=False
-- append_routing_audit now logs explicit write failures with LOGGER.exception
-- no further app.py surgery is needed unless a newly requested task requires it
+Routing fix verified:
+- alternate retry path in app.py now respects owner locking for owned roles
+- recent routing audit window shows:
+  - primaries only
+  - no fresh fallbacks
+  - no fresh violations
+- latest /stats/routing-audit?limit=20 returned:
+  - ok=true
+  - violations=0
+  - fallbacks=0
 
-What was verified live:
-- POST /actions/restart-service/spot-worker-01/ollama returned ok:true
-- POST /admin/restart-service returned ok:true when using container token
-- app.py compiled and spot-core restarted cleanly
-- DELETE /quarantine/spot-worker-01 returned ok:true with verified backup and verification
-- DELETE /quarantine/spot-worker-03 returned ok:true with verified backup and verification
-- fleet/ping showed all workers healthy/eligible after release
-- fleet-validate.sh passed cleanly after releases
+Remediation fix verified:
+- fleet-remediate.sh was fully repaired after heredoc/indent damage
+- stale historical routing violations no longer re-quarantine workers after manual release
+- remediation now ignores violation entries older than release_ts when deciding fresh quarantine
+- remediation script now uses non-interactive overwrite for remediation-state writes
+- latest remediation run reported:
+  - REMEDIATE no_remediation_changes | unchanged=0
 
-Open issue to investigate next:
-- routing audit history contains older violation-class entries where:
-  - heavy routed to spot-worker-01 while heavy owner spot-worker-04 was admissible
-  - heavy routed to spot-worker-03 while heavy owner spot-worker-04 was admissible
-  - coding routed to spot-worker-01 while coding owner spot-worker-03 was admissible
-- current live routing is healthy, but historical violations need root-cause tracing in app.py
+Open follow-up items:
+- update HANDOFF new-chat block because it still contains older Pydantic-task language if not already refreshed
+- consider pruning or rotating old routing-audit history if desired, but not required for current correctness
+- consider moving SPOTCORE_ADMIN_API_TOKEN out of plaintext docker-compose environment later, but not part of current break-fix
 
 Next recommended task:
-- inspect /home/ogre/spot-stack/spot-core/spotcore/app.py
-- trace exec_route -> choose_worker_and_model -> call_generate_with_retry -> claim_alternate_candidate -> classify_route
-- identify why non-owner selections were allowed when owner was healthy/admissible
-- patch minimally to prevent violation-class routing without redesign
-- preserve current routing ownership and backup-first enforcement
+- stabilize handoff/state docs
+- save checkpoint
+- then choose the next functional target outside break-fix:
+  - Spot UI / operator UX cleanup
+  - routing observability polish
+  - network monitor integration
+  - controlled autonomy expansion
