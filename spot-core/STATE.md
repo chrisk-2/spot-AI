@@ -4,6 +4,7 @@ Repo:
 https://github.com/chrisk-2/spot-AI
 
 Run first:
+- read /home/ogre/spot-stack/HANDOFF.md
 - read /home/ogre/spot-stack/spot-core/STATE.md
 - read /home/ogre/spot-stack/watch/spot-ops.sh
 - do not run spot_save unless preparing for another chat move
@@ -18,13 +19,8 @@ Rules:
 - preserve current working behavior
 - keep network work read-only unless explicitly asked otherwise
 
-Milestone status:
-- Milestone A — Spot Core Trusted: COMPLETE
-- Milestone B — Spot Operator Ready: NEXT
-- Stage 3 network ops work remains read-only until explicitly changed
-
 Current confirmed state:
-- Stage 1 / Milestone A is now locked complete
+- Stage 1 / Milestone A is effectively locked
 - Stage 2 operator shell is working
 - spot-ops.sh now provides:
   - status
@@ -41,25 +37,6 @@ Current confirmed state:
   - quarantine
   - release
   - logs
-
-Validation status:
-- fleet-validate.sh passed on 2026-04-21
-- result: PASS
-- checks: 15
-- warnings: 0
-- failures: 0
-- smoke mode was skipped on that run
-- confirmed by runtime output:
-  - routing audit file exists
-  - role ownership validated
-  - routing audit append validated
-  - fleet status present and valid JSON
-  - routing audit summary present and valid JSON
-  - fleet-status core_health.ok is true
-  - fleet-status hosts report ssh_ok/service_ok
-  - fleet-status shows no quarantined hosts
-  - /admin/validate returned expected JSON structure
-  - /admin/read-file returned expected content
 
 Network checks completed:
 - spot-ops endpoints passed
@@ -83,15 +60,63 @@ Reverse proxy checks completed:
 - adguard backend works directly on AdGuard port
 - dashboard.starfleet.local proxy path works and backend 192.168.30.5:7575 returns expected /board redirect
 
+Fleet watcher / DNS work completed:
+- ~/spot-stack/watch/fleet-dns-audit.sh now validates mixed DNS modes across the fleet
+- DNS across workers and infra was audited and normalized
+- fleet-watch.sh now uses inventory IPs for SSH instead of relying on hostnames resolving
+- fleet-watch.sh now embeds per-host DNS state into fleet-status.json:
+  - dns.ok
+  - dns.servers
+  - dns.mode
+- SSH key-based automation was verified for:
+  - spot-worker-01
+  - spot-worker-02
+  - spot-worker-03
+  - spot-worker-04
+  - spot-ui-01
+  - starfleet-tower
+  - unimatrix6
+  - starfleet-core
+  - dns-core
+- fleet-watch.sh now detects dns_bad and queues DNS remediation safely after writing state
+- DNS auto-remediation is verified working:
+  - intentionally broke spot-worker-02 /etc/resolv.conf
+  - fleet-watch.sh detected dns_bad
+  - ~/spot-stack/watch/fix-dns.sh restored:
+    - nameserver 192.168.60.10
+    - nameserver 192.168.60.20
+    - search starfleet.local
+- fleet-watch.sh passes bash -n
+- fleet-status.json is valid JSON after remediation changes
+
+Routing audit reality:
+- live role routing is currently correct:
+  - general -> spot-worker-01
+  - utility -> spot-worker-02
+  - coding -> spot-worker-03
+  - heavy -> spot-worker-04
+- direct /exec tests confirmed correct worker selection for all four roles
+- /stats/routing-audit?limit=5 returned a clean recent window:
+  - violations = 0
+  - fallbacks = 0
+  - window_count = 5
+- fleet-watch.sh still reports:
+  - routing_audit:violations=6
+  - routing_audit:fallbacks=33
+  - routing_audit:last_violation_ts=1776569769
+- treat current routing issue as audit/history/window behavior, not active role misrouting
+- next routing task is to inspect watcher alert policy versus API audit window, not to redesign scheduler routing
+
 Important reality:
 - 192.168.60.20 root web is NPM default site
 - direct AdGuard #2 UI works on its direct AdGuard port
 - DNS pair is now genuinely active and in sync
-- Spot Core validation is now clean and passing
-- current baseline should be treated as trusted until a new verified change is made
-
-Current phase:
-- Milestone B — Spot Operator Ready
+- fleet DNS control loop is now real:
+  - detect drift
+  - report drift
+  - auto-fix drift
+- current routing looks healthy in live tests
+- remaining routing alert noise is likely retained audit history / summary-window behavior
 
 Next task:
 - add spot-ops reverse-proxy-check
@@ -102,14 +127,17 @@ Next task:
 - report response codes and whether each route behaves as expected
 - keep this read-only
 
+After that:
+- inspect routing audit alert behavior in fleet-watch.sh versus /stats/routing-audit API window
+- do not redesign scheduler unless live routing is proven wrong again
+
 Do not do next:
 - do not redesign spot-core
-- do not expand autonomy scope
+- do not expand autonomy scope beyond what is already working
 - do not change network configuration as part of reverse-proxy-check work
 - do not touch unrelated routes or validation logic unless required by the requested task
 
 If moving to a new chat:
-- run spot_save
-- use HANDOFF.md + this STATE.md as the startup context
-- treat this file as the current state source of truth
-
+- run spot_save only when actually handing off
+- use HANDOFF.md + this STATE.md as startup context
+- treat this file as the current runtime state source of truth
