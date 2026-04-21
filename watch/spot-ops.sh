@@ -10,11 +10,13 @@ VALIDATOR="${VALIDATOR:-${BASE_DIR}/fleet-validate.sh}"
 FLEET_STATUS_FILE="${FLEET_STATUS_FILE:-${STATE_DIR}/fleet-status.json}"
 AUDIT_SUMMARY_FILE="${AUDIT_SUMMARY_FILE:-${STATE_DIR}/routing-audit-summary.json}"
 AUDIT_FILE="${AUDIT_FILE:-${STATE_DIR}/routing-audit.jsonl}"
+REMEDIATION_STATE_FILE="${REMEDIATION_STATE_FILE:-${STATE_DIR}/remediation-state.json}"
 WATCH_LOG_FILE="${WATCH_LOG_FILE:-${LOG_DIR}/fleet-watch.log}"
 REMEDIATE_LOG_FILE="${REMEDIATE_LOG_FILE:-${LOG_DIR}/fleet-remediate.log}"
 
 DEFAULT_LOG_LINES="${DEFAULT_LOG_LINES:-80}"
 CURL_TIMEOUT="${CURL_TIMEOUT:-20}"
+TCP_TIMEOUT="${TCP_TIMEOUT:-3}"
 
 usage() {
   cat <<EOF
@@ -28,7 +30,11 @@ Operator commands:
   health                   Show /health, fleet-status.json, and /fleet/ping summary
   routing                  Show routing ownership and scheduler routing state
   audit [limit]            Show routing audit summary and recent items
+  net-basics               Show current basic network facts and cleanup targets
+  endpoints                Show basic live endpoint reachability checks
+  dns-check                Verify key starfleet.local records against both DNS servers
   quarantine-state         Show worker eligibility/quarantine/degraded state
+  remediation              Show remediation-state.json in operator-friendly form
   quarantine <worker> [seconds] [reason]
                            Quarantine a worker through spot-core API
   release <worker>         Release a quarantined worker through spot-core API
@@ -38,27 +44,32 @@ Operator commands:
 Environment overrides:
   BASE_DIR
   STATE_DIR
+
   LOG_DIR
   SPOT_BASE_URL
   VALIDATOR
   FLEET_STATUS_FILE
   AUDIT_SUMMARY_FILE
   AUDIT_FILE
+  REMEDIATION_STATE_FILE
   WATCH_LOG_FILE
   REMEDIATE_LOG_FILE
   DEFAULT_LOG_LINES
   CURL_TIMEOUT
+  TCP_TIMEOUT
 
 Examples:
   $(basename "$0") status
   $(basename "$0") validate
   $(basename "$0") validate-smoke
-  $(basename "$0") validate-smoke spot-worker-01
   $(basename "$0") health
   $(basename "$0") routing
   $(basename "$0") audit
-  $(basename "$0") audit 25
+  $(basename "$0") net-basics
+  $(basename "$0") endpoints
+  $(basename "$0") dns-check
   $(basename "$0") quarantine-state
+  $(basename "$0") remediation
   $(basename "$0") quarantine spot-worker-03 1800 manual_test
   $(basename "$0") release spot-worker-03
   $(basename "$0") logs both 100
@@ -112,6 +123,7 @@ urlencode() {
   local i ch hex
   for ((i=0; i<${#raw}; i++)); do
     ch="${raw:i:1}"
+
     case "$ch" in
       [a-zA-Z0-9.~_-]) out+="$ch" ;;
       ' ') out+='%20' ;;
@@ -122,6 +134,96 @@ urlencode() {
     esac
   done
   printf '%s' "$out"
+}
+
+tcp_check() {
+  local host="$1"
+  local port="$2"
+  timeout "$TCP_TIMEOUT" bash -lc "exec 3<>/dev/tcp/${host}/${port}" >/dev/null 2>&1
+}
+
+http_check() {
+  local url="$1"
+  local code
+  code="$(curl -k -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time "$CURL_TIMEOUT" "$url" 2>/dev/null || true)"
+  if [[ "$code" =~ ^[0-9]{3}$ && "$code" != "000" ]]; then
+    printf '%s' "$code"
+    return 0
+  fi
+  return 1
+}
+
+endpoint_result_tcp() {
+  local name="$1"
+  local host="$2"
+  local port="$3"
+  if tcp_check "$host" "$port"; then
+    jq -n \
+      --arg name "$name" \
+      --arg host "$host" \
+      --argjson port "$port" \
+      '{name:$name, type:"tcp", host:$host, port:$port, ok:true, detail:"tcp_connect_ok"}'
+  else
+    jq -n \
+      --arg name "$name" \
+      --arg host "$host" \
+      --argjson port "$port" \
+      '{name:$name, type:"tcp", host:$host, port:$port, ok:false, detail:"tcp_connect_failed"}'
+  fi
+}
+
+endpoint_result_http() {
+  local name="$1"
+  local url="$2"
+  local code=""
+  if code="$(http_check "$url")"; then
+    jq -n \
+      --arg name "$name" \
+      --arg url "$url" \
+      --arg code "$code" \
+      '{name:$name, type:"http", url:$url, ok:true, http_code:($code|tonumber)}'
+  else
+    jq -n \
+      --arg name "$name" \
+      --arg url "$url" \
+      '{name:$name, type:"http", url:$url, ok:false, detail:"http_request_failed"}'
+  fi
+}
+
+dns_record_check() {
+  local server="$1"
+  local name="$2"
+  local expected="$3"
+  local output=""
+  local ok=false
+
+  if command -v dig >/dev/null 2>&1; then
+    output="$(dig +short @"$server" "$name" A 2>/dev/null || true)"
+  elif command -v nslookup >/dev/null 2>&1; then
+    output="$(nslookup "$name" "$server" 2>/dev/null | awk '/^Address: / {print $2}' | tail -n +2 || true)"
+  else
+    echo "ERROR: dns-check requires dig or nslookup" >&2
+    exit 2
+  fi
+
+  if printf '%s\n' "$output" | grep -Fxq "$expected"; then
+    ok=true
+
+  fi
+
+  jq -n \
+    --arg server "$server" \
+    --arg name "$name" \
+    --arg expected "$expected" \
+    --arg output "$output" \
+    --argjson ok "$ok" \
+    '{
+      dns_server: $server,
+      record: $name,
+      expected_ip: $expected,
+      ok: $ok,
+      answers: ($output | split("\n") | map(select(length > 0)))
+    }'
 }
 
 cmd_status() {
@@ -283,6 +385,168 @@ cmd_audit() {
   fi
 }
 
+cmd_net_basics() {
+  need_cmd jq
+
+  print_header "current network basics"
+  jq -n '{
+    gateway_firewall: {
+      host: "opnsense",
+      ip: "192.168.1.1",
+      role: "router/firewall/gateway/vpn"
+    },
+    dns: {
+      primary: "192.168.60.10",
+      secondary: "192.168.60.20",
+      domain: "starfleet.local"
+    },
+    ntp: {
+      primary: "192.168.60.20",
+      backup: "192.168.60.10"
+    },
+    vpn: {
+      wireguard_gateway: "10.6.0.1",
+      remote_admin_subnet: "10.6.0.0/24"
+    },
+    infrastructure: [
+      {
+        host: "dns-core",
+        ip: "192.168.60.10",
+        zone: "bridge",
+        role: "Primary DNS / AdGuard"
+      },
+      {
+        host: "starfleet-core",
+        ip: "192.168.60.20",
+        zone: "bridge",
+        role: "NPM + UniFi + secondary DNS + NTP"
+      }
+    ],
+    engineering: [
+      {
+        host: "spot",
+        ip: "192.168.10.10",
+        zone: "engineering",
+        role: "primary orchestrator"
+      },
+      {
+        host: "m-5",
+        ip: "192.168.10.11",
+        zone: "engineering",
+        role: "worker"
+      },
+      {
+        host: "readyroom",
+        ip: "192.168.10.12",
+        zone: "engineering",
+        role: "interface / dashboard"
+      },
+      {
+        host: "daystrom",
+        ip: "192.168.10.13",
+        zone: "engineering",
+        role: "worker"
+      }
+    ],
+    section_31: [
+      {
+        host: "starfleet-tower",
+        ip: "192.168.30.5",
+        zone: "section_31",
+        role: "Homarr / Portainer / Uptime Kuma / Glances / Netdata"
+      }
+    ],
+    storage: [
+      {
+        host: "unimatrix6",
+        ip: "192.168.50.10",
+        zone: "unimatrix",
+        role: "NAS / storage"
+      }
+    ],
+    management: [
+      {
+        host: "Ogre PC",
+        ip: "192.168.99.150",
+        zone: "command",
+        role: "admin workstation"
+      }
+    ],
+    reverse_proxy: [
+      {
+        name: "unifi.starfleet.local",
+        target: "192.168.60.20:8443"
+      },
+      {
+        name: "adguard.starfleet.local",
+        target: "192.168.60.10:80"
+      },
+      {
+        name: "dashboard.starfleet.local",
+        target: "192.168.30.5:7575"
+      }
+    ],
+    cleanup_targets: [
+      "192.168.1.11 -> old dns-core2 (remove)",
+      "192.168.1.133 -> old AdGuard (remove)",
+      "192.168.1.148 -> old UniFi (remove)"
+    ],
+    note: "Current mode is basic working network state; full firewall/policy build-out is not yet complete."
+  }'
+}
+
+cmd_endpoints() {
+  need_cmd jq
+  need_cmd curl
+  need_cmd timeout
+  need_cmd bash
+
+  print_header "endpoint checks"
+  jq -n \
+    --argjson items "[
+      $(endpoint_result_http 'spot-core-health' 'http://127.0.0.1:8787/health'),
+      $(endpoint_result_tcp 'opnsense-https' '192.168.1.1' 443),
+      $(endpoint_result_tcp 'dns-core-http' '192.168.60.10' 80),
+      $(endpoint_result_tcp 'starfleet-core-https' '192.168.60.20' 443),
+      $(endpoint_result_tcp 'spot-ollama' '192.168.10.10' 11434),
+      $(endpoint_result_tcp 'starfleet-tower-homarr' '192.168.30.5' 7575),
+      $(endpoint_result_tcp 'unimatrix6-nfs' '192.168.50.10' 2049)
+    ]" \
+    '{
+      summary: {
+        ok_count: ($items | map(select(.ok == true)) | length),
+        fail_count: ($items | map(select(.ok != true)) | length)
+      },
+      items: $items
+    }'
+}
+
+cmd_dns_check() {
+  need_cmd jq
+  if ! command -v dig >/dev/null 2>&1 && ! command -v nslookup >/dev/null 2>&1; then
+    echo "ERROR: dns-check requires dig or nslookup" >&2
+    exit 2
+  fi
+
+  print_header "dns checks"
+  jq -n \
+    --argjson items "[
+      $(dns_record_check '192.168.60.10' 'unifi.starfleet.local' '192.168.60.20'),
+      $(dns_record_check '192.168.60.20' 'unifi.starfleet.local' '192.168.60.20'),
+      $(dns_record_check '192.168.60.10' 'adguard.starfleet.local' '192.168.60.10'),
+      $(dns_record_check '192.168.60.20' 'adguard.starfleet.local' '192.168.60.10'),
+      $(dns_record_check '192.168.60.10' 'dashboard.starfleet.local' '192.168.30.5'),
+      $(dns_record_check '192.168.60.20' 'dashboard.starfleet.local' '192.168.30.5')
+    ]" \
+    '{
+      summary: {
+        ok_count: ($items | map(select(.ok == true)) | length),
+        fail_count: ($items | map(select(.ok != true)) | length)
+      },
+      items: $items
+    }'
+}
+
 cmd_quarantine_state() {
   need_cmd jq
   need_http "/fleet/ping"
@@ -298,6 +562,30 @@ cmd_quarantine_state() {
     degraded_reason: .value.degraded_reason,
     fallback_count_window: .value.fallback_count_window
   })'
+}
+
+cmd_remediation() {
+  need_cmd jq
+  need_file "$REMEDIATION_STATE_FILE"
+
+  print_header "remediation state"
+  jq 'to_entries
+    | map(select(.key != "_meta"))
+    | map({
+        worker: .key,
+        quarantined: (.value.quarantined // false),
+        degraded: (.value.degraded // false),
+        degraded_reason: (.value.degraded_reason // null),
+        fallback_count_window: (.value.fallback_count_window // 0),
+        reason: (.value.reason // null),
+        last_updated_ts: (.value.last_updated_ts // null),
+        since_ts: (.value.since_ts // null),
+        release_ts: (.value.release_ts // null),
+        last_updated_by: (.value.last_updated_by // null)
+      })' "$REMEDIATION_STATE_FILE"
+
+  print_header "remediation meta"
+  jq '._meta // {}' "$REMEDIATION_STATE_FILE"
 }
 
 cmd_quarantine() {
@@ -381,7 +669,11 @@ main() {
     health)           cmd_health "$@" ;;
     routing)          cmd_routing "$@" ;;
     audit)            cmd_audit "$@" ;;
+    net-basics)       cmd_net_basics "$@" ;;
+    endpoints)        cmd_endpoints "$@" ;;
+    dns-check)        cmd_dns_check "$@" ;;
     quarantine-state) cmd_quarantine_state "$@" ;;
+    remediation)      cmd_remediation "$@" ;;
     quarantine)       cmd_quarantine "$@" ;;
     release)          cmd_release "$@" ;;
     logs)             cmd_logs "$@" ;;
