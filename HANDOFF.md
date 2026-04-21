@@ -2,10 +2,10 @@
 
 ## PURPOSE
 
-This file defines rules and workflow.
-It does NOT track state.
+This file defines permanent rules, workflow, and runtime paths.
+It does NOT track current state, active tasks, or next steps.
 
-State lives in:
+Current state lives in:
 
 * /home/ogre/spot-stack/spot-core/STATE.md
 
@@ -45,14 +45,15 @@ Rules:
 * do not expand scope
 * do not “improve” unrelated code
 * do not generate example routes/models before reading real code
-* do not ask user for files that exist at known runtime paths
-* do not claim runtime paths are unavailable
+* do not ask for files that exist at known runtime paths
+* do not claim known runtime paths are unavailable
 * endpoint names MUST match existing implementation exactly
-* request/response formats MUST NOT change
-* auth mechanism MUST remain exactly as implemented
+* request/response formats MUST NOT change unless explicitly requested
+* auth mechanism MUST remain exactly as implemented unless explicitly requested
 * do not introduce new auth patterns
-* all changes must pass:
-  python3 -m py_compile
+* validate with the correct tool for the file type:
+  * Python: python3 -m py_compile
+  * Shell: bash -n
 
 ---
 
@@ -73,7 +74,7 @@ Rules:
 * coding  → spot-worker-03
 * heavy   → spot-worker-04
 
-Do not change.
+Do not change unless explicitly requested.
 
 ---
 
@@ -115,12 +116,8 @@ Compose:
 
 ### THEN
 
-* extract current behavior EXACTLY
-* confirm:
-
-  1. endpoint names
-  2. auth mechanism
-  3. request payload structure
+* extract current behavior exactly from runtime
+* confirm the exact implementation details relevant to the task
 
 ### ONLY THEN
 
@@ -128,27 +125,28 @@ Compose:
 
 ### AFTER
 
-* run python3 -m py_compile
-* validate via scripts/endpoints
+* validate with the correct checker for the file type
+* validate with existing scripts/endpoints where applicable
+* save checkpoint only after verification
 
 ---
 
 ## SCOPE CONTROL (CRITICAL)
 
-* ONLY modify explicitly requested endpoints
-* DO NOT touch unrelated routes
-* DO NOT fix unrelated bugs
-* DO NOT refactor
-* DO NOT restructure files
+* ONLY modify explicitly requested files/routes/logic
+* DO NOT touch unrelated code
+* DO NOT fix unrelated bugs unless they block the requested task
+* DO NOT refactor without being asked
+* DO NOT restructure files without being asked
 
 If something else is broken:
-→ ignore it unless it blocks this task
+→ ignore it unless it blocks the current task
 
 ---
 
 ## ADMIN ENDPOINT RULE
 
-Admin endpoints must be discovered from app.py.
+Admin endpoints must always be discovered from runtime app.py.
 
 NEVER trust:
 
@@ -174,62 +172,16 @@ Update:
 
 * /home/ogre/spot-stack/spot-core/STATE.md
 
-### Step 3 (NEW CHAT START)
+### Step 3
 
-Paste:
+Start new chat and read:
 
----
+* /home/ogre/spot-stack/HANDOFF.md
+* /home/ogre/spot-stack/spot-core/STATE.md
 
-Continuing Spot bridge work.
-
-Run first:
-
-* spot_save
-* read /home/ogre/spot-stack/HANDOFF.md
-* read /home/ogre/spot-stack/spot-core/STATE.md
-* read /home/ogre/spot-stack/spot-core/spotcore/app.py
-
-Rules:
-
-* no guessing
-* read real runtime files before patching
-* use runtime as source of truth
-* fallback to GitHub only if runtime unavailable
-* do not redesign system
-* minimal changes only
-* preserve auth and payload formats
-* do not invent endpoints or models
-* do not modify unrelated code
-* enforce backup-first policy
-* validate with python3 -m py_compile before restart
-
-Task:
-
-* read app.py
-* identify EXACT /admin endpoints
-* identify EXACT auth mechanism
-* identify EXACT request payload structure
-* THEN apply Pydantic models to those endpoints only
-* do not change behavior
-* enforce structure only (422 on invalid input)
-
-Fallback rule:
-If /home/ogre/spot-stack/spot-core/spotcore/app.py cannot be read:
-
-* read from https://github.com/chrisk-2/spot-AI
-* use that file ONLY
-
-If neither is available:
-
-* STOP
-
-Output BEFORE patch:
-
-1. exact /admin endpoints
-2. exact auth mechanism
-3. exact request fields
-
-Then patch.
+Do not use HANDOFF.md as state tracking.
+Do not put next-task details in HANDOFF.md.
+Put current status, verified results, open issues, and next steps in STATE.md only.
 
 ---
 
