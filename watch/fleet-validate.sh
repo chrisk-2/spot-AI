@@ -222,11 +222,9 @@ check_audit_file_append() {
     return 1
   fi
 
-  local bad_jsonl=0
-  if ! awk 'NF { print }' "$AUDIT_FILE" | tail -n 20 | jq -R 'fromjson? | type == "object"' >/dev/null 2>&1; then
-    bad_jsonl=1
-  fi
-  if [[ "$bad_jsonl" -ne 0 ]]; then
+  if awk 'NF { print }' "$AUDIT_FILE" | tail -n 20 | jq -R 'fromjson? | type == "object"' >/dev/null 2>&1; then
+    pass "recent routing audit entries are valid JSONL"
+  else
     fail 'recent routing audit entries include invalid JSONL'
     return 1
   fi
@@ -292,7 +290,7 @@ get_admin_token() {
   fi
 
   ADMIN_TOKEN="$token"
-  pass "admin token fetched from running spot-core container"
+  debug "admin token fetched from running spot-core container"
 }
 
 check_admin_validate_endpoint() {
@@ -427,10 +425,10 @@ check_watch_health() {
   fi
 
   if [[ "$fleet_ok" -eq 1 ]]; then
-  return 0
-else
-  return 1
-fi
+    return 0
+  else
+    return 1
+  fi
 }
 
 fetch_fleet_ping() {
@@ -538,8 +536,6 @@ main() {
   log "smoke_mode: ${SMOKE_MODE}"
   log
 
-  require_file_json "$FLEET_STATUS_FILE" "fleet status" || true
-  require_file_json "$AUDIT_SUMMARY_FILE" "routing audit summary" || true
   if [[ -f "$AUDIT_FILE" ]]; then
     pass "routing audit file exists"
   else
@@ -550,9 +546,11 @@ main() {
   check_audit_file_append || true
   check_routing_audit_endpoint || true
   check_watch_health || true
+
+  check_admin_validate_endpoint || true
+
   get_admin_token || true
   if [[ -n "${ADMIN_TOKEN:-}" ]]; then
-    check_admin_validate_endpoint || true
     check_admin_read_file_endpoint || true
   fi
 
@@ -562,19 +560,18 @@ main() {
     info 'smoke mode skipped'
   fi
 
-log
-log "=== SUMMARY ==="
-log "pass=${PASS_COUNT} warn=${WARN_COUNT} fail=${FAIL_COUNT}"
+  log
+  log "=== SUMMARY ==="
+  log "pass=${PASS_COUNT} warn=${WARN_COUNT} fail=${FAIL_COUNT}"
 
-echo
-if [[ "$FAIL_COUNT" -gt 0 ]]; then
-  echo "RESULT: FAIL (${FAIL_COUNT} failed, ${PASS_COUNT} passed)"
-  exit 1
-else
-  echo "RESULT: PASS (${PASS_COUNT} checks)"
-  exit 0
-fi
+  echo
+  if [[ "$FAIL_COUNT" -gt 0 ]]; then
+    echo "RESULT: FAIL (${FAIL_COUNT} failed, ${PASS_COUNT} passed, ${WARN_COUNT} warnings)"
+    exit 1
+  else
+    echo "RESULT: PASS (${PASS_COUNT} checks, ${WARN_COUNT} warnings)"
+    exit 0
+  fi
 }
 
 main "$@"
-

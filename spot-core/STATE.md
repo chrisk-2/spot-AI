@@ -19,12 +19,20 @@ Rules:
 - enforce backup-first policy
 - validate with the correct tool before restart
 
-Task:
-- inspect current fleet-validate.sh
-- identify duplicate/noisy checks
-- clean validator output only
-- preserve behavior unless required to fix broken validation
-- then inspect app.py only for routing-audit write failure handling
-- add explicit failure logging if needed
-- run validation
-- prepare checkpoint state
+Current confirmed state:
+- routing-audit write failure logging already exists in spot-core/spotcore/app.py
+- fleet-validate.sh output was cleaned
+- fleet-validate.sh passes in normal mode
+- fleet-validate.sh --smoke passes
+- smoke mode confirms quarantine=true/eligible=false and release back to quarantined=false/eligible=true without restart
+- Stage 1 / Milestone A (Spot Core Trusted) is now the locked baseline
+
+Next task:
+- begin Stage 2 — Spot Operator Ready
+- define the first operator-facing entry points
+- standardize a small safe command set for:
+  - fleet validation
+  - routing state
+  - quarantine state
+  - recent routing audit
+  - watch logs
