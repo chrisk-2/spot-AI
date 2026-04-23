@@ -663,6 +663,87 @@ def seed_routing_audit() -> None:
         except Exception:
             continue
 
+def seed_recent_decisions() -> None:
+    if not DECISION_LOG_PATH.exists():
+        return
+    for line in DECISION_LOG_PATH.read_text(encoding="utf-8").splitlines()[-DECISION_WINDOW:]:
+        try:
+            RECENT_DECISIONS.append(json.loads(line))
+        except Exception:
+            continue
+
+
+def build_decision_latency_index() -> dict[tuple[int, str, str, str], float]:
+    index: dict[tuple[int, str, str, str], float] = {}
+    if not DECISION_LOG_PATH.exists():
+        return index
+
+    for line in DECISION_LOG_PATH.read_text(encoding="utf-8").splitlines():
+        try:
+            item = json.loads(line)
+        except Exception:
+            continue
+
+        ts = int(item.get("ts") or 0)
+        worker = str(item.get("worker") or "")
+        gpu_lane = str(item.get("gpu_lane") or "")
+        model = str(item.get("model") or "")
+        latency = item.get("latency") or {}
+        tok_per_sec = latency.get("avg_tok_per_sec")
+
+        if ts and worker and gpu_lane and model and tok_per_sec is not None:
+            try:
+                index[(ts, worker, gpu_lane, model)] = float(tok_per_sec)
+            except Exception:
+                continue
+
+    return index
+
+
+def seed_latency_history() -> None:
+    if not EXEC_HISTORY_PATH.exists():
+        return
+
+    decision_latency_index = build_decision_latency_index()
+
+    for line in EXEC_HISTORY_PATH.read_text(encoding="utf-8").splitlines()[-1000:]:
+        try:
+            item = json.loads(line)
+        except Exception:
+            continue
+
+        worker = str(item.get("worker") or "")
+        gpu_lane = str(item.get("gpu_lane") or "unknown")
+        model = str(item.get("model_used") or item.get("model") or "")
+        role = str(item.get("role_requested") or item.get("role") or "unknown")
+        ts = int(item.get("ts") or _now())
+
+        if not worker or not model:
+            continue
+
+        total_duration = int(item.get("total_duration") or 0)
+        eval_count = int(item.get("eval_count") or 0)
+        eval_duration = int(item.get("eval_duration") or 0)
+
+        tok_per_sec = 0.0
+
+        if eval_count > 0 and eval_duration > 0:
+            tok_per_sec = eval_count / (eval_duration / 1_000_000_000)
+        else:
+            tok_per_sec = decision_latency_index.get((ts, worker, gpu_lane, model), 0.0)
+            if tok_per_sec <= 0 and eval_count > 0 and total_duration > 0:
+                tok_per_sec = eval_count / (total_duration / 1_000_000_000)
+
+        LATENCY_HISTORY[worker].append(
+            {
+                "ts": ts,
+                "gpu_lane": gpu_lane,
+                "model": model,
+                "role": role,
+                "total_duration_ns": total_duration,
+                "tok_per_sec": tok_per_sec,
+            }
+        )
 
 def current_penalty(worker_name: str) -> dict[str, Any] | None:
     penalty = PENALTY_BOX.get(worker_name)
@@ -2055,6 +2136,8 @@ async def startup_event() -> None:
     load_config()
     seed_warm_models()
     seed_routing_audit()
+    seed_recent_decisions()
+    seed_latency_history()
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
