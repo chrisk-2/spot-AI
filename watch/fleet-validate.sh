@@ -13,6 +13,7 @@ POLL_ATTEMPTS="${POLL_ATTEMPTS:-15}"
 
 SMOKE_MODE=0
 VERBOSE=0
+ADMIN_TOKEN=""
 
 usage() {
   cat <<USAGE
@@ -27,7 +28,8 @@ Checks:
   2. /stats/routing-audit returns JSON containing expected primary routes
   3. fleet-watch state reports healthy
   4. routing audit file exists and is appended by validation traffic
-  5. optional smoke mode quarantine/unquarantine, no restart required
+  5. authenticated admin endpoints respond as expected
+  6. optional smoke mode quarantine/unquarantine, no restart required
 
 Environment overrides:
   SPOT_BASE_URL, WATCH_STATE_DIR, AUDIT_FILE, FLEET_STATUS_FILE,
@@ -273,8 +275,6 @@ check_routing_audit_endpoint() {
   [[ "$missing" -eq 0 ]]
 }
 
-ADMIN_TOKEN=""
-
 get_admin_token() {
   if ! command -v docker >/dev/null 2>&1; then
     fail "docker is required for admin endpoint validation"
@@ -294,13 +294,20 @@ get_admin_token() {
 }
 
 check_admin_validate_endpoint() {
+  if [[ -z "${ADMIN_TOKEN:-}" ]]; then
+    fail "/admin/validate skipped: ADMIN_TOKEN is not set"
+    return 1
+  fi
+
   local payload="$TMPDIR/admin-validate.json"
   local response="$TMPDIR/admin-validate.response.json"
   local code_file="$TMPDIR/admin-validate.http"
 
   jq -n \
+    --arg token "$ADMIN_TOKEN" \
     --arg worker "spot-worker-01" \
     '{
+      token: $token,
       worker: $worker,
       commands: [
         "test -f /etc/os-release",
@@ -547,10 +554,9 @@ main() {
   check_routing_audit_endpoint || true
   check_watch_health || true
 
-  check_admin_validate_endpoint || true
-
   get_admin_token || true
   if [[ -n "${ADMIN_TOKEN:-}" ]]; then
+    check_admin_validate_endpoint || true
     check_admin_read_file_endpoint || true
   fi
 

@@ -96,9 +96,9 @@ class ExecResult(BaseModel):
 
 
 class AdminValidateRequest(BaseModel):
+    token: str
     worker: str
     commands: list[str]
-
 
 class AdminRestartServiceRequest(BaseModel):
     token: str
@@ -118,10 +118,28 @@ class AdminWriteFileRequest(BaseModel):
     path: str
     content: str
 
+class AdminReadLocalFileRequest(BaseModel):
+    token: str
+    path: str
+
+
+class AdminWriteLocalFileRequest(BaseModel):
+    token: str
+    path: str
+    content: str
+
+class AdminQuarantineRequest(BaseModel):
+    token: str
+    worker: str
+    seconds: int = 1800
+    reason: str = "manual_quarantine"
+
+class AdminReleaseRequest(BaseModel):
+    token: str
+    worker: str
 
 def _now() -> int:
     return int(time.time())
-
 
 def require_admin_token(payload: dict) -> None:
     provided = str(payload.get("token", "")).strip()
@@ -547,6 +565,24 @@ def worker_host(worker_name: str, cfg: dict[str, Any]) -> str:
         hostport = base_url
     return hostport.split(":", 1)[0]
 
+def resolve_local_path(path_str: str) -> Path:
+    raw = Path(path_str)
+
+    candidates = [raw]
+
+    text = str(raw)
+    if text.startswith("/home/ogre/spot-stack/watch/"):
+        rel = text.removeprefix("/home/ogre/spot-stack/watch/")
+        candidates.append(Path("/srv/watch") / rel)
+    if text.startswith("/home/ogre/spot-stack/spot-core/"):
+        rel = text.removeprefix("/home/ogre/spot-stack/spot-core/")
+        candidates.append(Path("/srv/spot-core") / rel)
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return candidates[0]
 
 async def run_ssh_command(host: str, remote_cmd: str) -> dict[str, Any]:
     proc = await asyncio.create_subprocess_exec(
@@ -1515,18 +1551,136 @@ async def call_generate_with_retry(
         detail={"message": "retry routing exhausted with no alternate worker available"},
     )
 
-
 async def call_embed(worker_url: str, req: ExecRequest, model: str) -> dict[str, Any]:
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
-        resp = await client.post(f"{worker_url}/api/embed", json={"model": model, "input": req.prompt})
+        resp = await client.post(
+            f"{worker_url}/api/embed",
+            json={"model": model, "input": req.prompt}
+        )
         resp.raise_for_status()
         return resp.json()
 
+async def execute_quarantine_worker(worker_name: str, seconds: int, reason: str) -> dict[str, Any]:
+    cfg = load_config()
+    if worker_name not in cfg["workers"]:
+        raise HTTPException(status_code=404, detail={"message": "unknown worker"})
+
+    async def do_execute() -> dict[str, Any]:
+        penalty = {
+            "reason": reason,
+            "until": _now() + max(60, seconds),
+            "ts": _now(),
+            "quarantined": True,
+            "failure_count_window": failure_window_count(worker_name, 3600),
+        }
+        PENALTY_BOX[worker_name] = penalty
+        update_remediation_quarantine(worker_name, True, reason)
+        update_watch_state_quarantine(worker_name, True)
+        return {"worker": worker_name, "penalty": penalty}
+
+    async def do_verify(execution_result: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        status = worker_status(worker_name)
+        remediation = remediation_entry(worker_name)
+        ok = status.get("quarantined") is True and remediation.get("quarantined") is True
+        return ok, {
+            "watch_quarantined": status.get("quarantined"),
+            "watch_eligible": status.get("eligible"),
+            "remediation_quarantined": remediation.get("quarantined"),
+        }
+
+    async def do_rollback(backup_record: dict[str, Any], execution_result: dict[str, Any]) -> dict[str, Any]:
+        remediation_backup = next(
+            Path(item["dest"])
+            for item in backup_record["artifacts"]
+            if item["source"] == str(REMEDIATION_STATE_PATH)
+        )
+        watch_backup = next(
+            Path(item["dest"])
+            for item in backup_record["artifacts"]
+            if item["source"] == str(WATCH_STATE_PATH)
+        )
+
+        shutil.copy2(remediation_backup, REMEDIATION_STATE_PATH)
+        shutil.copy2(watch_backup, WATCH_STATE_PATH)
+        PENALTY_BOX.pop(worker_name, None)
+
+        return {
+            "restored_files": [str(REMEDIATION_STATE_PATH), str(WATCH_STATE_PATH)],
+            "cleared_penalty": True,
+        }
+
+    return await execute_with_enforcement(
+        action_name="quarantine_worker",
+        target=worker_name,
+        service="fleet_runtime_state",
+        backup_sources=[REMEDIATION_STATE_PATH, WATCH_STATE_PATH],
+        execute_fn=do_execute,
+        verify_fn=do_verify,
+        rollback_fn=do_rollback,
+        metadata={"reason": reason, "seconds": seconds},
+        require_backup=True,
+    )
+
+
+async def execute_unquarantine_worker(worker_name: str) -> dict[str, Any]:
+    cfg = load_config()
+    if worker_name not in cfg["workers"]:
+        raise HTTPException(status_code=404, detail={"message": "unknown worker"})
+
+    async def do_execute() -> dict[str, Any]:
+        removed_penalty = PENALTY_BOX.pop(worker_name, None)
+        FAILURE_HISTORY.pop(worker_name, None)
+        update_remediation_quarantine(worker_name, False, "manual_release")
+        update_watch_state_quarantine(worker_name, False)
+        return {"worker": worker_name, "removed_penalty": removed_penalty is not None}
+
+    async def do_verify(execution_result: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        status = worker_status(worker_name)
+        remediation = remediation_entry(worker_name)
+        ok = status.get("quarantined") is False and remediation.get("quarantined") is False
+        return ok, {
+            "watch_quarantined": status.get("quarantined"),
+            "watch_eligible": status.get("eligible"),
+            "remediation_quarantined": remediation.get("quarantined"),
+        }
+
+    async def do_rollback(backup_record: dict[str, Any], execution_result: dict[str, Any]) -> dict[str, Any]:
+        remediation_backup = next(
+            Path(item["dest"])
+            for item in backup_record["artifacts"]
+            if item["source"] == str(REMEDIATION_STATE_PATH)
+        )
+        watch_backup = next(
+            Path(item["dest"])
+            for item in backup_record["artifacts"]
+            if item["source"] == str(WATCH_STATE_PATH)
+        )
+
+        shutil.copy2(remediation_backup, REMEDIATION_STATE_PATH)
+        shutil.copy2(watch_backup, WATCH_STATE_PATH)
+
+        return {
+            "restored_files": [str(REMEDIATION_STATE_PATH), str(WATCH_STATE_PATH)],
+            "cleared_penalty": False,
+        }
+
+    return await execute_with_enforcement(
+        action_name="unquarantine_worker",
+        target=worker_name,
+        service="fleet_runtime_state",
+        backup_sources=[REMEDIATION_STATE_PATH, WATCH_STATE_PATH],
+        execute_fn=do_execute,
+        verify_fn=do_verify,
+        rollback_fn=do_rollback,
+        metadata={"reason": "manual_release"},
+        require_backup=True,
+    )
 
 app = FastAPI(title="Spot Core Control Plane", version="final-v6-routing-audit")
 
 @app.post("/admin/validate")
 async def admin_validate(payload: AdminValidateRequest):
+    require_admin_token(payload.model_dump())
     cfg = load_config()
 
     worker = payload.worker
@@ -1692,20 +1846,59 @@ async def admin_write_file(payload: AdminWriteFileRequest):
 
     tmp_path = f"/tmp/spot_write_{int(time.time())}.tmp"
 
-    async def execute():
-        # write temp file
-        await run_ssh_command(host, f"printf %s {shlex.quote(content)} > {tmp_path}")
+    exists_check = await run_ssh_command(host, f"test -e {shlex.quote(str(path))}")
+    preexisting_file = exists_check["returncode"] == 0
 
-        # move into place
-        return await run_ssh_command(host, f"sudo mv {tmp_path} {path}")
+    async def execute():
+        write_tmp = await run_ssh_command(
+            host,
+            f"printf %s {shlex.quote(content)} > {shlex.quote(tmp_path)}"
+        )
+        if write_tmp["returncode"] != 0:
+            return {
+                "ok": False,
+                "stage": "write_tmp",
+                "tmp_path": tmp_path,
+                "ssh": write_tmp,
+            }
+
+        move_into_place = await run_ssh_command(
+            host,
+            f"mv {shlex.quote(tmp_path)} {shlex.quote(str(path))}"
+        )
+
+        return {
+            "ok": move_into_place["returncode"] == 0,
+            "stage": "move_into_place",
+            "tmp_path": tmp_path,
+            "ssh": move_into_place,
+        }
 
     async def verify(result):
-        check = await run_ssh_command(host, f"test -f {path}")
-        return (check["returncode"] == 0, {"exists": check["returncode"] == 0})
+        check = await run_ssh_command(host, f"test -f {shlex.quote(str(path))}")
+        return (
+            check["returncode"] == 0,
+            {
+                "exists": check["returncode"] == 0,
+                "ssh": check,
+                "preexisting_file": preexisting_file,
+            },
+        )
 
     async def rollback(backup, result):
+        if not preexisting_file:
+            delete_new = await run_ssh_command(
+                host,
+                f"rm -f {shlex.quote(str(path))}"
+            )
+            return {
+                "ok": delete_new["returncode"] == 0,
+                "rollback": "removed_new_file",
+                "ssh": delete_new,
+            }
+
         artifact = next(
-            (a for a in backup["artifacts"] if Path(a["source"]).name == path.name),
+            (a for a in backup["artifacts"] if Path(a["source"]) == path),
             None
         )
 
@@ -1714,28 +1907,154 @@ async def admin_write_file(payload: AdminWriteFileRequest):
 
         backup_file = artifact["dest"]
 
-        return await run_ssh_command(host, f"sudo cp {backup_file} {path} && sudo systemctl daemon-reload || true")
+        restore = await run_ssh_command(
+            host,
+            f"cp {shlex.quote(backup_file)} {shlex.quote(str(path))}"
+        )
+
+        return {
+            "ok": restore["returncode"] == 0,
+            "rollback": "restored_prior_file",
+            "ssh": restore,
+        }
 
     return await execute_with_enforcement(
         action_name="write_file",
         target=worker,
         service="filesystem",
-        backup_sources=[path],
+        backup_sources=[path] if preexisting_file else [],
         execute_fn=execute,
         verify_fn=verify,
         rollback_fn=rollback,
         metadata={
             "path": str(path),
-            "host": host
-        }
+            "host": host,
+            "preexisting_file": preexisting_file,
+        },
+        require_backup=preexisting_file,
     )
+
+@app.post("/admin/read-local-file")
+async def admin_read_local_file(payload: AdminReadLocalFileRequest):
+    require_admin_token(payload.model_dump())
+
+    path = resolve_local_path(payload.path)
+
+    try:
+        content = path.read_text(encoding="utf-8")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "failed to read local file",
+                "path": str(path),
+                "error": repr(exc),
+            },
+        ) from exc
+
+    return {
+        "ok": True,
+        "path": str(path),
+        "content": content,
+    }
+
+
+@app.post("/admin/write-local-file")
+async def admin_write_local_file(payload: AdminWriteLocalFileRequest):
+    require_admin_token(payload.model_dump())
+
+    path = resolve_local_path(payload.path)
+    content = payload.content
+    preexisting_file = path.exists()
+
+    async def execute():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+        return {
+            "ok": True,
+            "path": str(path),
+            "bytes_written": len(content.encode("utf-8")),
+            "preexisting_file": preexisting_file,
+        }
+
+    async def verify(result):
+        exists = path.is_file()
+        return (
+            exists,
+            {
+                "exists": exists,
+                "preexisting_file": preexisting_file,
+                "size": path.stat().st_size if exists else None,
+            },
+        )
+
+    async def rollback(backup, result):
+        if not preexisting_file:
+            try:
+                path.unlink(missing_ok=True)
+            except Exception as exc:
+                return {
+                    "ok": False,
+                    "rollback": "remove_new_local_file_failed",
+                    "error": repr(exc),
+                }
+            return {
+                "ok": True,
+                "rollback": "removed_new_local_file",
+                "path": str(path),
+            }
+
+        artifact = next(
+            (a for a in backup["artifacts"] if Path(a["source"]) == path),
+            None,
+        )
+        if not artifact:
+            raise RuntimeError(f"No backup artifact found for {path}")
+
+        backup_file = Path(artifact["dest"])
+        shutil.copy2(backup_file, path)
+
+        return {
+            "ok": True,
+            "rollback": "restored_prior_local_file",
+            "path": str(path),
+            "backup_file": str(backup_file),
+        }
+
+    return await execute_with_enforcement(
+        action_name="write_local_file",
+        target="spot-core",
+        service="filesystem_local",
+        backup_sources=[path] if preexisting_file else [],
+        execute_fn=execute,
+        verify_fn=verify,
+        rollback_fn=rollback,
+        metadata={
+            "path": str(path),
+            "preexisting_file": preexisting_file,
+        },
+        require_backup=preexisting_file,
+    )
+
+@app.post("/admin/quarantine")
+async def admin_quarantine_worker(payload: AdminQuarantineRequest):
+    require_admin_token(payload.model_dump())
+    return await execute_quarantine_worker(
+        worker_name=payload.worker,
+        seconds=payload.seconds,
+        reason=payload.reason,
+    )
+
+@app.post("/admin/release")
+async def admin_release_worker(payload: AdminReleaseRequest):
+    require_admin_token(payload.model_dump())
+    return await execute_unquarantine_worker(worker_name=payload.worker)
 
 @app.on_event("startup")
 async def startup_event() -> None:
     load_config()
     seed_warm_models()
     seed_routing_audit()
-
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
@@ -1817,123 +2136,16 @@ async def stats_routing_audit(limit: int = 200) -> dict[str, Any]:
     summary["routing_audit_path"] = str(ROUTING_AUDIT_PATH)
     return summary
 
-
 @app.post("/quarantine/{worker_name}")
 async def quarantine_worker(worker_name: str, seconds: int = 1800, reason: str = "manual_quarantine") -> dict[str, Any]:
-    cfg = load_config()
-    if worker_name not in cfg["workers"]:
-        raise HTTPException(status_code=404, detail={"message": "unknown worker"})
-
-    async def do_execute() -> dict[str, Any]:
-        penalty = {
-            "reason": reason,
-            "until": _now() + max(60, seconds),
-            "ts": _now(),
-            "quarantined": True,
-            "failure_count_window": failure_window_count(worker_name, 3600),
-        }
-        PENALTY_BOX[worker_name] = penalty
-        update_remediation_quarantine(worker_name, True, reason)
-        update_watch_state_quarantine(worker_name, True)
-        return {"worker": worker_name, "penalty": penalty}
-
-    async def do_verify(execution_result: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
-        status = worker_status(worker_name)
-        remediation = remediation_entry(worker_name)
-        ok = status.get("quarantined") is True and remediation.get("quarantined") is True
-        return ok, {
-            "watch_quarantined": status.get("quarantined"),
-            "watch_eligible": status.get("eligible"),
-            "remediation_quarantined": remediation.get("quarantined"),
-        }
-
-    async def do_rollback(backup_record: dict[str, Any], execution_result: dict[str, Any]) -> dict[str, Any]:
-        remediation_backup = next(
-            Path(item["dest"])
-            for item in backup_record["artifacts"]
-            if item["source"] == str(REMEDIATION_STATE_PATH)
-        )
-        watch_backup = next(
-            Path(item["dest"])
-            for item in backup_record["artifacts"]
-            if item["source"] == str(WATCH_STATE_PATH)
-        )
-
-        shutil.copy2(remediation_backup, REMEDIATION_STATE_PATH)
-        shutil.copy2(watch_backup, WATCH_STATE_PATH)
-        PENALTY_BOX.pop(worker_name, None)
-
-        return {
-            "restored_files": [str(REMEDIATION_STATE_PATH), str(WATCH_STATE_PATH)],
-            "cleared_penalty": True,
-        }
-
-    return await execute_with_enforcement(
-        action_name="quarantine_worker",
-        target=worker_name,
-        service="fleet_runtime_state",
-        backup_sources=[REMEDIATION_STATE_PATH, WATCH_STATE_PATH],
-        execute_fn=do_execute,
-        verify_fn=do_verify,
-        rollback_fn=do_rollback,
-        metadata={"reason": reason, "seconds": seconds},
-        require_backup=True,
+    return await execute_quarantine_worker(
+        worker_name=worker_name,
+        seconds=seconds,
+        reason=reason,
     )
-
 @app.delete("/quarantine/{worker_name}")
 async def unquarantine_worker(worker_name: str) -> dict[str, Any]:
-    cfg = load_config()
-    if worker_name not in cfg["workers"]:
-        raise HTTPException(status_code=404, detail={"message": "unknown worker"})
-
-    async def do_execute() -> dict[str, Any]:
-        removed_penalty = PENALTY_BOX.pop(worker_name, None)
-        FAILURE_HISTORY.pop(worker_name, None)
-        update_remediation_quarantine(worker_name, False, "manual_release")
-        update_watch_state_quarantine(worker_name, False)
-        return {"worker": worker_name, "removed_penalty": removed_penalty is not None}
-
-    async def do_verify(execution_result: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
-        status = worker_status(worker_name)
-        remediation = remediation_entry(worker_name)
-        ok = status.get("quarantined") is False and remediation.get("quarantined") is False
-        return ok, {
-            "watch_quarantined": status.get("quarantined"),
-            "watch_eligible": status.get("eligible"),
-            "remediation_quarantined": remediation.get("quarantined"),
-        }
-
-    async def do_rollback(backup_record: dict[str, Any], execution_result: dict[str, Any]) -> dict[str, Any]:
-        remediation_backup = next(
-            Path(item["dest"])
-            for item in backup_record["artifacts"]
-            if item["source"] == str(REMEDIATION_STATE_PATH)
-        )
-        watch_backup = next(
-            Path(item["dest"])
-            for item in backup_record["artifacts"]
-            if item["source"] == str(WATCH_STATE_PATH)
-        )
-
-        shutil.copy2(remediation_backup, REMEDIATION_STATE_PATH)
-        shutil.copy2(watch_backup, WATCH_STATE_PATH)
-
-        return {
-            "restored_files": [str(REMEDIATION_STATE_PATH), str(WATCH_STATE_PATH)],
-            "cleared_penalty": False,
-        }
-
-    return await execute_with_enforcement(
-        action_name="unquarantine_worker",
-        target=worker_name,
-        service="fleet_runtime_state",
-        backup_sources=[REMEDIATION_STATE_PATH, WATCH_STATE_PATH],
-        execute_fn=do_execute,
-        verify_fn=do_verify,
-        rollback_fn=do_rollback,
-        metadata={"reason": "manual_release"},
-        require_backup=True,
-    )
+    return await execute_unquarantine_worker(worker_name=worker_name)
 
 @app.post("/actions/restart-service/{worker_name}/{service_name}")
 async def restart_service(worker_name: str, service_name: str) -> dict[str, Any]:

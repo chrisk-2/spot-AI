@@ -1,0 +1,39 @@
+services:
+  spot-core:
+    image: python:3.11-slim
+    container_name: spot-core
+    working_dir: /srv/spot-core
+    volumes:
+      - ./spot-core:/srv/spot-core
+      - ./watch:/srv/watch
+      - /mnt/collective:/mnt/collective
+      - /mnt/collective/fleet/spot-core/shared_memory:/srv/spot-core/shared_memory
+      - ./watch:/watch
+      - /home/ogre/.ssh:/host-ssh:ro
+    environment:
+      SPOTCORE_ADMIN_API_TOKEN: "94f75316232661ed1161dac100d3ac6edf1e6e6d4af10b7aa07f142a96165f26"
+      SPOTCORE_CONFIG: /srv/spot-core/config/cluster_config.json
+      SPOTCORE_WATCH_STATE: /srv/watch/state/fleet-status.json
+      SPOTCORE_EXEC_HISTORY: /srv/spot-core/shared_memory/exec-history.jsonl
+      SPOTCORE_DECISION_LOG: /srv/spot-core/shared_memory/decision-history.jsonl
+      PYTHONUNBUFFERED: "1"
+    command: >
+      bash -lc "
+        apt-get update &&
+        apt-get install -y --no-install-recommends openssh-client &&
+        rm -rf /var/lib/apt/lists/* &&
+        mkdir -p /root/.ssh &&
+        cp /host-ssh/id_ed25519 /root/.ssh/id_ed25519 &&
+        cp /host-ssh/id_ed25519.pub /root/.ssh/id_ed25519.pub &&
+        cp /host-ssh/known_hosts /root/.ssh/known_hosts 2>/dev/null || true &&
+        chmod 700 /root/.ssh &&
+        chmod 600 /root/.ssh/id_ed25519 &&
+        chmod 644 /root/.ssh/id_ed25519.pub &&
+        chmod 644 /root/.ssh/known_hosts 2>/dev/null || true &&
+        pip install --no-cache-dir -r requirements.txt &&
+        uvicorn spotcore.app:app --host 0.0.0.0 --port 8787
+      "
+
+    ports:
+      - "8787:8787"
+    restart: unless-stopped
