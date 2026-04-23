@@ -1,25 +1,57 @@
+# Python cache / bytecode
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+.venv-*/
+venv/
+.env/
+.envrc
+watch/.venv/
+watch/.venv-*/
+watch/.venv-mcp/
+*/.venv/
+*/venv/
+
+# Editor / OS junk
+*~
+*.swp
+*.swo
+.DS_Store
+
+# Logs
 *.log
+watch/logs/
+watch/logs/*.log
+
+# Temporary / generated
 *.tmp
-.env
-.env.*
+*.pid
 *.save
 *.working-*
-watch/logs/
+
+# Runtime state / histories / backups
 watch/state/
 watch/backups/
 backup-final/
 backup-working-*/
 fleet-inventory-*/
 full-fleet-config-*/
-spot-core/shared_memory/*.jsonl
-spot-core/shared_memory/*.json
 
-# local virtualenvs / python cache
-.venv/
-.venv-*/
-watch/.venv-mcp/
-__pycache__/
-*.pyc
+# Spot shared memory runtime artifacts
+spot-core/shared_memory/*.json
+spot-core/shared_memory/*.jsonl
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# Local secrets
+*.env
+
