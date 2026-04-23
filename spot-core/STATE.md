@@ -2,9 +2,11 @@
 
 ## Current confirmed state
 
-- Stage 1 / Milestone A is effectively locked
+- Stage 1 / Milestone A is effectively locked from a runtime/policy standpoint
 - Stage 2 operator shell is working
 - Stage 3 read-only monitoring and alert awareness is working
+- MCP transport is now working through the live wrapper endpoint
+- Current remaining work is state/handoff cleanup, repo hygiene cleanup, and controlled operator-layer hardening
 
 ## Current live repo/runtime
 
@@ -69,6 +71,8 @@ Current monitor files:
 - coding -> spot-worker-03
 - heavy -> spot-worker-04
 
+Do not change unless explicitly requested.
+
 ## Current config/runtime notes
 
 ### cluster_config.json
@@ -117,42 +121,86 @@ Confirmed from live `app.py`:
 - `GET /stats/routing-audit`
 - `POST /exec`
 
+## MCP status
+
+MCP wrapper is now operational enough to count as working transport, not theory.
+
+### Confirmed MCP runtime behavior
+Local checks against the wrapper on port `8001` show:
+
+- `http://127.0.0.1:8001/spot` returns `307 Temporary Redirect` to `/spot/`
+- `http://127.0.0.1:8001/spot/` returns `400 Bad Request: Missing session ID` on raw curl
+- `http://127.0.0.1:8001/spot/mcp` returns `404 Not Found`
+- `http://127.0.0.1:8001/spot/mcp/` returns `404 Not Found`
+
+Meaning:
+
+- the live mounted MCP streamable HTTP path is `/spot/`
+- `/spot/mcp` is not the active route
+- the `400 Missing session ID` result is expected for a raw non-session curl against a live MCP endpoint
+- the path problem is resolved; future work should not waste time guessing alternate mount paths unless runtime changes again
+
+### Practical conclusion
+The MCP transport/path issue is no longer the blocker.
+
+What is true now:
+
+- wrapper is running
+- endpoint shape is understood
+- route mount is known
+- session-based MCP behavior is what the server expects
+- future effort should move to tool safety, control-surface consistency, and cleanup
+
+## Checkpoint state
+
+A checkpoint was saved and pushed after MCP confirmation.
+
+### Latest saved checkpoint
+- commit: `c252fd5`
+- message: `checkpoint: 2026-04-23-02:52:27`
+
+This is a real recoverable checkpoint, but not yet a clean long-term baseline because repo hygiene still needs cleanup.
+
 ## Cleanup completed
 
-Recent cleanup completed:
+Recent cleanup completed before/around this phase:
 
 - old archive tree removed
 - old editor/save/bak clutter removed from live paths
 - root-level duplicate `STATE.md` removed
-- live tree now reduced to active runtime files plus intentional helper scripts
+- live tree reduced toward active runtime files plus intentional helper scripts
 - monitoring state/history tree cleaned and stabilized
+- MCP path confusion resolved by direct runtime testing instead of guessing
 
 ## Important reality
 
 System is in a much better state now:
 
-- filesystem is sane
+- filesystem is mostly sane
 - monitoring is working
 - alert-state tracking is working
 - operator shell is coherent
 - live state/history separation is clear
-- current baseline is stable enough to checkpoint
+- MCP transport is working
+- current baseline is stable enough to operate
+- current baseline is not yet clean enough to call “finished” from a repo hygiene standpoint
 
 ## Open issues / next work
 
 ### 1. STATE/HANDOFF drift was real
 This file had become stale and needed refresh.
-HANDOFF also still referenced a nonexistent compose path before correction.
+
+Handoff rules remain useful, but STATE must stay current because it is the active runtime truth record for phase and next work.
 
 ### 2. Mutating API surface needs tightening
-Current live app exposes mutating routes outside the tokened `/admin/*` pattern:
+Current live app still exposes mutating routes outside the tokened `/admin/*` pattern:
 
 - `/quarantine/{worker_name}`
 - `/actions/restart-service/{worker_name}/{service_name}`
 
 These need review and likely MCP-safe wrapping/alignment instead of leaving them as an inconsistent second control surface.
 
-### 3. MCP tooling is the next major step
+### 3. MCP tooling is now real, not hypothetical
 This is now the right next evolution, using the system as it already exists instead of redesigning it.
 
 What MCP changes in practical terms:
@@ -185,29 +233,52 @@ Clean definition:
 
 > The MCP tool is the interface that allows ChatGPT to operate Spot safely through spot-core without bypassing policy, logging, or control.
 
-### 4. warmd exists but is not yet clearly wired into compose/runtime lifecycle
+### 4. Repo hygiene cleanup is required
+Recent checkpoint commit included tracked virtualenv/runtime junk under `watch/.venv-mcp`.
+
+This is not desired steady-state repo content.
+
+What happened:
+
+- `spot_save` produced a valid checkpoint
+- the checkpoint also committed the MCP virtualenv and installed package tree
+- repo is therefore recoverable but noisy and bloated
+
+Needed next:
+
+- add/verify ignore rules for local virtualenv and cache artifacts
+- remove tracked venv artifacts from git index
+- save a cleanup commit after verification
+
+### 5. warmd exists but is not yet clearly wired into compose/runtime lifecycle
 `warmd.py` exists in live code, but compose currently runs uvicorn only.
+
 Need explicit decision:
+
 - wire it in properly
 - or leave it intentionally dormant and document that
 
-### 5. compose secret handling is still rough
+### 6. compose secret handling is still rough
 `SPOTCORE_ADMIN_API_TOKEN` is inline in compose.
+
 Functional, but not the final security shape.
 
-### 6. remediation backups still have local residue
+### 7. remediation backups still have local residue
 `watch/backups/remediation-state` still exists locally.
+
 Long term, backup artifacts should prefer shared storage.
 
-### 7. helper-script sprawl still exists
+### 8. helper-script sprawl still exists
 The live tree is much cleaner, but there are still helper scripts under `watch/` that should eventually be grouped or documented more clearly.
 
-## To-do list (next phase)
+## To-do list (current next phase)
 
-### Priority next
-- update and lock STATE.md and HANDOFF.md
-- save checkpoint after validation
-- define exact MCP tool mapping to current live routes
+### Immediate priority
+- lock refreshed `STATE.md`
+- confirm `HANDOFF.md` still matches real runtime paths and rules
+- clean repo hygiene after accidental `.venv-mcp` commit
+- save a clean follow-up checkpoint after cleanup
+- continue MCP tool mapping against the current live routes
 - do not redesign API first; wrap what already exists
 
 ### MCP work
@@ -215,7 +286,8 @@ The live tree is much cleaner, but there are still helper scripts under `watch/`
 - separate read actions from controlled mutating actions
 - ensure MCP mutating actions only use safe spot-core entrypoints
 - ensure MCP path does not bypass logging / verification / rollback
-- decide whether quarantine/release/restart should be exposed through existing route names or normalized behind admin wrappers
+- decide whether quarantine/release/restart should be exposed via existing route names or normalized behind admin wrappers
+- keep route assumptions tied to runtime behavior, not memory
 
 ### API hardening
 - review auth coverage on all mutating routes
@@ -239,4 +311,6 @@ The live tree is much cleaner, but there are still helper scripts under `watch/`
 - do not expand scope into UI work yet
 - do not weaken backup/logging/verification enforcement
 - do not invent new API names before reading runtime
-- do not treat HANDOFF.md as state tracking
+- do not treat `HANDOFF.md` as state tracking
+- do not treat the current checkpoint as clean repo hygiene until `.venv-mcp` is removed from tracking
+

@@ -16,3 +16,10 @@ fleet-inventory-*/
 full-fleet-config-*/
 spot-core/shared_memory/*.jsonl
 spot-core/shared_memory/*.json
+
+# local virtualenvs / python cache
+.venv/
+.venv-*/
+watch/.venv-mcp/
+__pycache__/
+*.pyc
