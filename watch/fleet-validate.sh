@@ -575,7 +575,12 @@ check_worker_backup_freshness() {
       continue
     fi
 
-    epoch="$(date -u -d "$raw" +%s 2>/dev/null || true)"
+    if [[ "$raw" =~ ^([0-9]{4})([0-9]{2})([0-9]{2})T([0-9]{2})([0-9]{2})([0-9]{2})Z$ ]]; then
+      epoch="$(date -u -d "${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:${BASH_REMATCH[6]} UTC" +%s 2>/dev/null || true)"
+    else
+      epoch="$(date -u -d "$raw" +%s 2>/dev/null || true)"
+    fi
+
     if [[ -z "$epoch" ]]; then
       warn "backup freshness: ${worker} invalid timestamp_utc=${raw}"
       continue
