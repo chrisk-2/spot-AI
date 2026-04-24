@@ -38,11 +38,15 @@ What is now confirmed working end-to-end:
 - `spot_save` now shows worker backup status in handoff output
 - `spot validate` now checks worker backup freshness
 - worker backup freshness threshold defaults to 8 hours via `SPOT_BACKUP_MAX_AGE_HOURS`
+- routing audit write failures are explicitly logged with path, timestamp, role, status, worker, and exception detail
+- latest normal validation passed with 19 checks and 0 warnings
+- latest smoke validation passed with 25 checks and 0 warnings
 
-Latest validation after backup freshness work:
+Latest validation after backup freshness and smoke confirmation:
 
 ```text
-RESULT: PASS (19 checks, 0 warnings)
+spot validate:       RESULT: PASS (19 checks, 0 warnings)
+spot validate-smoke: RESULT: PASS (25 checks, 0 warnings)
 ```
 
 This is no longer a theory stack. It is a live operational control surface.
@@ -176,6 +180,31 @@ Remaining backup work:
 - decide model blob backup policy
 - later consider making stale backups fail validation after warning-only period
 
+### Audit write failure logging
+
+Routing audit write failure hardening is implemented in `spotcore/app.py`.
+
+Current behavior:
+
+- `append_routing_audit()` always appends to in-memory `RECENT_ROUTING_AUDIT`
+- persistent JSONL write is wrapped in `try/except`
+- failures are logged with `LOGGER.exception`
+- log message includes:
+  - routing audit path
+  - timestamp
+  - role
+  - status
+  - worker
+  - exception detail
+
+Implementation marker:
+
+```text
+routing_audit_write_failed path=%s ts=%s role=%s status=%s worker=%s error=%r
+```
+
+This satisfies the roadmap requirement that routing-audit persistence failures are explicit and visible.
+
 ## Latest confirmed hardening milestone
 
 Latest verified hardening work:
@@ -186,11 +215,14 @@ Latest verified hardening work:
 - admin token moved out of tracked compose into ignored env file
 - `spot_save` worker backup visibility
 - `spot validate` worker backup freshness check
+- routing audit write failure logging confirmed implemented
+- smoke validation confirmed clean after latest hardening
 
-Validation after latest patch:
+Validation after latest checks:
 
 ```text
-RESULT: PASS (19 checks, 0 warnings)
+spot validate:       RESULT: PASS (19 checks, 0 warnings)
+spot validate-smoke: RESULT: PASS (25 checks, 0 warnings)
 ```
 
 Confirmed ownership routes after the fix:
@@ -437,10 +469,10 @@ This prevents false red-alert behavior while preserving failure signal.
 
 ### Latest smoke validation
 
-`spot validate-smoke` passed before this hardening round:
+`spot validate-smoke` passed after latest hardening:
 
 ```text
-RESULT: PASS (21 checks, 0 warnings)
+RESULT: PASS (25 checks, 0 warnings)
 ```
 
 Smoke target:
@@ -635,6 +667,13 @@ Working and populated.
 
 Latest validation confirmed routing audit append behavior.
 
+Audit write failure handling is explicit:
+
+- `append_routing_audit()` appends to in-memory state first
+- persistent JSONL write is attempted through `append_jsonl()`
+- write exceptions are logged with `LOGGER.exception`
+- logged context includes audit path, timestamp, role, status, worker, and exception detail
+
 Note: historical routing violations may remain visible in the recent audit window until displaced by newer clean entries. Treat `spot validate` and current audit entries as the immediate truth after routing fixes.
 
 ### Recent decisions
@@ -668,6 +707,7 @@ The following hardening changes are now also active in `spotcore/app.py`:
 4. legacy restart path uses before/after systemd metadata
 5. legacy mutating routes return deprecation metadata
 6. `gather_candidates()` enforces ownership-first candidate restriction when the owner is healthy and admissible
+7. `append_routing_audit()` explicitly logs persistent routing-audit write failures
 
 ### Current latency backfill behavior
 
@@ -880,6 +920,16 @@ Current fix:
 - `docker exec spot-core printenv SPOTCORE_ADMIN_API_TOKEN | wc -c` confirmed runtime injection without printing token
 - `spot validate` passed after restart
 
+### 18. Routing audit write failure handling was undocumented
+
+The code already had explicit routing-audit write failure logging, but STATE.md did not record it as completed.
+
+Current fix:
+
+- `append_routing_audit()` behavior is now documented
+- roadmap audit-write hardening requirement is marked satisfied
+- current validation and smoke validation results are recorded
+
 ## Things still wrong, rough, or not final
 
 These are the real remaining issues, not imaginary ones.
@@ -971,6 +1021,7 @@ This is now a real distributed control plane with:
 - backup visibility in handoff output
 - backup freshness validation
 - improved secret placement for the admin token
+- explicit routing-audit write failure logging
 
 ### What it is not yet
 
@@ -980,17 +1031,16 @@ It is not yet a fully polished production platform with perfect surface hygiene,
 
 ### Primary next objective
 
-Finish the backup visibility, secret hygiene, and Stage 2 cleanup path now that core behavior, worker-02 GPU state, worker-03 Codex/Git, and worker config backups are proven.
+Continue Stage 2 cleanup now that core behavior, smoke validation, audit logging, worker-02 GPU state, worker-03 Codex/Git, and worker config backups are proven.
 
 This means:
 
-1. run `spot validate-smoke` after the latest hardening changes
-2. run `spot_save` after committing state updates
-3. add a validator secret-regression scan so tokens cannot return to tracked files unnoticed
-4. perform controlled worker-02 manual tests before changing GPU pinning, model selection, or warm policy
-5. clean up repo/runtime hygiene and document live files versus leftovers
-6. decide whether to split read-only MCP and admin MCP into separate wrappers/connectors
-7. decide whether `warmd.py` should be wired into runtime lifecycle or explicitly marked dormant
+1. checkpoint this STATE.md update with `spot_save`
+2. add a validator secret-regression scan so tokens cannot return to tracked files unnoticed
+3. perform controlled worker-02 manual tests before changing GPU pinning, model selection, or warm policy
+4. clean up repo/runtime hygiene and document live files versus leftovers
+5. decide whether to split read-only MCP and admin MCP into separate wrappers/connectors
+6. decide whether `warmd.py` should be wired into runtime lifecycle or explicitly marked dormant
 
 ### Why this is next
 
@@ -1008,7 +1058,26 @@ The next phase should be “make the live operational surface cleaner, safer, an
 - run `spot_save`
 - confirm commit/push
 
-### 2. Worker-02 controlled investigation
+### 2. Add validator secret-regression scan
+
+Goal:
+
+- fail or warn if tracked files contain obvious live secret assignments
+- specifically protect against `SPOTCORE_ADMIN_API_TOKEN: "..."` returning to tracked compose files
+- avoid scanning ignored `.env` files directly
+- avoid printing secret values
+
+Candidate files:
+
+- `watch/fleet-validate.sh`
+
+Candidate command family:
+
+- `git grep`
+- targeted patterns only
+- sanitized output only
+
+### 3. Worker-02 controlled investigation
 
 Do not change routing ownership.
 
@@ -1028,13 +1097,13 @@ Questions to answer:
 - does `phi3.5:latest` remain too verbose even when warmed?
 - should utility be warmed, model-swapped, or prompt-constrained?
 
-### 3. Repo hygiene / live-file map
+### 4. Repo hygiene / live-file map
 
 - identify live files vs legacy leftovers
 - document the watch scripts that are actually in use
 - document what can be archived or removed
 
-### 4. Split MCP by privilege
+### 5. Split MCP by privilege
 
 Recommended future structure:
 
@@ -1060,14 +1129,14 @@ Recommended future structure:
 
 This would make normal operational use safer and more production-like.
 
-### 5. Secret handling cleanup
+### 6. Secret handling cleanup
 
 - add automated secret-regression detection to validator
 - reduce inline secret exposure in runtime config
 - prevent `spot_save` output from casually exposing secrets
 - consider Docker secrets or SOPS/age later if warranted
 
-### 6. warmd lifecycle decision
+### 7. warmd lifecycle decision
 
 - read current `warmd.py`
 - inspect current runtime wiring
@@ -1141,6 +1210,7 @@ spot_save
 - spot_save
 - ownership-first routing
 - legacy mutating route deprecation metadata
+- audit write failure logging
 - worker-02 GPU override documented and inventoried
 - worker-03 Git/Codex workflow
 - worker config backups manually verified on all four AI workers
@@ -1152,7 +1222,6 @@ spot_save
 
 ### Confirmed still rough
 
-- final smoke validation after latest hardening still needs to be run
 - full API surface cleanup is not complete
 - secret/config hygiene is improved but not final
 - helper-script/live-file clarity
@@ -1180,5 +1249,6 @@ The biggest unknowns from earlier in the project are gone. The stack can now:
 - show worker backup state during handoff
 - warn about stale worker backups during validation
 - avoid storing the admin token directly in tracked compose
+- explicitly log routing-audit write failures
 
 The next phase is not rescue. It is hardening and cleanup.

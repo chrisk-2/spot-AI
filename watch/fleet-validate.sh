@@ -29,11 +29,14 @@ Checks:
   3. fleet-watch state reports healthy
   4. routing audit file exists and is appended by validation traffic
   5. authenticated admin endpoints respond as expected
-  6. optional smoke mode quarantine/unquarantine, no restart required
+  6. tracked files do not contain hardcoded Spot admin-token assignments
+  7. worker config backups are fresh
+  8. optional smoke mode quarantine/unquarantine, no restart required
 
 Environment overrides:
   SPOT_BASE_URL, WATCH_STATE_DIR, AUDIT_FILE, FLEET_STATUS_FILE,
-  AUDIT_SUMMARY_FILE, SMOKE_WORKER, CURL_TIMEOUT, POLL_INTERVAL, POLL_ATTEMPTS
+  AUDIT_SUMMARY_FILE, SMOKE_WORKER, CURL_TIMEOUT, POLL_INTERVAL, POLL_ATTEMPTS,
+  SPOT_BACKUP_MAX_AGE_HOURS
 USAGE
 }
 
@@ -453,6 +456,41 @@ check_watch_health() {
   fi
 }
 
+check_secret_regression() {
+  echo
+  echo "=== SECRET REGRESSION CHECK ==="
+
+  if ! command -v git >/dev/null 2>&1; then
+    warn "secret regression: git not available; skipped tracked-file scan"
+    return 0
+  fi
+
+  local repo_root
+  repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  if [[ -z "$repo_root" ]]; then
+    warn "secret regression: not inside a git repository; skipped tracked-file scan"
+    return 0
+  fi
+
+  local matches_file="$TMPDIR/secret-regression.matches"
+  (
+    cd "$repo_root"
+    git grep -n -E 'SPOTCORE_ADMIN_API_TOKEN[[:space:]]*[:=][[:space:]]*["'\'']?[A-Za-z0-9_./+=:-]{20,}' -- ':!*.env' ':!*.pyc' ':!*__pycache__*' ':!spot-core/STATE.md'
+  ) > "$matches_file" 2>/dev/null || true
+
+  if [[ -s "$matches_file" ]]; then
+    local sanitized_file="$TMPDIR/secret-regression.sanitized"
+    sed -E 's/(SPOTCORE_ADMIN_API_TOKEN[[:space:]]*[:=][[:space:]]*)["'\'']?[^"'\''[:space:]]+(["'\'']?)/\1<redacted>/' "$matches_file" > "$sanitized_file"
+    fail "secret regression: hardcoded SPOTCORE_ADMIN_API_TOKEN found in tracked files"
+    if [[ "$VERBOSE" -eq 1 ]]; then
+      sed 's/^/[DBG] secret regression hit: /' "$sanitized_file"
+    fi
+    return 1
+  fi
+
+  pass "secret regression: no hardcoded SPOTCORE_ADMIN_API_TOKEN in tracked files"
+}
+
 fetch_fleet_ping() {
   local out="$1"
   local code_file="$2"
@@ -617,6 +655,7 @@ main() {
   check_audit_file_append || true
   check_routing_audit_endpoint || true
   check_watch_health || true
+  check_secret_regression || true
 
   get_admin_token || true
   if [[ -n "${ADMIN_TOKEN:-}" ]]; then
