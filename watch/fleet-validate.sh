@@ -596,3 +596,50 @@ main() {
 }
 
 main "$@"
+
+
+check_worker_backup_freshness() {
+  local max_age_hours="${SPOT_BACKUP_MAX_AGE_HOURS:-8}"
+  local max_age_sec=$((max_age_hours * 3600))
+  local now
+  now="$(date -u +%s)"
+
+  echo
+  echo "=== WORKER BACKUP FRESHNESS ==="
+
+  local workers="spot-worker-01 spot-worker-02 spot-worker-03 spot-worker-04"
+  local worker meta ts raw epoch age_sec age_hours
+
+  for worker in $workers; do
+    meta="/mnt/collective/backups/${worker}/worker-config/latest/metadata.json"
+
+    if [[ ! -f "$meta" ]]; then
+      warn "backup freshness: ${worker} missing latest metadata at ${meta}"
+      continue
+    fi
+
+    raw="$(jq -r '.timestamp_utc // empty' "$meta" 2>/dev/null || true)"
+    if [[ -z "$raw" ]]; then
+      warn "backup freshness: ${worker} metadata has no timestamp_utc"
+      continue
+    fi
+
+    epoch="$(date -u -d "$raw" +%s 2>/dev/null || true)"
+    if [[ -z "$epoch" ]]; then
+      warn "backup freshness: ${worker} invalid timestamp_utc=${raw}"
+      continue
+    fi
+
+    age_sec=$((now - epoch))
+    age_hours=$((age_sec / 3600))
+
+    if (( age_sec > max_age_sec )); then
+      warn "backup freshness: ${worker} latest backup is ${age_hours}h old, threshold=${max_age_hours}h"
+    else
+      pass "backup freshness: ${worker} latest backup ${raw} age=${age_hours}h threshold=${max_age_hours}h"
+    fi
+  done
+}
+
+
+check_worker_backup_freshness
