@@ -34,6 +34,16 @@ What is now confirmed working end-to-end:
 - worker backup `latest` symlink is maintained per worker
 - worker-03 GitHub SSH access is working and `/home/ogre/spot-stack` is current
 - worker-02 GPU runtime behavior is documented and inventoried
+- admin token was removed from tracked `docker-compose.yml` and is now loaded from ignored `spot-core/.env`
+- `spot_save` now shows worker backup status in handoff output
+- `spot validate` now checks worker backup freshness
+- worker backup freshness threshold defaults to 8 hours via `SPOT_BACKUP_MAX_AGE_HOURS`
+
+Latest validation after backup freshness work:
+
+```text
+RESULT: PASS (19 checks, 0 warnings)
+```
 
 This is no longer a theory stack. It is a live operational control surface.
 
@@ -50,6 +60,11 @@ Hardware:
 
 Current confirmed runtime:
 
+- both `ollama serve` and `ollama runner` inherit `CUDA_VISIBLE_DEVICES=0`
+- despite that, `nvidia-smi` reports the runner on physical GPU 1 / GTX 1060
+- therefore CUDA-visible index 0 maps to the GTX 1060 in the current Ollama runtime context
+- this is not a Spot routing failure
+- current safest action is to document the effective mapping and avoid changing GPU pinning until there is a concrete need
 - live Ollama override: `/etc/systemd/system/ollama.service.d/gpu.conf`
 - override content: `CUDA_VISIBLE_DEVICES=0`
 - utility model: `phi3.5:latest`
@@ -64,6 +79,14 @@ Known caveat:
 Repo evidence:
 
 - worker-02 runtime snapshot is stored under `fleet-inventory/workers/spot-worker-02/`
+
+Current Codex investigation read:
+
+- this is not proven to be a routing failure
+- likely contributors are CUDA device-numbering ambiguity, Ollama runtime placement behavior, cold-start behavior, and `phi3.5:latest` verbosity
+- current warm policy does not include `utility`, so utility cold-start remains plausible
+- `spot validate` proves route/API ownership, not definitive GPU placement
+- safest next step is a controlled manual test on worker-02 with service restart, one utility call, and immediate `nvidia-smi`/process inspection before changing config
 
 ### Worker-03 Codex and Git status
 
@@ -106,6 +129,9 @@ Backup implementation:
 - target root: `/mnt/collective/backups`
 - per-worker path: `/mnt/collective/backups/<worker>/worker-config/<timestamp>`
 - latest pointer: `/mnt/collective/backups/<worker>/worker-config/latest`
+- `spot_save` reports latest worker backup timestamps
+- `spot validate` checks backup freshness and reports PASS/WARN lines before summary
+- validator freshness threshold defaults to 8 hours through `SPOT_BACKUP_MAX_AGE_HOURS`
 
 Manual verification completed:
 
@@ -113,6 +139,12 @@ Manual verification completed:
 - `spot-worker-02` backup complete
 - `spot-worker-03` backup complete
 - `spot-worker-04` backup complete
+
+Latest validator freshness result:
+
+```text
+RESULT: PASS (19 checks, 0 warnings)
+```
 
 Backup scope:
 
@@ -140,23 +172,25 @@ Known storage reality:
 
 Remaining backup work:
 
-- add backup freshness visibility to `spot status` or `spot_save`
 - decide long-term Unimatrix6 vs `/mnt/collective` strategy
 - decide model blob backup policy
-
+- later consider making stale backups fail validation after warning-only period
 
 ## Latest confirmed hardening milestone
 
-Latest uncommitted verified work in `spotcore/app.py`:
+Latest verified hardening work:
 
 - restart verification hardening
 - legacy mutating route deprecation markers
 - ownership-first routing fix
+- admin token moved out of tracked compose into ignored env file
+- `spot_save` worker backup visibility
+- `spot validate` worker backup freshness check
 
-Validation after patch:
+Validation after latest patch:
 
 ```text
-RESULT: PASS (15 checks, 0 warnings)
+RESULT: PASS (19 checks, 0 warnings)
 ```
 
 Confirmed ownership routes after the fix:
@@ -464,6 +498,7 @@ spot-core: OK uptime_sec=<seconds>
 - MCP wrapper
 - MCP app
 - systemd services
+- worker backup status
 - runtime health
 - latency snapshot
 - recent decisions
@@ -677,6 +712,8 @@ Still treated as live authority for routing and policy.
 
 Confirmed live compose is still the active runtime entry for spot-core.
 
+The admin token is no longer stored directly in tracked `docker-compose.yml`. Compose now loads it through ignored `spot-core/.env`.
+
 ### spot-core app runtime
 
 `spotcore/app.py` is the actual control-plane source of truth and has been actively modified in this phase.
@@ -819,6 +856,30 @@ expected -> spot-worker-04
 
 Fixed by restricting candidates to the role owner when the owner is healthy and admissible.
 
+### 16. Worker config backups were assumed but not actually proven
+
+`spot_save` backs up and checkpoints spot-core handoff/runtime state. It does not automatically back up every worker filesystem/config.
+
+This is now fixed at the config-backup layer:
+
+- `scripts/spot-worker-backup.sh` is source-controlled
+- deployed to all four AI workers
+- manually verified on all four AI workers
+- scheduled every 6 hours on all four AI workers
+- visible in `spot_save`
+- freshness-checked by `spot validate`
+
+### 17. Token was exposed through tracked compose output
+
+The live admin token had been present in tracked `docker-compose.yml` and could be exposed by `spot_save` output.
+
+Current fix:
+
+- tracked `docker-compose.yml` uses `env_file: ./spot-core/.env`
+- `spot-core/.env` is ignored by Git
+- `docker exec spot-core printenv SPOTCORE_ADMIN_API_TOKEN | wc -c` confirmed runtime injection without printing token
+- `spot validate` passed after restart
+
 ## Things still wrong, rough, or not final
 
 These are the real remaining issues, not imaginary ones.
@@ -843,11 +904,21 @@ Legacy mutating routes are now marked deprecated, but they still exist for compa
 
 Future cleanup should eventually decide whether to keep them as compatibility wrappers, gate them harder, or remove them after confirming no scripts depend on them.
 
-### 3. Secrets handling is functional, not elegant
+### 3. Secrets handling is improved but not final
 
-`SPOTCORE_ADMIN_API_TOKEN` handling is working, but secret placement and compose hygiene are still not the final security shape.
+`SPOTCORE_ADMIN_API_TOKEN` is no longer stored directly in tracked `docker-compose.yml`.
 
-`spot_save` can expose compose/env material in captured output, so secret hygiene should be handled before wider sharing.
+Current state:
+
+- compose loads the token from ignored `spot-core/.env`
+- runtime token injection is confirmed working
+- `spot_save` no longer prints the token through compose
+
+Remaining secret hygiene:
+
+- add automated secret-regression scan to validator
+- consider Docker secrets, SOPS/age, or a central secret service later if warranted
+- keep avoiding pasted env file contents
 
 ### 4. Repo/runtime hygiene is improved but not fully curated
 
@@ -862,6 +933,19 @@ The active tree is much cleaner than before, but helper-script sprawl under `wat
 `spot status` is functional but still basic.
 
 It is good enough for operations, but not a final dashboard.
+
+### 7. Worker-02 GPU/model behavior is unresolved
+
+Worker-02 is operational and passes validation, but Codex correctly identified that the current evidence does not prove a single root cause for slow/chatty utility behavior.
+
+Likely contributors:
+
+- CUDA device-numbering confusion between physical GPU index, visible CUDA index, and Ollama/NVIDIA reporting
+- cold-start behavior because `utility` is not currently part of the warm policy roles
+- model behavior from `phi3.5:latest`, especially verbosity on short prompts
+- possible Ollama runtime placement behavior independent of Spot routing labels
+
+Do not change worker-02 routing ownership. Investigate with controlled manual tests first.
 
 ## Current project reality
 
@@ -883,25 +967,30 @@ This is now a real distributed control plane with:
 - transition-proven service restart verification
 - compatibility-marked legacy mutating routes
 - ownership-first routing enforcement
+- worker config backups
+- backup visibility in handoff output
+- backup freshness validation
+- improved secret placement for the admin token
 
 ### What it is not yet
 
-It is not yet a fully polished production platform with perfect surface hygiene, connector-mode ergonomics, final secret handling, and final operator UI.
+It is not yet a fully polished production platform with perfect surface hygiene, connector-mode ergonomics, final secret handling, final worker-02 model/runtime tuning, and final operator UI.
 
 ## Current next objective
 
 ### Primary next objective
 
-Finish the backup visibility and Stage 2 cleanup path now that core behavior, worker-02 GPU state, worker-03 Codex/Git, and worker config backups are proven.
+Finish the backup visibility, secret hygiene, and Stage 2 cleanup path now that core behavior, worker-02 GPU state, worker-03 Codex/Git, and worker config backups are proven.
 
 This means:
 
-1. add backup freshness visibility to `spot status` or `spot_save`
-2. run `spot validate-smoke` after the latest hardening changes
-3. commit/checkpoint the current repo state if smoke passes
-4. clean up repo/runtime hygiene and document live files versus leftovers
-5. decide whether to split read-only MCP and admin MCP into separate wrappers/connectors
-6. decide whether `warmd.py` should be wired into runtime lifecycle or explicitly marked dormant
+1. run `spot validate-smoke` after the latest hardening changes
+2. run `spot_save` after committing state updates
+3. add a validator secret-regression scan so tokens cannot return to tracked files unnoticed
+4. perform controlled worker-02 manual tests before changing GPU pinning, model selection, or warm policy
+5. clean up repo/runtime hygiene and document live files versus leftovers
+6. decide whether to split read-only MCP and admin MCP into separate wrappers/connectors
+7. decide whether `warmd.py` should be wired into runtime lifecycle or explicitly marked dormant
 
 ### Why this is next
 
@@ -919,13 +1008,33 @@ The next phase should be “make the live operational surface cleaner, safer, an
 - run `spot_save`
 - confirm commit/push
 
-### 2. Repo hygiene / live-file map
+### 2. Worker-02 controlled investigation
+
+Do not change routing ownership.
+
+Recommended manual test shape:
+
+1. capture baseline `nvidia-smi` and Ollama process state on worker-02
+2. restart worker-02 Ollama
+3. run one utility request through spot-core
+4. immediately capture `nvidia-smi`, process command lines, and latency stats
+5. repeat only after changing one variable at a time
+
+Questions to answer:
+
+- does `CUDA_VISIBLE_DEVICES=0` consistently map to the intended physical GPU?
+- does Ollama select the expected GPU after a cold restart?
+- how much of the delay is model load vs generation?
+- does `phi3.5:latest` remain too verbose even when warmed?
+- should utility be warmed, model-swapped, or prompt-constrained?
+
+### 3. Repo hygiene / live-file map
 
 - identify live files vs legacy leftovers
 - document the watch scripts that are actually in use
 - document what can be archived or removed
 
-### 3. Split MCP by privilege
+### 4. Split MCP by privilege
 
 Recommended future structure:
 
@@ -951,13 +1060,14 @@ Recommended future structure:
 
 This would make normal operational use safer and more production-like.
 
-### 4. Secret handling cleanup
+### 5. Secret handling cleanup
 
-- move tokens/env handling to a cleaner pattern
+- add automated secret-regression detection to validator
 - reduce inline secret exposure in runtime config
 - prevent `spot_save` output from casually exposing secrets
+- consider Docker secrets or SOPS/age later if warranted
 
-### 5. warmd lifecycle decision
+### 6. warmd lifecycle decision
 
 - read current `warmd.py`
 - inspect current runtime wiring
@@ -974,6 +1084,7 @@ This would make normal operational use safer and more production-like.
 - do not conflate ChatGPT platform limits with Spot server bugs
 - do not casually change request/response formats
 - do not introduce new auth patterns without explicit security design
+- do not change worker-02 GPU pinning, warm policy, or utility model until a controlled test proves the issue
 
 ## Validation commands for next session
 
@@ -1035,16 +1146,20 @@ spot_save
 - worker config backups manually verified on all four AI workers
 - worker config backups scheduled every 6 hours
 - worker backup script source-controlled
+- worker backup visibility in `spot_save`
+- worker backup freshness in `spot validate`
+- admin token removed from tracked compose and loaded from ignored env file
 
 ### Confirmed still rough
 
 - final smoke validation after latest hardening still needs to be run
 - full API surface cleanup is not complete
-- secret/config hygiene
+- secret/config hygiene is improved but not final
 - helper-script/live-file clarity
 - Developer Mode dependency for custom MCP usage in ChatGPT
 - warmd lifecycle decision
 - final operator UI polish
+- worker-02 GPU/model/cold-start behavior needs controlled testing
 
 ## Plain-English bottom line
 
@@ -1062,5 +1177,8 @@ The biggest unknowns from earlier in the project are gone. The stack can now:
 - validate routing and admin behavior
 - smoke-test quarantine/release behavior without restart
 - enforce role ownership before score-based routing wins
+- show worker backup state during handoff
+- warn about stale worker backups during validation
+- avoid storing the admin token directly in tracked compose
 
 The next phase is not rescue. It is hardening and cleanup.
