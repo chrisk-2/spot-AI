@@ -41,6 +41,19 @@ print_file_if_exists() {
     fi
 }
 
+backup_status() {
+    header "WORKER BACKUP STATUS"
+    for h in spot-worker-01 spot-worker-02 spot-worker-03 spot-worker-04; do
+        p="/mnt/collective/backups/$h/worker-config/latest/metadata.json"
+        if [[ -f "$p" ]]; then
+            ts=$(jq -r '.timestamp_utc' "$p" 2>/dev/null || echo unknown)
+            echo "$h: OK last_backup=$ts"
+        else
+            echo "$h: MISSING"
+        fi
+    done
+}
+
 main() {
     cd "$REPO" || exit 1
 
@@ -92,6 +105,8 @@ main() {
     print_file_if_exists "SPOT-MCP SYSTEMD SERVICE" "$SPOT_MCP_SERVICE"
     print_file_if_exists "MCP-TUNNEL SYSTEMD SERVICE" "$MCP_TUNNEL_SERVICE"
 
+    backup_status
+
     header "QUICK STATUS"
 
     echo -n "spot-core: "
@@ -121,32 +136,6 @@ main() {
     header "NEW CHAT BLOCK"
     cat <<'BLOCK'
 Continuing Spot work.
-
-Read first:
-- /home/ogre/spot-stack/HANDOFF.md
-- /home/ogre/spot-stack/spot-core/STATE.md
-- /home/ogre/spot-stack/spot-core/spotcore/app.py
-- /home/ogre/spot-stack/spot-core/config/cluster_config.json
-- /home/ogre/spot-stack/docker-compose.yml
-- /home/ogre/spot-mcp/spot_mcp_wrapper.py
-- /home/ogre/spot-mcp/app.py
-- /home/ogre/.config/systemd/user/spot-mcp.service
-- /home/ogre/.config/systemd/user/mcp-tunnel.service
-
-Rules:
-- no guessing
-- read real runtime files before patching
-- use runtime as source of truth
-- do not redesign system
-- make minimal changes only
-- preserve auth and payload formats unless intentionally changing them
-- do not invent endpoints, models, routes, or behaviors
-- do not modify unrelated code
-- backup first for stateful or mutating changes
-- validate Python before restart when patching:
-  - /home/ogre/spot-stack/spot-core/spotcore/app.py
-  - /home/ogre/spot-mcp/spot_mcp_wrapper.py
-  - /home/ogre/spot-mcp/app.py
 BLOCK
 }
 
