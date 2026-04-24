@@ -1,0 +1,4 @@
+NAME                       ID              SIZE      MODIFIED    
+phi3.5:latest              61819fb370a3    2.2 GB    10 days ago    
+nomic-embed-text:latest    0a109f422b47    274 MB    10 days ago    
+bge-m3:latest              790764642607    1.2 GB    10 days ago    

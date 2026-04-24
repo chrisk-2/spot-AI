@@ -1,0 +1,13 @@
+ Static hostname: spot-worker-02
+       Icon name: computer-desktop
+         Chassis: desktop 🖥️
+      Machine ID: 37d567f2cd41412e90a2f8a5edcd06b5
+         Boot ID: 74c8eacaaeba4166962e0bb95562ba3f
+Operating System: Ubuntu 24.04.4 LTS
+          Kernel: Linux 6.8.0-107-generic
+    Architecture: x86-64
+ Hardware Vendor: Dell Inc.
+  Hardware Model: Precision T3610
+Firmware Version: A07
+   Firmware Date: Tue 2014-04-29
+    Firmware Age: 11y 11month 3w 5d

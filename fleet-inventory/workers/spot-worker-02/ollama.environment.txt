@@ -1,0 +1,1 @@
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin CUDA_VISIBLE_DEVICES=0 OLLAMA_HOST=0.0.0.0:11434 OLLAMA_MODELS=/srv/ollama
