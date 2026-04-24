@@ -11,7 +11,7 @@ services:
       - ./watch:/watch
       - /home/ogre/.ssh:/host-ssh:ro
     environment:
-      SPOTCORE_ADMIN_API_TOKEN: "94f75316232661ed1161dac100d3ac6edf1e6e6d4af10b7aa07f142a96165f26"
+      SPOTCORE_ADMIN_API_TOKEN: "REDACTED_OLD_TOKEN"
       SPOTCORE_CONFIG: /srv/spot-core/config/cluster_config.json
       SPOTCORE_WATCH_STATE: /srv/watch/state/fleet-status.json
       SPOTCORE_EXEC_HISTORY: /srv/spot-core/shared_memory/exec-history.jsonl
