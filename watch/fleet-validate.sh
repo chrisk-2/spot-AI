@@ -549,55 +549,6 @@ smoke_quarantine_cycle() {
   fi
 }
 
-main() {
-  log "=== SPOT FLEET VALIDATION ==="
-  log "timestamp: $(ts)"
-  log "base_url: ${SPOT_BASE_URL}"
-  log "watch_state_dir: ${WATCH_STATE_DIR}"
-  log "audit_file: ${AUDIT_FILE}"
-  log "smoke_mode: ${SMOKE_MODE}"
-  log
-
-  if [[ -f "$AUDIT_FILE" ]]; then
-    pass "routing audit file exists"
-  else
-    fail "routing audit file missing: $AUDIT_FILE"
-  fi
-
-  run_role_route_checks
-  check_audit_file_append || true
-  check_routing_audit_endpoint || true
-  check_watch_health || true
-
-  get_admin_token || true
-  if [[ -n "${ADMIN_TOKEN:-}" ]]; then
-    check_admin_validate_endpoint || true
-    check_admin_read_file_endpoint || true
-  fi
-
-  if [[ "$SMOKE_MODE" -eq 1 ]]; then
-    smoke_quarantine_cycle "$SMOKE_WORKER" || true
-  else
-    info 'smoke mode skipped'
-  fi
-
-  log
-  log "=== SUMMARY ==="
-  log "pass=${PASS_COUNT} warn=${WARN_COUNT} fail=${FAIL_COUNT}"
-
-  echo
-  if [[ "$FAIL_COUNT" -gt 0 ]]; then
-    echo "RESULT: FAIL (${FAIL_COUNT} failed, ${PASS_COUNT} passed, ${WARN_COUNT} warnings)"
-    exit 1
-  else
-    echo "RESULT: PASS (${PASS_COUNT} checks, ${WARN_COUNT} warnings)"
-    exit 0
-  fi
-}
-
-main "$@"
-
-
 check_worker_backup_freshness() {
   local max_age_hours="${SPOT_BACKUP_MAX_AGE_HOURS:-8}"
   local max_age_sec=$((max_age_hours * 3600))
@@ -642,4 +593,53 @@ check_worker_backup_freshness() {
 }
 
 
-check_worker_backup_freshness
+main() {
+  log "=== SPOT FLEET VALIDATION ==="
+  log "timestamp: $(ts)"
+  log "base_url: ${SPOT_BASE_URL}"
+  log "watch_state_dir: ${WATCH_STATE_DIR}"
+  log "audit_file: ${AUDIT_FILE}"
+  log "smoke_mode: ${SMOKE_MODE}"
+  log
+
+  if [[ -f "$AUDIT_FILE" ]]; then
+    pass "routing audit file exists"
+  else
+    fail "routing audit file missing: $AUDIT_FILE"
+  fi
+
+  run_role_route_checks
+  check_audit_file_append || true
+  check_routing_audit_endpoint || true
+  check_watch_health || true
+
+  get_admin_token || true
+  if [[ -n "${ADMIN_TOKEN:-}" ]]; then
+    check_admin_validate_endpoint || true
+    check_admin_read_file_endpoint || true
+  fi
+
+  if [[ "$SMOKE_MODE" -eq 1 ]]; then
+    smoke_quarantine_cycle "$SMOKE_WORKER" || true
+  else
+    info 'smoke mode skipped'
+  fi
+
+  check_worker_backup_freshness
+
+  log
+  log "=== SUMMARY ==="
+  log "pass=${PASS_COUNT} warn=${WARN_COUNT} fail=${FAIL_COUNT}"
+
+  echo
+  if [[ "$FAIL_COUNT" -gt 0 ]]; then
+    echo "RESULT: FAIL (${FAIL_COUNT} failed, ${PASS_COUNT} passed, ${WARN_COUNT} warnings)"
+    exit 1
+  else
+    echo "RESULT: PASS (${PASS_COUNT} checks, ${WARN_COUNT} warnings)"
+    exit 0
+  fi
+}
+
+main "$@"
+
