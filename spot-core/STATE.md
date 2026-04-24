@@ -39,19 +39,117 @@ What is now confirmed working end-to-end:
 - `spot validate` now checks worker backup freshness
 - worker backup freshness threshold defaults to 8 hours via `SPOT_BACKUP_MAX_AGE_HOURS`
 - routing audit write failures are explicitly logged with path, timestamp, role, status, worker, and exception detail
-- latest normal validation passed with 19 checks and 0 warnings
-- latest smoke validation passed with 25 checks and 0 warnings
+- validator secret-regression scan is implemented and confirmed clean
+- legacy per-GPU worker services on worker-02 and worker-03 are disabled after backup and validation
+- worker-02 home legacy artifacts are archived under `/home/ogre/archive/legacy-worker02-20260424T164959Z`
+- worker-02 retained Docker/Ollama/stage leftovers were inspected and classified
+- latest normal validation passed with 20 checks and 0 warnings
+- latest smoke validation passed with 26 checks and 0 warnings
 
-Latest validation after backup freshness and smoke confirmation:
+Latest validation after worker-02 retained-leftover inspection:
 
 ```text
-spot validate:       RESULT: PASS (19 checks, 0 warnings)
-spot validate-smoke: RESULT: PASS (25 checks, 0 warnings)
+spot status:         Fleet ALL SYSTEMS NOMINAL
+spot validate:       RESULT: PASS (20 checks, 0 warnings)
+spot validate-smoke: RESULT: PASS (26 checks, 0 warnings)
+```
+
+Latest checkpoint commit before this cleanup phase:
+
+```text
+5949ed7 validate: add secret regression check
 ```
 
 This is no longer a theory stack. It is a live operational control surface.
 
 ## Current worker, Codex, and backup status
+
+### Worker cleanup audit status
+
+A first cleanup inventory was run across all four workers after the hostname/role migration.
+
+Confirmed from audit:
+
+- all four hostnames now match current naming:
+  - `spot-worker-01`
+  - `spot-worker-02`
+  - `spot-worker-03`
+  - `spot-worker-04`
+- all four workers still have the 6-hour worker config backup cron entry
+- all four workers expose Ollama on port `11434`
+- current Spot routing still sees all four workers healthy and eligible
+
+Current cleanup result:
+
+- `spot-worker-02` legacy services were backed up, stopped, and disabled:
+  - `spot-worker6.service`
+  - `spot-worker8.service`
+  - `m5-worker.service`
+  - `spot-avatar.service`
+- `spot-worker-03` legacy services were backed up, stopped, and disabled:
+  - `spot-worker2.service`
+  - `spot-worker3.service`
+- after disable, worker-02 only showed Ollama listening on `11434` from the checked legacy/runtime ports
+- after disable, worker-03 only showed Ollama listening on `11434` from the checked legacy/runtime ports
+- worker-02 home legacy artifacts were moved into `/home/ogre/archive/legacy-worker02-20260424T164959Z`
+- post-archive `spot validate` passed with 20 checks and 0 warnings
+- post-archive `spot validate-smoke` passed with 26 checks and 0 warnings
+- post-inspection `spot status` reported Fleet ALL SYSTEMS NOMINAL
+
+Worker-02 archived home artifacts:
+
+- `audit_-5.txt`
+- `backup-spot-repo.sh`
+- `bootstrap_spot_worker.sh`
+- `bootstrap_spot_worker_dual.sh`
+- `cluster_bundle`
+- `fix-docker-iptables.sh`
+- `install-nvidia-container-toolkit.sh`
+- `m5-install.sh`
+- `m5_setup_spot_avatar.sh`
+- `packages.txt`
+- `piper-voices`
+- `spot-agent`
+- `starfleet_audit.sh`
+- `target`
+
+Worker-02 retained-leftover inspection:
+
+- Docker executable is `/snap/bin/docker`
+- `snap list docker` reports docker `28.4.0` rev `3377` from `latest/stable`
+- `systemctl status docker` reports `Unit docker.service could not be found`
+- worker-02 current Ollama runtime is systemd-owned through `/etc/systemd/system/ollama.service`
+- worker-02 Ollama is active and enabled
+- Ollama drop-ins are:
+  - `/etc/systemd/system/ollama.service.d/gpu.conf`
+  - `/etc/systemd/system/ollama.service.d/override.conf`
+- Ollama runtime env includes:
+  - `CUDA_VISIBLE_DEVICES=0`
+  - `OLLAMA_HOST=0.0.0.0:11434`
+  - `OLLAMA_MODELS=/srv/ollama`
+- `/home/ogre/stack/ollama` contains only `compose.yml`
+- `/home/ogre/.starfleet-stage` is small, about 164K
+
+Worker-02 retained classification:
+
+- `/home/ogre/spot-worker-backup.sh`: KEEP, current backup system depends on it
+- `/home/ogre/fleet-inventory`: KEEP, current runtime/GPU evidence
+- `/home/ogre/install_fleet_models.sh`: KEEP for now, useful model helper
+- `/home/ogre/bootstrap_mount_unimatrix6_nfs.sh`: KEEP/CHECK, storage bootstrap reference
+- `/home/ogre/fleet_storage_bootstrap.sh`: KEEP/CHECK, storage bootstrap reference
+- `/home/ogre/stack/ollama`: ARCHIVE candidate, because active Ollama is systemd-owned and only `compose.yml` remains there
+- `/home/ogre/.starfleet-stage`: ARCHIVE candidate, tiny staged workspace not shown as current runtime dependency on worker-02
+- `/home/ogre/snap/docker`: CHECK before removal, because Docker comes from snap but no docker.service exists; do not remove snap Docker without deciding Docker policy
+- shell, SSH, Docker, NVIDIA, local, and cache/user dotfiles: KEEP/IGNORE unless specific cleanup need appears
+
+Important conclusion:
+
+- current Spot Core does not depend on the disabled legacy per-GPU worker services
+- worker-02 home cleanup did not break current Spot validation or smoke validation
+- worker-02 active Ollama is systemd-owned, not `/home/ogre/stack/ollama` compose-owned
+- do not delete unit files, `/opt/spot-worker*`, `/etc/spot-workers`, archived worker-02 artifacts, snap Docker, or retained storage/runtime helpers yet
+- keep disabled services and archived artifacts available for rollback during burn-in
+- next cleanup phase can safely archive `/home/ogre/stack/ollama` and maybe `/home/ogre/.starfleet-stage` after one more validation if desired
 
 ### Worker-02 GPU status
 
@@ -147,7 +245,7 @@ Manual verification completed:
 Latest validator freshness result:
 
 ```text
-RESULT: PASS (19 checks, 0 warnings)
+RESULT: PASS (20 checks, 0 warnings)
 ```
 
 Backup scope:
@@ -205,6 +303,31 @@ routing_audit_write_failed path=%s ts=%s role=%s status=%s worker=%s error=%r
 
 This satisfies the roadmap requirement that routing-audit persistence failures are explicit and visible.
 
+### Validator secret-regression scan
+
+The validator now checks tracked files for hardcoded `SPOTCORE_ADMIN_API_TOKEN` assignments without printing secret values.
+
+Current behavior:
+
+- implemented in `watch/fleet-validate.sh`
+- uses `git grep` against tracked files
+- excludes ignored `.env` files
+- redacts any matched value before verbose output
+- passes clean in normal validation and smoke validation
+
+Latest verified result:
+
+```text
+spot validate:       RESULT: PASS (20 checks, 0 warnings)
+spot validate-smoke: RESULT: PASS (26 checks, 0 warnings)
+```
+
+Commit:
+
+```text
+5949ed7 validate: add secret regression check
+```
+
 ## Latest confirmed hardening milestone
 
 Latest verified hardening work:
@@ -216,13 +339,19 @@ Latest verified hardening work:
 - `spot_save` worker backup visibility
 - `spot validate` worker backup freshness check
 - routing audit write failure logging confirmed implemented
-- smoke validation confirmed clean after latest hardening
+- validator secret-regression scan added and confirmed clean
+- worker cleanup audit completed for first pass
+- legacy worker services disabled on worker-02 and worker-03 after backup
+- worker-02 home legacy artifacts archived
+- worker-02 retained Docker/Ollama/stage leftovers inspected and classified
+- post-archive smoke validation confirmed clean
 
 Validation after latest checks:
 
 ```text
-spot validate:       RESULT: PASS (19 checks, 0 warnings)
-spot validate-smoke: RESULT: PASS (25 checks, 0 warnings)
+spot status:         Fleet ALL SYSTEMS NOMINAL
+spot validate:       RESULT: PASS (20 checks, 0 warnings)
+spot validate-smoke: RESULT: PASS (26 checks, 0 warnings)
 ```
 
 Confirmed ownership routes after the fix:
@@ -232,916 +361,35 @@ Confirmed ownership routes after the fix:
 - `heavy -> spot-worker-04`
 - `utility -> spot-worker-02`
 
-### Restart verification hardening
-
-`admin_restart_service` and the legacy `/actions/restart-service/{worker_name}/{service_name}` route no longer merely check that a service is `active` after restart.
-
-Current verification captures `systemctl show` metadata before and after restart and requires both:
-
-1. restart command return code is `0`
-2. service is active after restart
-3. at least one lifecycle/process field changed
-
-Compared fields:
-
-- `MainPID`
-- `ExecMainPID`
-- `ActiveEnterTimestampMonotonic`
-- `InactiveEnterTimestampMonotonic`
-- `NRestarts`
-
-Live proof from `spot-worker-01` / `ollama` restart:
-
-```text
-active_after: true
-restart_observed: true
-changed_fields:
-  - MainPID
-  - ExecMainPID
-  - ActiveEnterTimestampMonotonic
-  - InactiveEnterTimestampMonotonic
-restart_returncode: 0
-```
-
-This closes the earlier false-positive restart weakness.
-
-### Legacy mutating route deprecation markers
-
-The legacy mutating routes remain present for compatibility, but now identify themselves as deprecated and point callers to the preferred admin route.
-
-Legacy routes:
-
-- `POST /quarantine/{worker_name}`
-- `DELETE /quarantine/{worker_name}`
-- `POST /actions/restart-service/{worker_name}/{service_name}`
-
-Current returned metadata:
-
-```json
-{
-  "deprecated_route": true,
-  "preferred_route": "/admin/..."
-}
-```
-
-Preferred replacements:
-
-- `/admin/quarantine`
-- `/admin/release`
-- `/admin/restart-service`
-
-The routes were not removed. Payload compatibility is preserved.
-
-### Ownership-first routing fix
-
-A real routing bug was found after restart hardening.
-
-Observed failure:
-
-```text
-heavy -> spot-worker-01
-expected -> spot-worker-04
-```
-
-Audit classified this as:
-
-```text
-route_class: violation
-violation_reason: selected_non_owner_while_owner_admissible
-owner_worker: spot-worker-04
-selected_worker: spot-worker-01
-```
-
-Root cause:
-
-- `gather_candidates()` collected all role-priority workers
-- scoring could rank a non-owner above the role owner
-- `spot-worker-01` could beat `spot-worker-04` for heavy because it had favorable score inputs and `qwen2.5:14b` installed
-
-Fix:
-
-- for owned roles, if the owner is healthy and admissible, candidate gathering is restricted to the owner
-- fallback candidates remain available when the owner is not healthy or not admissible
-- explicit manual worker override still works through `req.worker`
-
-This preserves fallback behavior while enforcing the locked ownership model.
-
-### Latest validation after ownership fix
-
-After patch and `docker compose restart spot-core`, validation passed:
-
-```text
-RESULT: PASS (15 checks, 0 warnings)
-```
-
-Confirmed:
-
-- `general -> spot-worker-01`
-- `coding -> spot-worker-03`
-- `heavy -> spot-worker-04`
-- `utility -> spot-worker-02`
-- audit append occurred
-- JSONL audit entries valid
-- fleet status valid
-- routing audit summary valid
-- no quarantined hosts
-- `/admin/validate` works
-- `/admin/read-file` works
-
-## Previous confirmed operator milestone
-
-Latest confirmed commit before this hardening work:
-
-```text
-18d7916 feat: improve operator status and validator retries
-```
-
-Changed files:
-
-- `/home/ogre/spot-stack/watch/spot-ops.sh`
-- `/home/ogre/spot-stack/watch/fleet-validate.sh`
-- `/home/ogre/spot-stack/watch/spot-save.sh`
-
-The git tree was confirmed clean before smoke validation.
-
-### Operator command promotion
-
-The local `spot` command is now the primary operator entry point.
-
-Confirmed working commands:
-
-- `spot status`
-- `spot status-json`
-- `spot quick-health`
-- `spot validate`
-- `spot validate-smoke`
-- `spot_save`
-
-Raw endpoints remain valid for debugging, but normal operator flow should now go through `spot`.
-
-### Human-readable status
-
-`spot status` now provides a cockpit view instead of raw JSON.
-
-Expected shape:
-
-```text
-=== SPOT STATUS ===
-Core:        OK (uptime: <seconds>s)
-Routing:     OK (<n> primary, <n> fallback, <n> violations)
-
-Workers:
-  spot-worker-01  [general]  OK
-  spot-worker-02  [utility]  OK
-  spot-worker-03  [coding]   OK
-  spot-worker-04  [heavy]    OK
-
-Fleet:       ALL SYSTEMS NOMINAL
-```
-
-The old raw JSON behavior is preserved as:
-
-```bash
-spot status-json
-```
-
-Validated with:
-
-```bash
-spot status-json | jq .
-```
-
-### Quick health status
-
-`spot quick-health` is confirmed working.
-
-It checks:
-
-- spot-core `/health`
-- `/fleet/ping`
-- `/stats/routing-audit`
-- endpoint reachability
-
-Current endpoint set includes:
-
-- `spot-core-health`
-- `opnsense-https`
-- `dns-core-http`
-- `starfleet-core-https`
-- `spot-ollama`
-
-Latest confirmed endpoint result:
-
-```text
-ok_count=5
-fail_count=0
-```
-
-### Validator retry hardening
-
-`/home/ogre/spot-stack/watch/fleet-validate.sh` was hardened after observing transient utility validation failures.
-
-Observed failure modes:
-
-- utility route request timed out during `/exec`
-- utility route returned transient HTTP 503
-
-Classification:
-
-- not dead worker
-- not bad routing
-- not ownership failure
-- consistent with `spot-worker-02` being slow or briefly busy
-
-`utility` uses `phi3.5:latest`.
-
-Current behavior:
-
-- retry once if `http_json POST /exec` fails to execute
-- retry once if HTTP response is:
-  - `429`
-  - `503`
-  - `504`
-- persistent failure still fails validation
-- real non-2xx after retry still fails validation
-
-This prevents false red-alert behavior while preserving failure signal.
-
-### Latest smoke validation
-
-`spot validate-smoke` passed after latest hardening:
-
-```text
-RESULT: PASS (25 checks, 0 warnings)
-```
-
-Smoke target:
-
-```text
-spot-worker-01
-```
-
-Confirmed quarantine lifecycle:
-
-```text
-POST /quarantine/spot-worker-01
-fleet/ping -> quarantined=true eligible=false
-fleet-status -> quarantined=true
-
-DELETE /quarantine/spot-worker-01
-fleet/ping -> quarantined=false eligible=true
-fleet-status -> quarantined=false
-```
-
-This proves quarantine/release works through the operator validation path without restart.
-
-### spot_save quick status fix
-
-`/home/ogre/spot-stack/watch/spot-save.sh` now includes quick runtime status.
-
-Bug fixed:
-
-```text
-spot-core: null
-```
-
-Cause:
-
-- script queried `.status`
-- `/health` returns `.ok` and `.uptime_sec`
-
-Correct current output:
-
-```text
-spot-core: OK uptime_sec=<seconds>
-```
-
-`spot_save` now captures:
-
-- git status
-- staged diff summary
-- staged files
-- current commit
-- `HANDOFF.md`
-- `STATE.md`
-- `app.py`
-- cluster config
-- compose
-- MCP wrapper
-- MCP app
-- systemd services
-- worker backup status
-- runtime health
-- latency snapshot
-- recent decisions
-- short systemd status
-- docker status
-- new-chat block
-
-## Current live repo/runtime
-
-- repo root: `/home/ogre/spot-stack`
-- core app: `/home/ogre/spot-stack/spot-core/spotcore/app.py`
-- cluster config: `/home/ogre/spot-stack/spot-core/config/cluster_config.json`
-- compose file: `/home/ogre/spot-stack/docker-compose.yml`
-- state file: `/home/ogre/spot-stack/spot-core/STATE.md`
-- handoff file: `/home/ogre/spot-stack/HANDOFF.md`
-- MCP wrapper repo: `/home/ogre/spot-mcp`
-- MCP wrapper main file: `/home/ogre/spot-mcp/spot_mcp_wrapper.py`
-- MCP wrapper app: `/home/ogre/spot-mcp/app.py`
-- MCP env file: `/home/ogre/spot-mcp/spot-mcp.env`
-
-## Current MCP / connector state
-
-### Wrapper/runtime
-
-Confirmed live working shape:
-
-- wrapper process runs via user systemd as `spot-mcp.service`
-- cloudflared tunnel runs via user systemd as `mcp-tunnel.service`
-- wrapper is served locally on `127.0.0.1:8001`
-- tunnel exposes the MCP endpoint through `mcp.starfleetcore.com`
-- ChatGPT connector is using the live wrapper and current tool schema
-
-### Confirmed exposed MCP tools
-
-Read / status:
-
-- `health`
-- `routing`
-- `fleet_ping`
-- `stats_latency`
-- `stats_recent_decisions`
-- `stats_routing_audit`
-- `admin_read_file`
-- `admin_read_local_file`
-
-Mutating / controlled actions:
-
-- `admin_write_file`
-- `admin_write_local_file`
-- `admin_validate`
-- `admin_restart_service`
-- `admin_quarantine`
-- `admin_release`
-
-### Practical conclusion
-
-The MCP layer is no longer the blocker.
-
-The main MCP issues that were fixed in this phase were:
-
-- wrapper schema drift
-- duplicate tool definitions in `spot_mcp_wrapper.py`
-- missing local-file tools in wrapper schema
-- stale connector schema until reconnect/recreate
-- worker restart blocked by sudo password prompt
-
-All of those are now resolved.
-
-## Current operator/control status
-
-### Confirmed MCP actions tested successfully
-
-#### Read / inspect
-
-- health: good
-- routing: good
-- fleet_ping: good
-- stats_routing_audit: good
-- stats_recent_decisions: good
-- stats_latency: good
-- admin_read_file: good
-- admin_read_local_file: good
-
-#### Write / mutate
-
-- admin_write_file: good
-- admin_write_local_file: good
-- admin_restart_service: good, now with transition verification
-- admin_quarantine: good
-- admin_release: good
-
-### What was actually proven
-
-#### admin_write_file
-
-Confirmed by writing a harmless temp file on a worker and reading it back.
-
-#### admin_write_local_file
-
-Confirmed by writing a harmless temp file on spot-core and reading it back.
-
-#### admin_restart_service
-
-Initially failed due to worker sudo policy. After adding NOPASSWD sudo for `systemctl restart ollama`, it succeeded with real `returncode: 0`.
-
-It has now been hardened again so verification proves a real process/lifecycle transition, not just `active` state.
-
-#### admin_quarantine / admin_release
-
-Confirmed with live test on `spot-worker-03`.
-
-Quarantine test result:
-
-- watch state flipped to quarantined = true
-- eligible = false
-- remediation state marked quarantined = true
-- backup artifacts were created before mutation
-
-Release test result:
-
-- watch state flipped back to quarantined = false
-- eligible = true
-- remediation state cleared
-- penalty removed
-- backup artifacts were created before mutation
-
-Latest operator smoke validation also confirmed quarantine/release on `spot-worker-01` through `spot validate-smoke`.
-
-## Current stats/runtime state
-
-### Routing audit
-
-Working and populated.
-
-Latest validation confirmed routing audit append behavior.
-
-Audit write failure handling is explicit:
-
-- `append_routing_audit()` appends to in-memory state first
-- persistent JSONL write is attempted through `append_jsonl()`
-- write exceptions are logged with `LOGGER.exception`
-- logged context includes audit path, timestamp, role, status, worker, and exception detail
-
-Note: historical routing violations may remain visible in the recent audit window until displaced by newer clean entries. Treat `spot validate` and current audit entries as the immediate truth after routing fixes.
-
-### Recent decisions
-
-Working and populated.
-
-### Latency stats
-
-Working and populated.
-
-This phase specifically fixed historical latency hydration so `avg_tok_per_sec` now backfills from historical data when possible.
-
-### What was changed in `spotcore/app.py`
-
-The following runtime/stat issues were fixed earlier:
-
-1. startup now hydrates:
-   - warm models
-   - routing audit
-   - recent decisions
-   - latency history
-2. `seed_recent_decisions()` was added
-3. `seed_latency_history()` was added and then improved
-4. `build_decision_latency_index()` was added
-
-The following hardening changes are now also active in `spotcore/app.py`:
-
-1. `systemctl_show_service()` added
-2. `service_restart_verified()` added
-3. admin restart path uses before/after systemd metadata
-4. legacy restart path uses before/after systemd metadata
-5. legacy mutating routes return deprecation metadata
-6. `gather_candidates()` enforces ownership-first candidate restriction when the owner is healthy and admissible
-7. `append_routing_audit()` explicitly logs persistent routing-audit write failures
-
-### Current latency backfill behavior
-
-Historical `avg_tok_per_sec` now seeds using this order:
-
-1. exact `eval_duration` when present
-2. matching decision-history latency value when present
-3. estimated `eval_count / total_duration` as fallback
-
-This is now confirmed live after restart.
-
-### Verified live latency output
-
-After restart, `/stats/latency` returned non-null `avg_tok_per_sec` values for all workers.
-
-That confirms the patch is active and functioning.
-
-### Current latency note
-
-`spot-worker-02` is healthy but slow. It is the expected source of transient utility route delay/backpressure.
-
-Do not treat utility validation flake as a routing failure unless health, quarantine, audit, or repeated retry failure proves it.
-
-## Current fleet ownership lock
-
-- general -> spot-worker-01
-- utility -> spot-worker-02
-- coding -> spot-worker-03
-- heavy -> spot-worker-04
-
-Do not change unless explicitly requested.
-
-Latest `spot validate` confirmed all four ownership routes after the ownership-first routing fix.
-
-## Current config/runtime notes
-
-### cluster_config.json
-
-Still treated as live authority for routing and policy.
-
-### docker-compose.yml
-
-Confirmed live compose is still the active runtime entry for spot-core.
-
-The admin token is no longer stored directly in tracked `docker-compose.yml`. Compose now loads it through ignored `spot-core/.env`.
-
-### spot-core app runtime
-
-`spotcore/app.py` is the actual control-plane source of truth and has been actively modified in this phase.
-
-### wrapper runtime
-
-`/home/ogre/spot-mcp/app.py` correctly imports:
-
-```python
-from spot_mcp_wrapper import mcp
-```
-
-and mounts the streamable HTTP app.
-
-That wiring is confirmed correct.
-
-## Systemd / persistence state
-
-### Confirmed user services
-
-- `spot-mcp.service`
-- `mcp-tunnel.service`
-
-### Confirmed goals achieved
-
-- runs in background
-- survives shell close
-- survives reboot via lingering/user systemd setup
-
-This was a major goal and is now complete.
-
-## Important things that were wrong and are now fixed
-
-### 1. Bad systemd unit for spot-mcp
-
-There were duplicate `ExecStart=` lines in `spot-mcp.service`. Fixed.
-
-### 2. Wrong assumption about wrapper venv path
-
-Earlier service definitions pointed at a nonexistent venv path under `watch/.venv`. Fixed by using the real wrapper venv under `/home/ogre/spot-mcp/.venv`.
-
-### 3. Wrapper schema missing local file tools
-
-Added:
-
-- `admin_read_local_file`
-- `admin_write_local_file`
-
-### 4. Duplicate tool definitions in wrapper
-
-Duplicate `admin_write_file` / `admin_validate` definitions caused warnings and schema confusion. Removed.
-
-### 5. Connector schema staleness
-
-Required reconnect/recreate before ChatGPT saw the updated tool set. Resolved.
-
-### 6. stats_recent_decisions empty
-
-Fixed by hydrating from persisted decision history on startup.
-
-### 7. stats_latency empty / avg_tok_per_sec null
-
-Fixed by hydrating from exec history and later improving the seeder to backfill tok/sec from decision history and fallback estimation.
-
-### 8. admin_restart_service false-positive behavior
-
-The first restart test looked successful only because verification checked `active` even though the `sudo systemctl restart` command itself failed.
-
-The underlying worker sudo policy was then fixed, and restart now truly works.
-
-This has now been hardened further: restart verification checks before/after systemd process/lifecycle metadata and requires observed transition.
-
-### 9. Hidden operator interface
-
-`watch/spot-ops.sh` existed but was not promoted as the obvious local operator entry point.
-
-Now `spot` is the primary local operator command.
-
-### 10. spot quick-health jq expression bug
-
-`spot quick-health` had a jq object merge issue.
-
-Fixed by wrapping the merge expression:
-
-```jq
-endpoints: ($endpoints.summary + {items: $endpoints.items})
-```
-
-### 11. Validator false failures from utility latency/backpressure
-
-`fleet-validate.sh` now retries once on:
-
-- route request execution failure
-- transient HTTP 429
-- transient HTTP 503
-- transient HTTP 504
-
-### 12. Raw-only operator status
-
-`spot status` is now human-readable.
-
-Raw JSON is preserved as:
-
-```bash
-spot status-json
-```
-
-### 13. spot_save quick status bug
-
-`spot_save` previously showed:
-
-```text
-spot-core: null
-```
-
-because it queried `.status`.
-
-Fixed to use `.ok` and `.uptime_sec` from `/health`.
-
-### 14. Legacy mutating routes were unclear
-
-Legacy mutating routes still existed outside `/admin/*`:
-
-- `POST /quarantine/{worker_name}`
-- `DELETE /quarantine/{worker_name}`
-- `POST /actions/restart-service/{worker_name}/{service_name}`
-
-They are now explicitly marked as deprecated in responses and point to the preferred `/admin/*` route.
-
-### 15. Scheduler scoring could beat ownership
-
-`gather_candidates()` previously gathered all role-priority candidates and then scoring could select a non-owner even while the owner was healthy and admissible.
-
-Observed real violation:
-
-```text
-heavy -> spot-worker-01
-expected -> spot-worker-04
-```
-
-Fixed by restricting candidates to the role owner when the owner is healthy and admissible.
-
-### 16. Worker config backups were assumed but not actually proven
-
-`spot_save` backs up and checkpoints spot-core handoff/runtime state. It does not automatically back up every worker filesystem/config.
-
-This is now fixed at the config-backup layer:
-
-- `scripts/spot-worker-backup.sh` is source-controlled
-- deployed to all four AI workers
-- manually verified on all four AI workers
-- scheduled every 6 hours on all four AI workers
-- visible in `spot_save`
-- freshness-checked by `spot validate`
-
-### 17. Token was exposed through tracked compose output
-
-The live admin token had been present in tracked `docker-compose.yml` and could be exposed by `spot_save` output.
-
-Current fix:
-
-- tracked `docker-compose.yml` uses `env_file: ./spot-core/.env`
-- `spot-core/.env` is ignored by Git
-- `docker exec spot-core printenv SPOTCORE_ADMIN_API_TOKEN | wc -c` confirmed runtime injection without printing token
-- `spot validate` passed after restart
-
-### 18. Routing audit write failure handling was undocumented
-
-The code already had explicit routing-audit write failure logging, but STATE.md did not record it as completed.
-
-Current fix:
-
-- `append_routing_audit()` behavior is now documented
-- roadmap audit-write hardening requirement is marked satisfied
-- current validation and smoke validation results are recorded
-
-## Things still wrong, rough, or not final
-
-These are the real remaining issues, not imaginary ones.
-
-### 1. Developer Mode dependency in ChatGPT
-
-Custom MCP use is still tied to ChatGPT Developer Mode for this workflow.
-
-That means:
-
-- memory behavior is worse in that mode
-- this is a platform limitation, not a Spot server bug
-
-Current workaround:
-
-- keep a normal-memory chat for planning/history
-- keep a dev-mode chat for live MCP actions
-
-### 2. Full control-surface cleanup is not complete
-
-Legacy mutating routes are now marked deprecated, but they still exist for compatibility.
-
-Future cleanup should eventually decide whether to keep them as compatibility wrappers, gate them harder, or remove them after confirming no scripts depend on them.
-
-### 3. Secrets handling is improved but not final
-
-`SPOTCORE_ADMIN_API_TOKEN` is no longer stored directly in tracked `docker-compose.yml`.
-
-Current state:
-
-- compose loads the token from ignored `spot-core/.env`
-- runtime token injection is confirmed working
-- `spot_save` no longer prints the token through compose
-
-Remaining secret hygiene:
-
-- add automated secret-regression scan to validator
-- consider Docker secrets, SOPS/age, or a central secret service later if warranted
-- keep avoiding pasted env file contents
-
-### 4. Repo/runtime hygiene is improved but not fully curated
-
-The active tree is much cleaner than before, but helper-script sprawl under `watch/` still exists and documentation/grouping can be improved.
-
-### 5. warmd wiring is still unresolved
-
-`warmd.py` exists, but there is still no clearly documented final decision about whether it should be wired into runtime lifecycle or intentionally remain dormant.
-
-### 6. Operator UI polish is basic
-
-`spot status` is functional but still basic.
-
-It is good enough for operations, but not a final dashboard.
-
-### 7. Worker-02 GPU/model behavior is unresolved
-
-Worker-02 is operational and passes validation, but Codex correctly identified that the current evidence does not prove a single root cause for slow/chatty utility behavior.
-
-Likely contributors:
-
-- CUDA device-numbering confusion between physical GPU index, visible CUDA index, and Ollama/NVIDIA reporting
-- cold-start behavior because `utility` is not currently part of the warm policy roles
-- model behavior from `phi3.5:latest`, especially verbosity on short prompts
-- possible Ollama runtime placement behavior independent of Spot routing labels
-
-Do not change worker-02 routing ownership. Investigate with controlled manual tests first.
-
-## Current project reality
-
-### What this system is now
-
-This is now a real distributed control plane with:
-
-- routing
-- health
-- monitoring state
-- audit state
-- policy-aware control actions
-- backup/verification on state changes
-- live MCP control from ChatGPT
-- local operator command surface
-- validation workflow
-- smoke validation workflow
-- handoff capture workflow
-- transition-proven service restart verification
-- compatibility-marked legacy mutating routes
-- ownership-first routing enforcement
-- worker config backups
-- backup visibility in handoff output
-- backup freshness validation
-- improved secret placement for the admin token
-- explicit routing-audit write failure logging
-
-### What it is not yet
-
-It is not yet a fully polished production platform with perfect surface hygiene, connector-mode ergonomics, final secret handling, final worker-02 model/runtime tuning, and final operator UI.
-
 ## Current next objective
 
 ### Primary next objective
 
-Continue Stage 2 cleanup now that core behavior, smoke validation, audit logging, worker-02 GPU state, worker-03 Codex/Git, and worker config backups are proven.
+Continue Stage 2 cleanup now that core behavior, smoke validation, audit logging, validator secret-regression scanning, worker-02 GPU state, worker-03 Codex/Git, worker config backups, first-pass worker legacy-service cleanup, worker-02 home artifact archive, and worker-02 retained-leftover inspection are proven.
 
 This means:
 
-1. checkpoint this STATE.md update with `spot_save`
-2. add a validator secret-regression scan so tokens cannot return to tracked files unnoticed
-3. perform controlled worker-02 manual tests before changing GPU pinning, model selection, or warm policy
-4. clean up repo/runtime hygiene and document live files versus leftovers
-5. decide whether to split read-only MCP and admin MCP into separate wrappers/connectors
-6. decide whether `warmd.py` should be wired into runtime lifecycle or explicitly marked dormant
+1. checkpoint this STATE update and current clean validation state
+2. burn in the disabled worker-02 and worker-03 legacy services plus worker-02 archived home artifacts without deleting anything yet
+3. optionally archive worker-02 `/home/ogre/stack/ollama` and `/home/ogre/.starfleet-stage`, then validate
+4. keep snap Docker until Docker policy is decided
+5. perform controlled worker-02 manual tests before changing GPU pinning, model selection, or warm policy
+6. clean up repo/runtime hygiene and document live files versus leftovers
+7. decide whether to split read-only MCP and admin MCP into separate wrappers/connectors
+8. decide whether `warmd.py` should be wired into runtime lifecycle or explicitly marked dormant
 
-### Why this is next
+Recommended next target:
 
-Because the system now works and the latest high-risk logic bugs were fixed.
+```text
+checkpoint worker-02 retained-leftover inspection, then decide small archive of stack/ollama and .starfleet-stage or move to worker-02 GPU test
+```
 
-The next phase should not be “make it basically function.”
-The next phase should be “make the live operational surface cleaner, safer, and easier to maintain.”
+Reason:
 
-## Suggested next tasks in order
-
-### 1. Final validation and checkpoint
-
-- run `spot validate-smoke`
-- run `spot validate`
-- run `spot_save`
-- confirm commit/push
-
-### 2. Add validator secret-regression scan
-
-Goal:
-
-- fail or warn if tracked files contain obvious live secret assignments
-- specifically protect against `SPOTCORE_ADMIN_API_TOKEN: "..."` returning to tracked compose files
-- avoid scanning ignored `.env` files directly
-- avoid printing secret values
-
-Candidate files:
-
-- `watch/fleet-validate.sh`
-
-Candidate command family:
-
-- `git grep`
-- targeted patterns only
-- sanitized output only
-
-### 3. Worker-02 controlled investigation
-
-Do not change routing ownership.
-
-Recommended manual test shape:
-
-1. capture baseline `nvidia-smi` and Ollama process state on worker-02
-2. restart worker-02 Ollama
-3. run one utility request through spot-core
-4. immediately capture `nvidia-smi`, process command lines, and latency stats
-5. repeat only after changing one variable at a time
-
-Questions to answer:
-
-- does `CUDA_VISIBLE_DEVICES=0` consistently map to the intended physical GPU?
-- does Ollama select the expected GPU after a cold restart?
-- how much of the delay is model load vs generation?
-- does `phi3.5:latest` remain too verbose even when warmed?
-- should utility be warmed, model-swapped, or prompt-constrained?
-
-### 4. Repo hygiene / live-file map
-
-- identify live files vs legacy leftovers
-- document the watch scripts that are actually in use
-- document what can be archived or removed
-
-### 5. Split MCP by privilege
-
-Recommended future structure:
-
-#### Spot ReadOnly MCP
-
-- health
-- routing
-- fleet_ping
-- stats_latency
-- stats_recent_decisions
-- stats_routing_audit
-- read-local-file
-- read-file
-
-#### Spot Admin MCP
-
-- write-local-file
-- write-file
-- restart-service
-- quarantine
-- release
-- validate
-
-This would make normal operational use safer and more production-like.
-
-### 6. Secret handling cleanup
-
-- add automated secret-regression detection to validator
-- reduce inline secret exposure in runtime config
-- prevent `spot_save` output from casually exposing secrets
-- consider Docker secrets or SOPS/age later if warranted
-
-### 7. warmd lifecycle decision
-
-- read current `warmd.py`
-- inspect current runtime wiring
-- decide whether it should be active, dormant, or archived
-- do not wire it blindly
+- worker-02 active Ollama is systemd-owned and not using `/home/ogre/stack/ollama`
+- worker-02 `.starfleet-stage` is tiny and not shown as runtime-critical
+- Docker is snap-installed and should not be removed until Docker policy is decided
+- worker-02 remains the main runtime behavior uncertainty because of GPU mapping, cold-start behavior, and `phi3.5:latest` verbosity
 
 ## Do not do next
 
@@ -1154,36 +402,9 @@ This would make normal operational use safer and more production-like.
 - do not casually change request/response formats
 - do not introduce new auth patterns without explicit security design
 - do not change worker-02 GPU pinning, warm policy, or utility model until a controlled test proves the issue
-
-## Validation commands for next session
-
-Start with:
-
-```bash
-cd /home/ogre/spot-stack
-git status --short
-spot status
-spot quick-health
-spot validate
-```
-
-Full operator lifecycle check:
-
-```bash
-spot validate-smoke
-```
-
-Machine-readable operator status:
-
-```bash
-spot status-json | jq .
-```
-
-Handoff capture:
-
-```bash
-spot_save
-```
+- do not delete worker-02/worker-03 legacy service files until burn-in and another validation checkpoint confirm they are unnecessary
+- do not delete worker-02 archived artifacts until burn-in and archive policy are decided
+- do not remove snap Docker on worker-02 until Docker policy is decided
 
 ## Short status summary
 
@@ -1206,11 +427,17 @@ spot_save
 - machine-readable spot status-json
 - spot quick-health
 - spot validate
-- spot validate-smoke from prior milestone
+- spot validate-smoke
 - spot_save
 - ownership-first routing
 - legacy mutating route deprecation metadata
 - audit write failure logging
+- validator secret-regression scan
+- worker cleanup audit first pass
+- worker-02 legacy services disabled without breaking Spot
+- worker-03 legacy services disabled without breaking Spot
+- worker-02 home legacy artifacts archived without breaking Spot
+- worker-02 retained Docker/Ollama/stage leftovers classified
 - worker-02 GPU override documented and inventoried
 - worker-03 Git/Codex workflow
 - worker config backups manually verified on all four AI workers
@@ -1222,6 +449,10 @@ spot_save
 
 ### Confirmed still rough
 
+- disabled legacy worker-service files still exist and need burn-in before archive/delete
+- worker-02 archive exists and needs burn-in/archive policy before deletion
+- worker-02 retained snap Docker needs Docker policy decision
+- worker-02 retained `stack/ollama` and `.starfleet-stage` are archive candidates
 - full API surface cleanup is not complete
 - secret/config hygiene is improved but not final
 - helper-script/live-file clarity
@@ -1250,5 +481,8 @@ The biggest unknowns from earlier in the project are gone. The stack can now:
 - warn about stale worker backups during validation
 - avoid storing the admin token directly in tracked compose
 - explicitly log routing-audit write failures
+- scan tracked files for admin-token regression
+- run current Spot successfully without legacy worker-side per-GPU services on worker-02 and worker-03
+- run current Spot successfully after archiving worker-02 home legacy artifacts
 
 The next phase is not rescue. It is hardening and cleanup.
