@@ -32,6 +32,7 @@ Rules:
 
 1. /home/ogre/spot-stack/HANDOFF.md
 2. /home/ogre/spot-stack/spot-core/STATE.md
+3. /home/ogre/spot-stack/ROADMAP.md
 
 ---
 
@@ -196,6 +197,7 @@ Start new chat and read:
 Do not use HANDOFF.md as state tracking.
 Do not put next-task details in HANDOFF.md.
 Put current status, verified results, open issues, and next steps in STATE.md only.
+Put phased long-range construction planning in ROADMAP.md only.
 
 ---
 
