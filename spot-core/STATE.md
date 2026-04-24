@@ -24,12 +24,152 @@ What is now confirmed working end-to-end:
 - `spot validate` is working
 - `spot validate-smoke` is working
 - `spot_save` captures runtime handoff data and quick status correctly
+- restart-service verification now proves real process/lifecycle transition
+- legacy mutating routes are marked deprecated and point to `/admin/*`
+- owned roles now prefer the owner when the owner is healthy and admissible
 
 This is no longer a theory stack. It is a live operational control surface.
 
-## Latest confirmed operator milestone
+## Latest confirmed hardening milestone
 
-Latest confirmed commit:
+Latest uncommitted verified work in `spotcore/app.py`:
+
+- restart verification hardening
+- legacy mutating route deprecation markers
+- ownership-first routing fix
+
+Validation after patch:
+
+```text
+RESULT: PASS (15 checks, 0 warnings)
+```
+
+Confirmed ownership routes after the fix:
+
+- `general -> spot-worker-01`
+- `coding -> spot-worker-03`
+- `heavy -> spot-worker-04`
+- `utility -> spot-worker-02`
+
+### Restart verification hardening
+
+`admin_restart_service` and the legacy `/actions/restart-service/{worker_name}/{service_name}` route no longer merely check that a service is `active` after restart.
+
+Current verification captures `systemctl show` metadata before and after restart and requires both:
+
+1. restart command return code is `0`
+2. service is active after restart
+3. at least one lifecycle/process field changed
+
+Compared fields:
+
+- `MainPID`
+- `ExecMainPID`
+- `ActiveEnterTimestampMonotonic`
+- `InactiveEnterTimestampMonotonic`
+- `NRestarts`
+
+Live proof from `spot-worker-01` / `ollama` restart:
+
+```text
+active_after: true
+restart_observed: true
+changed_fields:
+  - MainPID
+  - ExecMainPID
+  - ActiveEnterTimestampMonotonic
+  - InactiveEnterTimestampMonotonic
+restart_returncode: 0
+```
+
+This closes the earlier false-positive restart weakness.
+
+### Legacy mutating route deprecation markers
+
+The legacy mutating routes remain present for compatibility, but now identify themselves as deprecated and point callers to the preferred admin route.
+
+Legacy routes:
+
+- `POST /quarantine/{worker_name}`
+- `DELETE /quarantine/{worker_name}`
+- `POST /actions/restart-service/{worker_name}/{service_name}`
+
+Current returned metadata:
+
+```json
+{
+  "deprecated_route": true,
+  "preferred_route": "/admin/..."
+}
+```
+
+Preferred replacements:
+
+- `/admin/quarantine`
+- `/admin/release`
+- `/admin/restart-service`
+
+The routes were not removed. Payload compatibility is preserved.
+
+### Ownership-first routing fix
+
+A real routing bug was found after restart hardening.
+
+Observed failure:
+
+```text
+heavy -> spot-worker-01
+expected -> spot-worker-04
+```
+
+Audit classified this as:
+
+```text
+route_class: violation
+violation_reason: selected_non_owner_while_owner_admissible
+owner_worker: spot-worker-04
+selected_worker: spot-worker-01
+```
+
+Root cause:
+
+- `gather_candidates()` collected all role-priority workers
+- scoring could rank a non-owner above the role owner
+- `spot-worker-01` could beat `spot-worker-04` for heavy because it had favorable score inputs and `qwen2.5:14b` installed
+
+Fix:
+
+- for owned roles, if the owner is healthy and admissible, candidate gathering is restricted to the owner
+- fallback candidates remain available when the owner is not healthy or not admissible
+- explicit manual worker override still works through `req.worker`
+
+This preserves fallback behavior while enforcing the locked ownership model.
+
+### Latest validation after ownership fix
+
+After patch and `docker compose restart spot-core`, validation passed:
+
+```text
+RESULT: PASS (15 checks, 0 warnings)
+```
+
+Confirmed:
+
+- `general -> spot-worker-01`
+- `coding -> spot-worker-03`
+- `heavy -> spot-worker-04`
+- `utility -> spot-worker-02`
+- audit append occurred
+- JSONL audit entries valid
+- fleet status valid
+- routing audit summary valid
+- no quarantined hosts
+- `/admin/validate` works
+- `/admin/read-file` works
+
+## Previous confirmed operator milestone
+
+Latest confirmed commit before this hardening work:
 
 ```text
 18d7916 feat: improve operator status and validator retries
@@ -146,31 +286,9 @@ Current behavior:
 
 This prevents false red-alert behavior while preserving failure signal.
 
-### Latest normal validation
-
-`spot validate` passed:
-
-```text
-RESULT: PASS (15 checks, 0 warnings)
-```
-
-Confirmed:
-
-- `general -> spot-worker-01`
-- `coding -> spot-worker-03`
-- `heavy -> spot-worker-04`
-- `utility -> spot-worker-02`
-- audit append occurred
-- JSONL audit entries valid
-- fleet status valid
-- routing audit summary valid
-- no quarantined hosts
-- `/admin/validate` works
-- `/admin/read-file` works
-
 ### Latest smoke validation
 
-`spot validate-smoke` passed:
+`spot validate-smoke` passed before this hardening round:
 
 ```text
 RESULT: PASS (21 checks, 0 warnings)
@@ -237,24 +355,6 @@ spot-core: OK uptime_sec=<seconds>
 - short systemd status
 - docker status
 - new-chat block
-
-### Current operator reality
-
-The operator layer is now proven.
-
-Confirmed good:
-
-- local operator command exists
-- human status works
-- JSON status works
-- quick health works
-- validation works
-- smoke validation works
-- handoff capture works
-- validator handles utility-worker transient slowness
-- latest operator hardening commit is clean
-
-This should be treated as a major milestone in Stage 2/operator usability.
 
 ## Current live repo/runtime
 
@@ -336,7 +436,7 @@ All of those are now resolved.
 
 - admin_write_file: good
 - admin_write_local_file: good
-- admin_restart_service: good
+- admin_restart_service: good, now with transition verification
 - admin_quarantine: good
 - admin_release: good
 
@@ -352,7 +452,9 @@ Confirmed by writing a harmless temp file on spot-core and reading it back.
 
 #### admin_restart_service
 
-Initially failed due to worker sudo policy. After adding NOPASSWD sudo for `systemctl restart ollama`, it succeeded with real `returncode: 0` and active verification.
+Initially failed due to worker sudo policy. After adding NOPASSWD sudo for `systemctl restart ollama`, it succeeded with real `returncode: 0`.
+
+It has now been hardened again so verification proves a real process/lifecycle transition, not just `active` state.
 
 #### admin_quarantine / admin_release
 
@@ -383,6 +485,8 @@ Working and populated.
 
 Latest validation confirmed routing audit append behavior.
 
+Note: historical routing violations may remain visible in the recent audit window until displaced by newer clean entries. Treat `spot validate` and current audit entries as the immediate truth after routing fixes.
+
 ### Recent decisions
 
 Working and populated.
@@ -395,7 +499,7 @@ This phase specifically fixed historical latency hydration so `avg_tok_per_sec` 
 
 ### What was changed in `spotcore/app.py`
 
-The following runtime/stat issues were fixed:
+The following runtime/stat issues were fixed earlier:
 
 1. startup now hydrates:
    - warm models
@@ -405,6 +509,15 @@ The following runtime/stat issues were fixed:
 2. `seed_recent_decisions()` was added
 3. `seed_latency_history()` was added and then improved
 4. `build_decision_latency_index()` was added
+
+The following hardening changes are now also active in `spotcore/app.py`:
+
+1. `systemctl_show_service()` added
+2. `service_restart_verified()` added
+3. admin restart path uses before/after systemd metadata
+4. legacy restart path uses before/after systemd metadata
+5. legacy mutating routes return deprecation metadata
+6. `gather_candidates()` enforces ownership-first candidate restriction when the owner is healthy and admissible
 
 ### Current latency backfill behavior
 
@@ -437,7 +550,7 @@ Do not treat utility validation flake as a routing failure unless health, quaran
 
 Do not change unless explicitly requested.
 
-Latest `spot validate` and `spot validate-smoke` confirmed all four ownership routes.
+Latest `spot validate` confirmed all four ownership routes after the ownership-first routing fix.
 
 ## Current config/runtime notes
 
@@ -519,6 +632,8 @@ The first restart test looked successful only because verification checked `acti
 
 The underlying worker sudo policy was then fixed, and restart now truly works.
 
+This has now been hardened further: restart verification checks before/after systemd process/lifecycle metadata and requires observed transition.
+
 ### 9. Hidden operator interface
 
 `watch/spot-ops.sh` existed but was not promoted as the obvious local operator entry point.
@@ -566,6 +681,29 @@ because it queried `.status`.
 
 Fixed to use `.ok` and `.uptime_sec` from `/health`.
 
+### 14. Legacy mutating routes were unclear
+
+Legacy mutating routes still existed outside `/admin/*`:
+
+- `POST /quarantine/{worker_name}`
+- `DELETE /quarantine/{worker_name}`
+- `POST /actions/restart-service/{worker_name}/{service_name}`
+
+They are now explicitly marked as deprecated in responses and point to the preferred `/admin/*` route.
+
+### 15. Scheduler scoring could beat ownership
+
+`gather_candidates()` previously gathered all role-priority candidates and then scoring could select a non-owner even while the owner was healthy and admissible.
+
+Observed real violation:
+
+```text
+heavy -> spot-worker-01
+expected -> spot-worker-04
+```
+
+Fixed by restricting candidates to the role owner when the owner is healthy and admissible.
+
 ## Things still wrong, rough, or not final
 
 These are the real remaining issues, not imaginary ones.
@@ -584,40 +722,27 @@ Current workaround:
 - keep a normal-memory chat for planning/history
 - keep a dev-mode chat for live MCP actions
 
-### 2. Restart verification is still weaker than ideal
+### 2. Full control-surface cleanup is not complete
 
-`admin_restart_service` now truly works, but verification still mainly checks that the service is `active` afterward.
+Legacy mutating routes are now marked deprecated, but they still exist for compatibility.
 
-Better future hardening:
+Future cleanup should eventually decide whether to keep them as compatibility wrappers, gate them harder, or remove them after confirming no scripts depend on them.
 
-- compare timestamps or main PID before/after restart
-- prove a restart actually occurred, not just that the service remained active
-
-### 3. Mutating routes still exist outside the tokened admin namespace
-
-Live `spotcore/app.py` still exposes mutating paths outside the cleaner `/admin/*` surface:
-
-- `POST /quarantine/{worker_name}`
-- `DELETE /quarantine/{worker_name}`
-- `POST /actions/restart-service/{worker_name}/{service_name}`
-
-They are functional, but the surface is inconsistent.
-
-Future cleanup should normalize mutating control behind the admin pattern and/or MCP wrapper only.
-
-### 4. Secrets handling is functional, not elegant
+### 3. Secrets handling is functional, not elegant
 
 `SPOTCORE_ADMIN_API_TOKEN` handling is working, but secret placement and compose hygiene are still not the final security shape.
 
-### 5. Repo/runtime hygiene is improved but not fully curated
+`spot_save` can expose compose/env material in captured output, so secret hygiene should be handled before wider sharing.
+
+### 4. Repo/runtime hygiene is improved but not fully curated
 
 The active tree is much cleaner than before, but helper-script sprawl under `watch/` still exists and documentation/grouping can be improved.
 
-### 6. warmd wiring is still unresolved
+### 5. warmd wiring is still unresolved
 
 `warmd.py` exists, but there is still no clearly documented final decision about whether it should be wired into runtime lifecycle or intentionally remain dormant.
 
-### 7. Operator UI polish is basic
+### 6. Operator UI polish is basic
 
 `spot status` is functional but still basic.
 
@@ -640,6 +765,9 @@ This is now a real distributed control plane with:
 - validation workflow
 - smoke validation workflow
 - handoff capture workflow
+- transition-proven service restart verification
+- compatibility-marked legacy mutating routes
+- ownership-first routing enforcement
 
 ### What it is not yet
 
@@ -649,35 +777,37 @@ It is not yet a fully polished production platform with perfect surface hygiene,
 
 ### Primary next objective
 
-Harden and clean the control surface now that functionality is proven.
+Finish Stage 2 hardening and cleanup now that the core behavior is proven.
 
 This means:
 
-1. normalize mutating APIs
-2. tighten verification semantics for restarts
+1. run `spot validate-smoke` after the latest hardening changes
+2. commit/checkpoint the current `app.py` and `STATE.md` changes if smoke passes
 3. clean up repo/runtime hygiene and document live files versus leftovers
 4. decide whether to split read-only MCP and admin MCP into separate wrappers/connectors
 5. decide whether `warmd.py` should be wired into runtime lifecycle or explicitly marked dormant
 
 ### Why this is next
 
-Because the system now works.
+Because the system now works and the latest high-risk logic bugs were fixed.
 
 The next phase should not be “make it basically function.”
 The next phase should be “make the live operational surface cleaner, safer, and easier to maintain.”
 
 ## Suggested next tasks in order
 
-### 1. Control-surface cleanup
+### 1. Final validation and checkpoint
 
-- review all mutating routes in `spotcore/app.py`
-- decide which should remain directly exposed
-- move toward a single coherent admin/control surface
+- run `spot validate-smoke`
+- run `spot validate`
+- run `spot_save`
+- confirm commit/push
 
-### 2. Restart verification hardening
+### 2. Repo hygiene / live-file map
 
-- update restart verification to compare timestamp/PID before and after
-- eliminate false-positive style checks permanently
+- identify live files vs legacy leftovers
+- document the watch scripts that are actually in use
+- document what can be archived or removed
 
 ### 3. Split MCP by privilege
 
@@ -705,18 +835,13 @@ Recommended future structure:
 
 This would make normal operational use safer and more production-like.
 
-### 4. Repo hygiene / live-file map
-
-- identify live files vs legacy leftovers
-- document the watch scripts that are actually in use
-- document what can be archived or removed
-
-### 5. Secret handling cleanup
+### 4. Secret handling cleanup
 
 - move tokens/env handling to a cleaner pattern
 - reduce inline secret exposure in runtime config
+- prevent `spot_save` output from casually exposing secrets
 
-### 6. warmd lifecycle decision
+### 5. warmd lifecycle decision
 
 - read current `warmd.py`
 - inspect current runtime wiring
@@ -725,7 +850,7 @@ This would make normal operational use safer and more production-like.
 
 ## Do not do next
 
-- do not redesign scheduler routing right now
+- do not redesign scheduler routing beyond the ownership-first fix unless a new verified bug appears
 - do not change role ownership
 - do not rip out the current MCP stack just because Developer Mode is annoying
 - do not weaken backup/verification behavior
@@ -777,6 +902,7 @@ spot_save
 - stats hydration
 - latency backfill
 - service restart
+- restart transition verification
 - quarantine
 - release
 - local spot command
@@ -784,13 +910,15 @@ spot_save
 - machine-readable spot status-json
 - spot quick-health
 - spot validate
-- spot validate-smoke
+- spot validate-smoke from prior milestone
 - spot_save
+- ownership-first routing
+- legacy mutating route deprecation metadata
 
 ### Confirmed still rough
 
-- restart verification quality
-- API surface consistency
+- final smoke validation after latest hardening still needs to be run
+- full API surface cleanup is not complete
 - secret/config hygiene
 - helper-script/live-file clarity
 - Developer Mode dependency for custom MCP usage in ChatGPT
@@ -807,9 +935,11 @@ The biggest unknowns from earlier in the project are gone. The stack can now:
 - change itself
 - back itself up before state changes
 - verify those changes
+- prove service restarts by actual lifecycle/process transition
 - expose those actions through MCP
 - expose a local operator cockpit
 - validate routing and admin behavior
 - smoke-test quarantine/release behavior without restart
+- enforce role ownership before score-based routing wins
 
 The next phase is not rescue. It is hardening and cleanup.

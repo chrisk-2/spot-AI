@@ -584,6 +584,56 @@ def resolve_local_path(path_str: str) -> Path:
 
     return candidates[0]
 
+async def systemctl_show_service(host: str, service: str) -> dict[str, Any]:
+    fields = [
+        "Id",
+        "ActiveState",
+        "SubState",
+        "MainPID",
+        "ExecMainPID",
+        "ActiveEnterTimestampMonotonic",
+        "InactiveEnterTimestampMonotonic",
+        "NRestarts",
+    ]
+    cmd = "systemctl show " + shlex.quote(service) + " --property=" + ",".join(fields)
+    result = await run_ssh_command(host, cmd)
+
+    parsed: dict[str, str] = {}
+    if result["returncode"] == 0:
+        for line in result["stdout"].splitlines():
+            if "=" in line:
+                key, value = line.split("=", 1)
+                parsed[key] = value
+
+    return {
+        "ok": result["returncode"] == 0,
+        "raw": result,
+        "fields": parsed,
+    }
+
+
+def service_restart_verified(before: dict[str, Any], after: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+    before_fields = before.get("fields") or {}
+    after_fields = after.get("fields") or {}
+
+    active_after = after_fields.get("ActiveState") == "active"
+
+    changed_fields = []
+    for field in ["MainPID", "ExecMainPID", "ActiveEnterTimestampMonotonic", "InactiveEnterTimestampMonotonic", "NRestarts"]:
+        if str(before_fields.get(field, "")) != str(after_fields.get(field, "")):
+            changed_fields.append(field)
+
+    restart_observed = bool(changed_fields)
+
+    return active_after and restart_observed, {
+        "active_after": active_after,
+        "restart_observed": restart_observed,
+        "changed_fields": changed_fields,
+        "before": before,
+        "after": after,
+    }
+
+
 async def run_ssh_command(host: str, remote_cmd: str) -> dict[str, Any]:
     proc = await asyncio.create_subprocess_exec(
         "ssh",
@@ -1049,6 +1099,13 @@ def gather_candidates(cfg: dict[str, Any], req: ExecRequest, use_burst: bool) ->
     scored: list[tuple[float, dict[str, Any]]] = []
     failures: list[dict[str, Any]] = []
     workers = role_priority(cfg, req.role)
+
+    owner_worker = role_owner(req.role)
+    if not req.worker and owner_worker in workers:
+        owner_state = evaluate_owner_state(cfg, req, owner_worker)
+        if owner_state.get("owner_healthy") is True and owner_state.get("owner_admissible") is True:
+            workers = [owner_worker]
+
     if req.worker:
         workers = [req.worker]
     for worker_name in workers:
@@ -1850,17 +1907,28 @@ async def admin_restart_service(payload: AdminRestartServiceRequest):
     host = worker_host(worker, cfg)
 
     async def execute():
-        return await run_ssh_command(host, f"sudo systemctl restart {shlex.quote(service)}")
+        before = await systemctl_show_service(host, service)
+        restart = await run_ssh_command(host, f"sudo systemctl restart {shlex.quote(service)}")
+        after = await systemctl_show_service(host, service)
+
+        return {
+            "worker": worker,
+            "host": host,
+            "service": service,
+            "before": before,
+            "restart": restart,
+            "after": after,
+        }
 
     async def verify(result):
-        check = await run_ssh_command(host, f"systemctl is-active {shlex.quote(service)}")
-        return (
-            check["stdout"].strip() == "active",
-            {
-                "state": check["stdout"].strip(),
-                "ssh": check,
-            },
+        restart_ok = result.get("restart", {}).get("returncode") == 0
+        observed_ok, details = service_restart_verified(
+            result.get("before", {}),
+            result.get("after", {}),
         )
+        details["restart_returncode"] = result.get("restart", {}).get("returncode")
+        details["restart_stderr"] = result.get("restart", {}).get("stderr", "")
+        return restart_ok and observed_ok, details
 
     async def rollback(backup, result):
         return {
@@ -2221,14 +2289,23 @@ async def stats_routing_audit(limit: int = 200) -> dict[str, Any]:
 
 @app.post("/quarantine/{worker_name}")
 async def quarantine_worker(worker_name: str, seconds: int = 1800, reason: str = "manual_quarantine") -> dict[str, Any]:
-    return await execute_quarantine_worker(
+    result = await execute_quarantine_worker(
         worker_name=worker_name,
         seconds=seconds,
         reason=reason,
     )
+    result["deprecated_route"] = True
+    result["preferred_route"] = "/admin/quarantine"
+    return result
+
+
 @app.delete("/quarantine/{worker_name}")
 async def unquarantine_worker(worker_name: str) -> dict[str, Any]:
-    return await execute_unquarantine_worker(worker_name=worker_name)
+    result = await execute_unquarantine_worker(worker_name=worker_name)
+    result["deprecated_route"] = True
+    result["preferred_route"] = "/admin/release"
+    return result
+
 
 @app.post("/actions/restart-service/{worker_name}/{service_name}")
 async def restart_service(worker_name: str, service_name: str) -> dict[str, Any]:
@@ -2246,20 +2323,14 @@ async def restart_service(worker_name: str, service_name: str) -> dict[str, Any]
     host = worker_host(worker_name, cfg)
 
     async def do_execute() -> dict[str, Any]:
-        before = await run_ssh_command(
-            host,
-            f"systemctl is-active {shlex.quote(service_name)} || true",
-        )
+        before = await systemctl_show_service(host, service_name)
 
         restart = await run_ssh_command(
             host,
             f"sudo systemctl restart {shlex.quote(service_name)}",
         )
 
-        after = await run_ssh_command(
-            host,
-            f"systemctl is-active {shlex.quote(service_name)} || true",
-        )
+        after = await systemctl_show_service(host, service_name)
 
         return {
             "worker": worker_name,
@@ -2274,23 +2345,28 @@ async def restart_service(worker_name: str, service_name: str) -> dict[str, Any]
         status = worker_status(worker_name)
         ssh_ok = status.get("ssh_ok")
         service_ok = status.get("service_ok")
-        remote_after = execution_result.get("after", {}).get("stdout", "").strip()
 
-        ok = (
-            execution_result.get("restart", {}).get("returncode") == 0
-            and remote_after == "active"
-            and ssh_ok is not False
+        restart_ok = execution_result.get("restart", {}).get("returncode") == 0
+        observed_ok, details = service_restart_verified(
+            execution_result.get("before", {}),
+            execution_result.get("after", {}),
         )
 
-        if service_name == "ollama":
-            ok = ok and (service_ok is True or remote_after == "active")
+        ok = restart_ok and observed_ok and ssh_ok is not False
 
-        return ok, {
-            "restart_returncode": execution_result.get("restart", {}).get("returncode"),
-            "remote_after": remote_after,
-            "watch_ssh_ok": ssh_ok,
-            "watch_service_ok": service_ok,
-        }
+        if service_name == "ollama":
+            ok = ok and (service_ok is True or details.get("active_after") is True)
+
+        details.update(
+            {
+                "restart_returncode": execution_result.get("restart", {}).get("returncode"),
+                "restart_stderr": execution_result.get("restart", {}).get("stderr", ""),
+                "watch_ssh_ok": ssh_ok,
+                "watch_service_ok": service_ok,
+            }
+        )
+
+        return ok, details
 
     async def do_rollback(backup_record: dict[str, Any], execution_result: dict[str, Any]) -> dict[str, Any]:
         return {
@@ -2298,7 +2374,7 @@ async def restart_service(worker_name: str, service_name: str) -> dict[str, Any]
             "backup_path": backup_record.get("backup_dir"),
         }
 
-    return await execute_with_enforcement(
+    result = await execute_with_enforcement(
         action_name="restart_service",
         target=worker_name,
         service=service_name,
@@ -2309,6 +2385,9 @@ async def restart_service(worker_name: str, service_name: str) -> dict[str, Any]
         metadata={"worker": worker_name, "host": host, "service": service_name},
         require_backup=False,
     )
+    result["deprecated_route"] = True
+    result["preferred_route"] = "/admin/restart-service"
+    return result
 
 @app.post("/exec", response_model=ExecResult)
 async def exec_route(req: ExecRequest) -> ExecResult:
