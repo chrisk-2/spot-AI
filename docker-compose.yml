@@ -10,8 +10,9 @@ services:
       - /mnt/collective/fleet/spot-core/shared_memory:/srv/spot-core/shared_memory
       - ./watch:/watch
       - /home/ogre/.ssh:/host-ssh:ro
+    env_file:
+      - ./spot-core/.env
     environment:
-      SPOTCORE_ADMIN_API_TOKEN: "39f35fb1c5825708704a40bfe015f5b547ea23f74fffc2fd813253ef7593d156"
       SPOTCORE_CONFIG: /srv/spot-core/config/cluster_config.json
       SPOTCORE_WATCH_STATE: /srv/watch/state/fleet-status.json
       SPOTCORE_EXEC_HISTORY: /srv/spot-core/shared_memory/exec-history.jsonl
