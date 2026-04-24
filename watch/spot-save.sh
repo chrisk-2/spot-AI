@@ -92,6 +92,32 @@ main() {
     print_file_if_exists "SPOT-MCP SYSTEMD SERVICE" "$SPOT_MCP_SERVICE"
     print_file_if_exists "MCP-TUNNEL SYSTEMD SERVICE" "$MCP_TUNNEL_SERVICE"
 
+    header "QUICK STATUS"
+
+    echo -n "spot-core: "
+    curl -s http://127.0.0.1:8787/health 2>/dev/null | jq -r 'if .ok == true then "OK uptime_sec=\(.uptime_sec)" else "FAIL" end' || echo FAIL
+
+    echo
+    echo "worker request counts:"
+    curl -s http://127.0.0.1:8787/stats/latency 2>/dev/null \
+      | jq -r 'to_entries[] | "\(.key): \(.value.count)"' || true
+ 
+    header "RUNTIME HEALTH"
+    curl -sS http://127.0.0.1:8787/health || true
+
+    header "LATENCY SNAPSHOT"
+    curl -sS http://127.0.0.1:8787/stats/latency | jq . 2>/dev/null || true
+
+    header "RECENT DECISIONS"
+    curl -sS http://127.0.0.1:8787/stats/recent-decisions?limit=5 | jq . 2>/dev/null || true
+
+    header "SYSTEMD STATUS (SHORT)"
+    systemctl --user --no-pager --full status spot-mcp | sed -n '1,10p' || true
+    systemctl --user --no-pager --full status mcp-tunnel | sed -n '1,15p' || true
+
+    header "DOCKER STATUS"
+    docker compose ps || true
+
     header "NEW CHAT BLOCK"
     cat <<'BLOCK'
 Continuing Spot work.

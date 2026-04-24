@@ -36,6 +36,7 @@ Usage: $(basename "$0") <command> [args]
 
 Operator commands:
   status                   Show concise operator status summary
+  status-json              Show raw JSON operator status
   validate                 Run scripted fleet validation
   validate-smoke [worker]  Run validation with quarantine/unquarantine smoke test
   smoke [worker]           Alias for validate-smoke
@@ -404,11 +405,10 @@ print(json.dumps(result))
 PY
 }
 
-cmd_status() {
+cmd_status_json() {
   need_cmd jq
   need_http "/health"
 
-  print_header "operator status"
   jq -n \
     --argjson health "$(api_get "/health")" \
     --argjson ping "$(api_get "/fleet/ping")" \
@@ -440,6 +440,50 @@ cmd_status() {
           })
       )
     }'
+}
+
+cmd_status() {
+  need_cmd jq
+  need_http "/health"
+
+  local data
+  data="$(cmd_status_json)"
+
+  local core_ok uptime routing_ok primaries fallbacks violations
+
+  core_ok=$(echo "$data" | jq -r '.health.ok')
+  uptime=$(echo "$data" | jq -r '.health.uptime_sec')
+  routing_ok=$(echo "$data" | jq -r '.routing_audit.ok')
+  primaries=$(echo "$data" | jq -r '.routing_audit.primaries')
+  fallbacks=$(echo "$data" | jq -r '.routing_audit.fallbacks')
+  violations=$(echo "$data" | jq -r '.routing_audit.violations')
+
+  print_header "SPOT STATUS"
+
+  printf "Core:        %s (uptime: %ss)\n" \
+    "$([ "$core_ok" = "true" ] && echo OK || echo FAIL)" \
+    "$uptime"
+
+  printf "Routing:     %s (%s primary, %s fallback, %s violations)\n\n" \
+    "$([ "$routing_ok" = "true" ] && echo OK || echo FAIL)" \
+    "$primaries" "$fallbacks" "$violations"
+
+  echo "Workers:"
+  echo "$data" | jq -r '
+    .workers[]
+    | "  \(.worker)  [\(.primary_role)]  " +
+      (if .ok then "OK" else "FAIL" end)
+  '
+
+  local all_ok
+  all_ok=$(echo "$data" | jq '[.workers[].ok] | all')
+
+  echo
+  if [[ "$all_ok" == "true" && "$core_ok" == "true" && "$routing_ok" == "true" ]]; then
+    echo "Fleet:       ALL SYSTEMS NOMINAL"
+  else
+    echo "Fleet:       DEGRADED"
+  fi
 }
 
 cmd_validate() {
@@ -559,7 +603,7 @@ cmd_quick_health() {
             running_jobs: .value.running_jobs
           })
       ),
-      endpoints: $endpoints.summary + {items: $endpoints.items}
+      endpoints: ($endpoints.summary + {items: $endpoints.items})
     }'
 }
 
@@ -1295,6 +1339,7 @@ main() {
 
   case "$cmd" in
     status)              cmd_status "$@" ;;
+    status-json)         cmd_status_json "$@" ;;
     validate)            cmd_validate "$@" ;;
     validate-smoke)      cmd_validate_smoke "$@" ;;
     smoke)               cmd_validate_smoke "$@" ;;

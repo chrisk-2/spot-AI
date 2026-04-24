@@ -159,12 +159,27 @@ check_role_route() {
     '{prompt:$prompt, role:$role, stream:false}' > "$payload"
 
   if ! http_json POST "${SPOT_BASE_URL}/exec" "$payload" "$response" "$code_file"; then
-    fail "${role} route request failed to execute"
-    return 1
+    warn "${role} route request failed to execute; retrying once"
+    sleep 2
+    if ! http_json POST "${SPOT_BASE_URL}/exec" "$payload" "$response" "$code_file"; then
+      fail "${role} route request failed to execute after retry"
+      return 1
+    fi
   fi
 
   local http_code
   http_code="$(<"$code_file")"
+
+  if [[ "$http_code" == "429" || "$http_code" == "503" || "$http_code" == "504" ]]; then
+    warn "${role} route returned transient HTTP ${http_code}; retrying once"
+    sleep 2
+    if ! http_json POST "${SPOT_BASE_URL}/exec" "$payload" "$response" "$code_file"; then
+      fail "${role} route retry failed to execute"
+      return 1
+    fi
+    http_code="$(<"$code_file")"
+  fi
+
   if [[ ! "$http_code" =~ ^2 ]]; then
     fail "${role} route returned HTTP ${http_code}"
     [[ -s "$response" ]] && warn "${role} route body: $(tr -d '\n' < "$response" | head -c 300)"
