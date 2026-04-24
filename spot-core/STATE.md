@@ -30,6 +30,16 @@ What is now confirmed working end-to-end:
 
 This is no longer a theory stack. It is a live operational control surface.
 
+### Worker-02 GPU note
+
+- `spot-worker-02` remains the owned `utility` worker and routing ownership must not change.
+- Hardware on `spot-worker-02`: `GPU0 Quadro M4000 8GB`, `GPU1 GTX 1060 6GB`.
+- Live Ollama systemd override currently sets `CUDA_VISIBLE_DEVICES=0`.
+- Despite that override, after warm utility calls `nvidia-smi` showed the Quadro idle and the GTX 1060 using about `3730 MiB`, so `phi3.5:latest` is effectively loading on the GTX 1060 in current runtime behavior.
+- Worker health is good, but `utility` responses can still be slow or overly verbose, especially from cold starts.
+- Any live worker override changes must be backed up separately: `spot_save` captures repo/runtime handoff state but does not capture `/etc/systemd` overrides on workers.
+- No scripts have been added yet for this issue.
+
 ## Latest confirmed hardening milestone
 
 Latest uncommitted verified work in `spotcore/app.py`:
