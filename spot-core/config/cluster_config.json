@@ -76,7 +76,8 @@
     "recent_roles": [
       "coding",
       "heavy",
-      "general"
+      "general",
+      "utility"
     ],
     "targets": [
       {
@@ -93,6 +94,11 @@
         "worker": "spot-worker-01",
         "model": "llama3.1:8b",
         "reason": "general_primary"
+      },
+      {
+        "worker": "spot-worker-02",
+        "model": "phi3.5:latest",
+        "reason": "utility_primary"
       }
     ]
   },
@@ -178,7 +184,7 @@
       "base_url": "http://192.168.10.11:11434",
       "primary_role": "utility",
       "secondary_roles": [
-       "watcher"
+        "watcher"
       ],
       "max_total": 1,
       "class_limits": {
@@ -224,7 +230,7 @@
       "base_url": "http://192.168.10.13:11434",
       "primary_role": "coding",
       "secondary_roles": [
-         "heavy"
+        "heavy"
       ],
       "max_total": 2,
       "class_limits": {
