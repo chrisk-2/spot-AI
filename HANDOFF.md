@@ -9,6 +9,11 @@ Current state lives in:
 
 - /home/ogre/spot-stack/spot-core/STATE.md
 
+Long-range phased integration plans live in:
+
+- /home/ogre/spot-stack/HANDOFF-CODEX-INTEGRATION.md
+- /home/ogre/spot-stack/HANDOFF-SPOT-INTEGRATION.md
+
 ---
 
 ## SOURCE OF TRUTH (STRICT ORDER)
@@ -33,6 +38,9 @@ Rules:
 1. /home/ogre/spot-stack/HANDOFF.md
 2. /home/ogre/spot-stack/spot-core/STATE.md
 3. /home/ogre/spot-stack/ROADMAP.md
+4. integration handoff docs if task is architectural:
+   - /home/ogre/spot-stack/HANDOFF-CODEX-INTEGRATION.md
+   - /home/ogre/spot-stack/HANDOFF-SPOT-INTEGRATION.md
 
 ---
 
@@ -194,10 +202,13 @@ Start new chat and read:
 - /home/ogre/spot-stack/HANDOFF.md
 - /home/ogre/spot-stack/spot-core/STATE.md
 
+Then read integration docs if the task is architectural or phased.
+
 Do not use HANDOFF.md as state tracking.
 Do not put next-task details in HANDOFF.md.
 Put current status, verified results, open issues, and next steps in STATE.md only.
 Put phased long-range construction planning in ROADMAP.md only.
+Put phased subsystem integration plans in dedicated HANDOFF-* docs.
 
 ---
 

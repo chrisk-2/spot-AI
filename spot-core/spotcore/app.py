@@ -366,7 +366,45 @@ async def execute_with_enforcement(
         }
     )
 
-    execution_result = await execute_fn()
+    try:
+        execution_result = await execute_fn()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        try:
+            append_action_log(
+                {
+                    "ts": _now(),
+                    "status": "execute_failed",
+                    "action": action_name,
+                    "target": target,
+                    "service": service,
+                    "risk_class": risk_class,
+                    "backup_path": backup_record["backup_dir"] if backup_record else None,
+                    "error": repr(exc),
+                    "metadata": metadata or {},
+                }
+            )
+        except Exception as log_exc:
+            LOGGER.exception(
+                "action_log_write_failed_during_execute_failure action=%s target=%s service=%s error=%r",
+                action_name,
+                target,
+                service,
+                log_exc,
+            )
+
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": "execution failed after backup",
+                "action": action_name,
+                "target": target,
+                "service": service,
+                "backup_path": backup_record["backup_dir"] if backup_record else None,
+                "error": repr(exc),
+            },
+        ) from exc
 
     verify_ok = False
     verify_data: dict[str, Any] = {}
@@ -383,7 +421,7 @@ async def execute_with_enforcement(
             try:
                 raw = await rollback_fn(backup_record, execution_result)
                 rollback_data = {
-                    "ok": raw.get("returncode", 1) == 0,
+                    "ok": bool(raw.get("ok")) if "ok" in raw else raw.get("returncode", 1) == 0,
                     "restored_from": backup_record.get("backup_dir"),
                     "artifacts": backup_record.get("artifacts", []),
                     "ssh": raw,
