@@ -129,6 +129,10 @@ Current LAN cockpit URL:
 
 - http://192.168.60.30/spot/
 
+DNS/Cloudflare checkpoint
+
+~/spot-stack/NETWORK_DNS_CHECKPOINT.md
+
 Caddy exposure:
 
 - /etc/caddy/Caddyfile now keeps existing `spotapi.starfleet.local` reverse proxy
