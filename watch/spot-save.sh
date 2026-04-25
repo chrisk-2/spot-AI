@@ -48,7 +48,7 @@ main() {
     header "GIT STATUS"
     git status --short
 
-    git add "$HANDOFF_FILE" "$STATE_FILE" "$ROADMAP_FILE" "$APP_FILE" "$ROOT_COMPOSE" "$CONFIG_FILE"
+    git add "$HANDOFF_FILE" "$STATE_FILE" "$ROADMAP_FILE" "$APP_FILE" "$ROOT_COMPOSE" "$CONFIG_FILE" "$0"
     [[ -f "$CORE_COMPOSE" ]] && git add "$CORE_COMPOSE"
 
     header "STAGED DIFF SUMMARY"
@@ -85,9 +85,8 @@ READ IN THIS ORDER NEXT CHAT:
 
 NEXT CHAT DIRECTIVE:
 - Read referenced files silently.
-- Do not generate broad project summary.
-- Assume prior architecture is accepted truth.
-- Continue directly from current unresolved task.
+- Do not restate checkpoint contents.
+- Begin highest priority unresolved implementation task immediately.
 
 CURRENT ACTIVE PHASE:
 PHASE 1 — FINISH SPOT FOUNDATION
@@ -121,13 +120,7 @@ BLOCK
 
     header "NEW CHAT BLOCK"
     cat <<'BLOCK'
-Read:
-- /home/ogre/spot-stack/HANDOFF.md
-- /home/ogre/spot-stack/spot-core/STATE.md
-- /home/ogre/spot-stack/ROADMAP.md
-
-Do not provide a comprehensive summary unless explicitly asked.
-Proceed directly to the next unresolved implementation task in the active roadmap phase.
+Read the referenced files silently and begin the highest priority unresolved implementation task.
 BLOCK
 }
 
