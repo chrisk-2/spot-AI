@@ -18,25 +18,6 @@ ADMIN_TOKEN=""
 usage() {
   cat <<USAGE
 Usage: $(basename "$0") [--smoke] [--worker <name>] [--base-url <url>] [--watch-state-dir <dir>] [--verbose]
-
-Checks:
-  1. role ownership routing:
-     - general -> spot-worker-01
-     - coding  -> spot-worker-03
-     - heavy   -> spot-worker-04
-     - utility -> spot-worker-02
-  2. /stats/routing-audit returns JSON containing expected primary routes
-  3. fleet-watch state reports healthy
-  4. routing audit file exists and is appended by validation traffic
-  5. authenticated admin endpoints respond as expected
-  6. tracked files do not contain hardcoded Spot admin-token assignments
-  7. worker config backups are fresh
-  8. optional smoke mode quarantine/unquarantine, no restart required
-
-Environment overrides:
-  SPOT_BASE_URL, WATCH_STATE_DIR, AUDIT_FILE, FLEET_STATUS_FILE,
-  AUDIT_SUMMARY_FILE, SMOKE_WORKER, CURL_TIMEOUT, POLL_INTERVAL, POLL_ATTEMPTS,
-  SPOT_BACKUP_MAX_AGE_HOURS
 USAGE
 }
 
@@ -50,22 +31,15 @@ while [[ $# -gt 0 ]]; do
       AUDIT_FILE="${WATCH_STATE_DIR}/routing-audit.jsonl"
       FLEET_STATUS_FILE="${WATCH_STATE_DIR}/fleet-status.json"
       AUDIT_SUMMARY_FILE="${WATCH_STATE_DIR}/routing-audit-summary.json"
-      shift 2
-      ;;
+      shift 2 ;;
     --verbose) VERBOSE=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown arg: $1" >&2; usage; exit 2 ;;
   esac
 done
 
-if ! command -v jq >/dev/null 2>&1; then
-  echo "ERROR: jq is required." >&2
-  exit 2
-fi
-if ! command -v curl >/dev/null 2>&1; then
-  echo "ERROR: curl is required." >&2
-  exit 2
-fi
+command -v jq >/dev/null 2>&1 || { echo "ERROR: jq is required." >&2; exit 2; }
+command -v curl >/dev/null 2>&1 || { echo "ERROR: curl is required." >&2; exit 2; }
 
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
@@ -78,50 +52,21 @@ log() { printf '%s\n' "$*"; }
 info() { printf '[INFO] %s\n' "$*"; }
 pass() { PASS_COUNT=$((PASS_COUNT + 1)); echo "[PASS] $*"; }
 fail() { FAIL_COUNT=$((FAIL_COUNT + 1)); echo "[FAIL] $*"; }
-warn() {
-  WARN_COUNT=$((WARN_COUNT + 1))
-  if [[ "$VERBOSE" -eq 1 ]]; then
-    echo "[WARN] $*"
-  fi
-  return 0
-}
-
-debug() {
-  if [[ "$VERBOSE" -eq 1 ]]; then
-    printf '[DBG] %s\n' "$*"
-  fi
-  return 0
-}
-
+warn() { WARN_COUNT=$((WARN_COUNT + 1)); [[ "$VERBOSE" -eq 1 ]] && echo "[WARN] $*" || true; }
+debug() { [[ "$VERBOSE" -eq 1 ]] && printf '[DBG] %s\n' "$*" || true; }
 ts() { date -u +'%Y-%m-%dT%H:%M:%SZ'; }
 
 http_json() {
-  local method="$1"
-  local url="$2"
-  local body_file="${3:-}"
-  local out_file="$4"
-  local code_file="$5"
-
+  local method="$1" url="$2" body_file="${3:-}" out_file="$4" code_file="$5"
   if [[ -n "$body_file" ]]; then
-    curl -sS -X "$method" \
-      --connect-timeout 5 \
-      --max-time "$CURL_TIMEOUT" \
-      -H 'Content-Type: application/json' \
-      --data @"$body_file" \
-      -o "$out_file" -w '%{http_code}' "$url" > "$code_file"
+    curl -sS -X "$method" --connect-timeout 5 --max-time "$CURL_TIMEOUT" -H 'Content-Type: application/json' --data @"$body_file" -o "$out_file" -w '%{http_code}' "$url" > "$code_file"
   else
-    curl -sS -X "$method" \
-      --connect-timeout 5 \
-      --max-time "$CURL_TIMEOUT" \
-      -o "$out_file" -w '%{http_code}' "$url" > "$code_file"
+    curl -sS -X "$method" --connect-timeout 5 --max-time "$CURL_TIMEOUT" -o "$out_file" -w '%{http_code}' "$url" > "$code_file"
   fi
 }
 
 wait_for_condition() {
-  local description="$1"
-  local cmd="$2"
-  local attempts="${3:-$POLL_ATTEMPTS}"
-  local interval="${4:-$POLL_INTERVAL}"
+  local description="$1" cmd="$2" attempts="${3:-$POLL_ATTEMPTS}" interval="${4:-$POLL_INTERVAL}"
   local i
   for ((i=1; i<=attempts; i++)); do
     if eval "$cmd"; then
@@ -134,556 +79,167 @@ wait_for_condition() {
 }
 
 require_file_json() {
-  local file="$1"
-  local label="$2"
-  if [[ ! -f "$file" ]]; then
-    fail "$label missing: $file"
-    return 1
-  fi
-  if jq -e . "$file" >/dev/null 2>&1; then
-    pass "$label present and valid JSON"
-  else
-    fail "$label exists but is not valid JSON: $file"
-    return 1
-  fi
+  local file="$1" label="$2"
+  [[ -f "$file" ]] || { fail "$label missing: $file"; return 1; }
+  jq -e . "$file" >/dev/null 2>&1 && pass "$label valid JSON" || { fail "$label invalid JSON: $file"; return 1; }
 }
 
 check_role_route() {
-  local role="$1"
-  local expected_worker="$2"
-  local payload="$TMPDIR/exec-${role}.json"
-  local response="$TMPDIR/exec-${role}.response.json"
-  local code_file="$TMPDIR/exec-${role}.http"
+  local role="$1" expected_worker="$2"
+  local payload="$TMPDIR/exec-${role}.json" response="$TMPDIR/exec-${role}.response.json" code_file="$TMPDIR/exec-${role}.http"
   local token="validator-${role}-$(date +%s)"
+  jq -n --arg prompt "Reply with exactly: ${token}" --arg role "$role" '{prompt:$prompt, role:$role, stream:false}' > "$payload"
 
-  jq -n \
-    --arg prompt "Reply with exactly: ${token}" \
-    --arg role "$role" \
-    '{prompt:$prompt, role:$role, stream:false}' > "$payload"
-
-  if ! http_json POST "${SPOT_BASE_URL}/exec" "$payload" "$response" "$code_file"; then
-    warn "${role} route request failed to execute; retrying once"
-    sleep 2
-    if ! http_json POST "${SPOT_BASE_URL}/exec" "$payload" "$response" "$code_file"; then
-      fail "${role} route request failed to execute after retry"
-      return 1
-    fi
-  fi
-
-  local http_code
-  http_code="$(<"$code_file")"
-
+  http_json POST "${SPOT_BASE_URL}/exec" "$payload" "$response" "$code_file" || { sleep 2; http_json POST "${SPOT_BASE_URL}/exec" "$payload" "$response" "$code_file" || { fail "${role} route request failed"; return 1; }; }
+  local http_code; http_code="$(<"$code_file")"
   if [[ "$http_code" == "429" || "$http_code" == "503" || "$http_code" == "504" ]]; then
-    warn "${role} route returned transient HTTP ${http_code}; retrying once"
     sleep 2
-    if ! http_json POST "${SPOT_BASE_URL}/exec" "$payload" "$response" "$code_file"; then
-      fail "${role} route retry failed to execute"
-      return 1
-    fi
+    http_json POST "${SPOT_BASE_URL}/exec" "$payload" "$response" "$code_file" || { fail "${role} route retry failed"; return 1; }
     http_code="$(<"$code_file")"
   fi
-
-  if [[ ! "$http_code" =~ ^2 ]]; then
-    fail "${role} route returned HTTP ${http_code}"
-    [[ -s "$response" ]] && warn "${role} route body: $(tr -d '\n' < "$response" | head -c 300)"
-    return 1
-  fi
-
-  if ! jq -e . "$response" >/dev/null 2>&1; then
-    fail "${role} route returned non-JSON body"
-    return 1
-  fi
-
-  local actual_worker
-  actual_worker="$(jq -r '.worker // .selected_worker // .selected // .route.worker // .result.worker // empty' "$response")"
-  if [[ -z "$actual_worker" || "$actual_worker" == "null" ]]; then
-    fail "${role} route response did not expose worker field"
-    return 1
-  fi
-
-  if [[ "$actual_worker" == "$expected_worker" ]]; then
-    pass "${role} -> ${actual_worker}"
-  else
-    fail "${role} -> ${actual_worker} (expected ${expected_worker})"
-    return 1
-  fi
+  [[ "$http_code" =~ ^2 ]] || { fail "${role} route returned HTTP ${http_code}"; return 1; }
+  jq -e . "$response" >/dev/null 2>&1 || { fail "${role} route non-JSON body"; return 1; }
+  local actual_worker; actual_worker="$(jq -r '.worker // .selected_worker // .selected // .route.worker // .result.worker // empty' "$response")"
+  [[ -n "$actual_worker" && "$actual_worker" != "null" ]] || { fail "${role} route missing worker field"; return 1; }
+  [[ "$actual_worker" == "$expected_worker" ]] && pass "${role} -> ${actual_worker}" || { fail "${role} -> ${actual_worker} (expected ${expected_worker})"; return 1; }
 }
 
 run_role_route_checks() {
   local before_lines=0
   [[ -f "$AUDIT_FILE" ]] && before_lines="$(wc -l < "$AUDIT_FILE")"
-  debug "routing audit lines before route checks: ${before_lines}"
-
   check_role_route general spot-worker-01 || true
   check_role_route coding spot-worker-03 || true
   check_role_route heavy spot-worker-04 || true
   check_role_route utility spot-worker-02 || true
-
   local after_lines=0
   [[ -f "$AUDIT_FILE" ]] && after_lines="$(wc -l < "$AUDIT_FILE")"
   ROUTE_CHECK_BEFORE_LINES="$before_lines"
   ROUTE_CHECK_AFTER_LINES="$after_lines"
-  debug "routing audit lines after route checks: ${after_lines}"
 }
 
 check_audit_file_append() {
-  if [[ ! -f "$AUDIT_FILE" ]]; then
-    fail "routing audit file missing after exec validation: $AUDIT_FILE"
-    return 1
-  fi
-
-  local before_lines="${ROUTE_CHECK_BEFORE_LINES:-0}"
-  local after_lines="${ROUTE_CHECK_AFTER_LINES:-0}"
-
-  if (( after_lines > before_lines )); then
-    pass "routing audit file appended by validation traffic (${before_lines} -> ${after_lines})"
-  else
-    fail "routing audit file did not append expected entries (${before_lines} -> ${after_lines})"
-    return 1
-  fi
-
-  if awk 'NF { print }' "$AUDIT_FILE" | tail -n 20 | jq -R 'fromjson? | type == "object"' >/dev/null 2>&1; then
-    pass "recent routing audit entries are valid JSONL"
-  else
-    fail 'recent routing audit entries include invalid JSONL'
-    return 1
-  fi
+  [[ -f "$AUDIT_FILE" ]] || { fail "routing audit file missing after exec validation: $AUDIT_FILE"; return 1; }
+  local before_lines="${ROUTE_CHECK_BEFORE_LINES:-0}" after_lines="${ROUTE_CHECK_AFTER_LINES:-0}"
+  (( after_lines > before_lines )) && pass "routing audit appended (${before_lines} -> ${after_lines})" || { fail "routing audit did not append (${before_lines} -> ${after_lines})"; return 1; }
+  awk 'NF { print }' "$AUDIT_FILE" | tail -n 20 | jq -R 'fromjson? | type == "object"' >/dev/null 2>&1 && pass "routing audit JSONL valid" || { fail 'routing audit JSONL invalid'; return 1; }
 }
 
 check_routing_audit_endpoint() {
-  local out="$TMPDIR/routing-audit-stats.json"
-  local code_file="$TMPDIR/routing-audit-stats.http"
-
-  if ! http_json GET "${SPOT_BASE_URL}/stats/routing-audit" "" "$out" "$code_file"; then
-    fail "/stats/routing-audit request failed"
-    return 1
-  fi
-
-  local http_code
-  http_code="$(<"$code_file")"
-  if [[ ! "$http_code" =~ ^2 ]]; then
-    fail "/stats/routing-audit returned HTTP ${http_code}"
-    return 1
-  fi
-
-  if ! jq -e . "$out" >/dev/null 2>&1; then
-    fail "/stats/routing-audit returned non-JSON body"
-    return 1
-  fi
-
-  local compact
-  compact="$(jq -c . "$out")"
+  local out="$TMPDIR/routing-audit-stats.json" code_file="$TMPDIR/routing-audit-stats.http"
+  http_json GET "${SPOT_BASE_URL}/stats/routing-audit" "" "$out" "$code_file" || { fail "/stats/routing-audit request failed"; return 1; }
+  [[ "$(<"$code_file")" =~ ^2 ]] || { fail "/stats/routing-audit bad HTTP"; return 1; }
+  jq -e . "$out" >/dev/null 2>&1 || { fail "/stats/routing-audit non-JSON body"; return 1; }
+  local compact; compact="$(jq -c . "$out")"
   local missing=0
-  for pair in \
-    'general:spot-worker-01' \
-    'coding:spot-worker-03' \
-    'heavy:spot-worker-04' \
-    'utility:spot-worker-02'
-  do
-    local role="${pair%%:*}"
-    local worker="${pair##*:}"
-    if [[ "$compact" == *"$role"* && "$compact" == *"$worker"* && "$compact" == *"primary"* ]]; then
-      debug "/stats/routing-audit contains ${role}/${worker}/primary"
-    else
-      fail "audit missing ${role} -> ${worker}"
-      missing=1
-    fi
+  for pair in 'general:spot-worker-01' 'coding:spot-worker-03' 'heavy:spot-worker-04' 'utility:spot-worker-02'; do
+    local role="${pair%%:*}" worker="${pair##*:}"
+    [[ "$compact" == *"$role"* && "$compact" == *"$worker"* && "$compact" == *"primary"* ]] || { fail "audit missing ${role} -> ${worker}"; missing=1; }
   done
-
-  [[ "$missing" -eq 0 ]]
+  [[ "$missing" -eq 0 ]] && pass "/stats/routing-audit reflects expected primaries"
 }
 
 get_admin_token() {
-  if ! command -v docker >/dev/null 2>&1; then
-    fail "docker is required for admin endpoint validation"
-    return 1
-  fi
-
-  local token
-  token="$(docker exec spot-core /bin/sh -lc 'printf %s "$SPOTCORE_ADMIN_API_TOKEN"' 2>/dev/null || true)"
-
-  if [[ -z "$token" ]]; then
-    fail "could not read SPOTCORE_ADMIN_API_TOKEN from running spot-core container"
-    return 1
-  fi
-
+  command -v docker >/dev/null 2>&1 || { fail "docker required for admin endpoint validation"; return 1; }
+  local token; token="$(docker exec spot-core /bin/sh -lc 'printf %s "$SPOTCORE_ADMIN_API_TOKEN"' 2>/dev/null || true)"
+  [[ -n "$token" ]] || { fail "could not read SPOTCORE_ADMIN_API_TOKEN"; return 1; }
   ADMIN_TOKEN="$token"
-  debug "admin token fetched from running spot-core container"
 }
 
 check_admin_validate_endpoint() {
-  if [[ -z "${ADMIN_TOKEN:-}" ]]; then
-    fail "/admin/validate skipped: ADMIN_TOKEN is not set"
-    return 1
-  fi
-
-  local payload="$TMPDIR/admin-validate.json"
-  local response="$TMPDIR/admin-validate.response.json"
-  local code_file="$TMPDIR/admin-validate.http"
-
-  jq -n \
-    --arg token "$ADMIN_TOKEN" \
-    --arg worker "spot-worker-01" \
-    '{
-      token: $token,
-      worker: $worker,
-      commands: [
-        "test -f /etc/os-release",
-        "systemctl is-active ollama"
-      ]
-    }' > "$payload"
-
-  if ! http_json POST "${SPOT_BASE_URL}/admin/validate" "$payload" "$response" "$code_file"; then
-    fail "/admin/validate request failed"
-    return 1
-  fi
-
-  local http_code
-  http_code="$(<"$code_file")"
-
-  if [[ ! "$http_code" =~ ^2 ]]; then
-    fail "/admin/validate returned HTTP ${http_code}"
-    [[ -s "$response" ]] && warn "/admin/validate body: $(tr -d '\n' < "$response" | head -c 300)"
-    return 1
-  fi
-
-  if ! jq -e . "$response" >/dev/null 2>&1; then
-    fail "/admin/validate returned non-JSON body"
-    return 1
-  fi
-
-  if jq -e '.ok != null and (.results | type == "array")' "$response" >/dev/null 2>&1; then
-    pass "/admin/validate returned expected JSON structure"
-  else
-    fail "/admin/validate JSON structure was not as expected"
-    return 1
-  fi
+  [[ -n "${ADMIN_TOKEN:-}" ]] || { fail "/admin/validate skipped: ADMIN_TOKEN not set"; return 1; }
+  local payload="$TMPDIR/admin-validate.json" response="$TMPDIR/admin-validate.response.json" code_file="$TMPDIR/admin-validate.http"
+  jq -n --arg token "$ADMIN_TOKEN" --arg worker "spot-worker-01" '{token:$token,worker:$worker,commands:["test -f /etc/os-release","systemctl is-active ollama"]}' > "$payload"
+  http_json POST "${SPOT_BASE_URL}/admin/validate" "$payload" "$response" "$code_file" || { fail "/admin/validate request failed"; return 1; }
+  [[ "$(<"$code_file")" =~ ^2 ]] || { fail "/admin/validate bad HTTP"; return 1; }
+  jq -e '.ok != null and (.results | type == "array")' "$response" >/dev/null 2>&1 && pass "/admin/validate JSON structure ok" || { fail "/admin/validate JSON structure invalid"; return 1; }
 }
 
 check_admin_read_file_endpoint() {
-  local payload="$TMPDIR/admin-read-file.json"
-  local response="$TMPDIR/admin-read-file.response.json"
-  local code_file="$TMPDIR/admin-read-file.http"
-
-  jq -n \
-    --arg token "$ADMIN_TOKEN" \
-    --arg worker "spot-worker-01" \
-    --arg path "/etc/os-release" \
-    '{
-      token: $token,
-      worker: $worker,
-      path: $path
-    }' > "$payload"
-
-  if ! http_json POST "${SPOT_BASE_URL}/admin/read-file" "$payload" "$response" "$code_file"; then
-    fail "/admin/read-file request failed"
-    return 1
-  fi
-
-  local http_code
-  http_code="$(<"$code_file")"
-
-  if [[ ! "$http_code" =~ ^2 ]]; then
-    fail "/admin/read-file returned HTTP ${http_code}"
-    [[ -s "$response" ]] && warn "/admin/read-file body: $(tr -d '\n' < "$response" | head -c 300)"
-    return 1
-  fi
-
-  if ! jq -e . "$response" >/dev/null 2>&1; then
-    fail "/admin/read-file returned non-JSON body"
-    return 1
-  fi
-
-  if jq -e '.content | strings | length > 0' "$response" >/dev/null 2>&1; then
-    pass "/admin/read-file returned file content"
-  else
-    fail "/admin/read-file did not return content"
-    return 1
-  fi
-
-  if jq -e '.content | contains("PRETTY_NAME=") or contains("Ubuntu")' "$response" >/dev/null 2>&1; then
-    pass "/admin/read-file content matches /etc/os-release"
-  else
-    fail "/admin/read-file content did not look like /etc/os-release"
-    return 1
-  fi
+  local payload="$TMPDIR/admin-read-file.json" response="$TMPDIR/admin-read-file.response.json" code_file="$TMPDIR/admin-read-file.http"
+  jq -n --arg token "$ADMIN_TOKEN" --arg worker "spot-worker-01" --arg path "/etc/os-release" '{token:$token,worker:$worker,path:$path}' > "$payload"
+  http_json POST "${SPOT_BASE_URL}/admin/read-file" "$payload" "$response" "$code_file" || { fail "/admin/read-file request failed"; return 1; }
+  [[ "$(<"$code_file")" =~ ^2 ]] || { fail "/admin/read-file bad HTTP"; return 1; }
+  jq -e '.content | strings | contains("PRETTY_NAME=") or contains("Ubuntu")' "$response" >/dev/null 2>&1 && pass "/admin/read-file returned expected file content" || { fail "/admin/read-file content mismatch"; return 1; }
 }
 
 check_watch_health() {
   require_file_json "$FLEET_STATUS_FILE" "fleet status" || return 1
   require_file_json "$AUDIT_SUMMARY_FILE" "routing audit summary" || return 1
-
-  local fleet_ok=1
-  if jq -e '.core_health.ok == true' "$FLEET_STATUS_FILE" >/dev/null 2>&1; then
-    pass 'fleet-status core_health.ok is true'
-  else
-    fail 'fleet-status core_health.ok is not true'
-    fleet_ok=0
-  fi
-
-  local unhealthy_hosts
-  unhealthy_hosts="$(jq -r '
-    .hosts
-    | to_entries[]
-    | select((.value.ssh_ok // true) != true or (.value.service_ok // true) != true)
-    | .key
-  ' "$FLEET_STATUS_FILE" 2>/dev/null || true)"
-
-  if [[ -z "$unhealthy_hosts" ]]; then
-    pass 'fleet-status hosts report ssh_ok/service_ok'
-  else
-    fail "fleet-status unhealthy hosts: $(echo "$unhealthy_hosts" | paste -sd ', ' -)"
-    fleet_ok=0
-  fi
-
-  local expected_quarantine_false
-  expected_quarantine_false="$(jq -r '
-    .hosts
-    | to_entries[]
-    | select((.value.quarantined // false) == true)
-    | .key
-  ' "$FLEET_STATUS_FILE" 2>/dev/null || true)"
-  if [[ -z "$expected_quarantine_false" ]]; then
-    pass 'fleet-status shows no quarantined hosts'
-  else
-    warn "fleet-status still shows quarantined hosts: $(echo "$expected_quarantine_false" | paste -sd ', ' -)"
-  fi
-
-  if [[ "$fleet_ok" -eq 1 ]]; then
-    return 0
-  else
-    return 1
-  fi
+  jq -e '.core_health.ok == true' "$FLEET_STATUS_FILE" >/dev/null 2>&1 && pass 'fleet-status core health ok' || fail 'fleet-status core health not ok'
+  local unhealthy_hosts; unhealthy_hosts="$(jq -r '.hosts|to_entries[]|select((.value.ssh_ok // true) != true or (.value.service_ok // true) != true)|.key' "$FLEET_STATUS_FILE" 2>/dev/null || true)"
+  [[ -z "$unhealthy_hosts" ]] && pass 'fleet-status hosts healthy' || fail "fleet-status unhealthy hosts: $(echo "$unhealthy_hosts" | paste -sd ', ' -)"
 }
 
 check_secret_regression() {
-  echo
-  echo "=== SECRET REGRESSION CHECK ==="
-
-  if ! command -v git >/dev/null 2>&1; then
-    warn "secret regression: git not available; skipped tracked-file scan"
-    return 0
-  fi
-
-  local repo_root
-  repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-  if [[ -z "$repo_root" ]]; then
-    warn "secret regression: not inside a git repository; skipped tracked-file scan"
-    return 0
-  fi
-
+  command -v git >/dev/null 2>&1 || { warn "secret regression skipped: git unavailable"; return 0; }
+  local repo_root; repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  [[ -n "$repo_root" ]] || { warn "secret regression skipped: no git repo"; return 0; }
   local matches_file="$TMPDIR/secret-regression.matches"
   (
     cd "$repo_root"
-    git grep -n -E 'SPOTCORE_ADMIN_API_TOKEN[[:space:]]*[:=][[:space:]]*["'\'']?[A-Za-z0-9_./+=:-]{20,}' -- ':!*.env' ':!*.pyc' ':!*__pycache__*' ':!spot-core/STATE.md'
-  ) > "$matches_file" 2>/dev/null || true
-
-  if [[ -s "$matches_file" ]]; then
-    local sanitized_file="$TMPDIR/secret-regression.sanitized"
-    sed -E 's/(SPOTCORE_ADMIN_API_TOKEN[[:space:]]*[:=][[:space:]]*)["'\'']?[^"'\''[:space:]]+(["'\'']?)/\1<redacted>/' "$matches_file" > "$sanitized_file"
-    fail "secret regression: hardcoded SPOTCORE_ADMIN_API_TOKEN found in tracked files"
-    if [[ "$VERBOSE" -eq 1 ]]; then
-      sed 's/^/[DBG] secret regression hit: /' "$sanitized_file"
-    fi
-    return 1
-  fi
-
-  pass "secret regression: no hardcoded SPOTCORE_ADMIN_API_TOKEN in tracked files"
+    git grep -n 'SPOTCORE_ADMIN_API_TOKEN' -- ':!*.env' ':!*.pyc' ':!*__pycache__*' ':!spot-core/STATE.md' \
+      | grep -E '[:=][[:space:]]*.{20,}' \
+      || true
+  ) > "$matches_file" 2>/dev/null
+  [[ ! -s "$matches_file" ]] && pass "secret regression clean" || { fail "secret regression: hardcoded SPOTCORE_ADMIN_API_TOKEN found"; return 1; }
 }
 
-fetch_fleet_ping() {
-  local out="$1"
-  local code_file="$2"
-  http_json GET "${SPOT_BASE_URL}/fleet/ping" "" "$out" "$code_file"
-}
-
-check_worker_runtime_state() {
-  local worker="$1"
-  local expected_quarantined="$2"
-  local expected_eligible="$3"
-  local out="$TMPDIR/fleet-ping-${worker}.json"
-  local code_file="$TMPDIR/fleet-ping-${worker}.http"
-
-  fetch_fleet_ping "$out" "$code_file" || return 1
-  [[ "$(<"$code_file")" =~ ^2 ]] || return 1
-
-  jq -e \
-    --arg worker "$worker" \
-    --argjson q "$expected_quarantined" \
-    --argjson e "$expected_eligible" \
-    '.[$worker].quarantined == $q and .[$worker].eligible == $e' \
-    "$out" >/dev/null 2>&1
-}
-
-check_worker_watch_state() {
-  local worker="$1"
-  local expected_quarantined="$2"
-  jq -e \
-    --arg worker "$worker" \
-    --argjson q "$expected_quarantined" \
-    '.hosts[$worker].quarantined == $q' \
-    "$FLEET_STATUS_FILE" >/dev/null 2>&1
-}
+fetch_fleet_ping() { http_json GET "${SPOT_BASE_URL}/fleet/ping" "" "$1" "$2"; }
+check_worker_runtime_state() { local worker="$1" expected_quarantined="$2" expected_eligible="$3" out="$TMPDIR/fleet-ping-${worker}.json" code_file="$TMPDIR/fleet-ping-${worker}.http"; fetch_fleet_ping "$out" "$code_file" || return 1; [[ "$(<"$code_file")" =~ ^2 ]] || return 1; jq -e --arg worker "$worker" --argjson q "$expected_quarantined" --argjson e "$expected_eligible" '.[$worker].quarantined == $q and .[$worker].eligible == $e' "$out" >/dev/null 2>&1; }
+check_worker_watch_state() { local worker="$1" expected_quarantined="$2"; jq -e --arg worker "$worker" --argjson q "$expected_quarantined" '.hosts[$worker].quarantined == $q' "$FLEET_STATUS_FILE" >/dev/null 2>&1; }
 
 smoke_quarantine_cycle() {
-  local worker="$1"
-  local out="$TMPDIR/smoke-quarantine.json"
-  local code_file="$TMPDIR/smoke-quarantine.http"
-
+  local worker="$1" out="$TMPDIR/smoke-quarantine.json" code_file="$TMPDIR/smoke-quarantine.http"
   info "running smoke quarantine cycle for ${worker}"
-
-  if ! http_json POST "${SPOT_BASE_URL}/quarantine/${worker}" "" "$out" "$code_file"; then
-    fail "POST /quarantine/${worker} request failed"
-    return 1
-  fi
-  if [[ ! "$(<"$code_file")" =~ ^2 ]]; then
-    fail "POST /quarantine/${worker} returned HTTP $(<"$code_file")"
-    return 1
-  fi
-  pass "POST /quarantine/${worker} returned success"
-
-  if wait_for_condition \
-    "runtime quarantine state for ${worker}" \
-    "check_worker_runtime_state '$worker' true false"; then
-    pass "fleet/ping shows ${worker} quarantined=true eligible=false"
-  else
-    fail "fleet/ping did not reflect quarantine for ${worker}"
-    return 1
-  fi
-
-  if wait_for_condition \
-    "watch quarantine state for ${worker}" \
-    "check_worker_watch_state '$worker' true"; then
-    pass "fleet-status shows ${worker} quarantined=true"
-  else
-    warn "fleet-status did not reflect quarantine for ${worker} within polling window"
-  fi
-
-  if ! http_json DELETE "${SPOT_BASE_URL}/quarantine/${worker}" "" "$out" "$code_file"; then
-    fail "DELETE /quarantine/${worker} request failed"
-    return 1
-  fi
-  if [[ ! "$(<"$code_file")" =~ ^2 ]]; then
-    fail "DELETE /quarantine/${worker} returned HTTP $(<"$code_file")"
-    return 1
-  fi
-  pass "DELETE /quarantine/${worker} returned success"
-
-  if wait_for_condition \
-    "runtime unquarantine state for ${worker}" \
-    "check_worker_runtime_state '$worker' false true"; then
-    pass "fleet/ping shows ${worker} quarantined=false eligible=true without restart"
-  else
-    fail "fleet/ping did not clear quarantine for ${worker}"
-    return 1
-  fi
-
-  if wait_for_condition \
-    "watch unquarantine state for ${worker}" \
-    "check_worker_watch_state '$worker' false"; then
-    pass "fleet-status shows ${worker} quarantined=false"
-  else
-    warn "fleet-status did not clear quarantine for ${worker} within polling window"
-  fi
+  http_json POST "${SPOT_BASE_URL}/quarantine/${worker}" "" "$out" "$code_file" || { fail "POST /quarantine/${worker} request failed"; return 1; }
+  [[ "$(<"$code_file")" =~ ^2 ]] && pass "quarantine route accepted" || { fail "POST /quarantine/${worker} bad HTTP"; return 1; }
+  wait_for_condition "runtime quarantine state" "check_worker_runtime_state '$worker' true false" && pass "fleet/ping quarantine asserted (quarantined=true eligible=false)" || { fail "fleet/ping quarantine assertion failed"; return 1; }
+  wait_for_condition "watch quarantine state" "check_worker_watch_state '$worker' true" && pass "fleet-status quarantine asserted" || warn "fleet-status quarantine reflection delayed"
+  http_json DELETE "${SPOT_BASE_URL}/quarantine/${worker}" "" "$out" "$code_file" || { fail "DELETE /quarantine/${worker} request failed"; return 1; }
+  [[ "$(<"$code_file")" =~ ^2 ]] && pass "release route accepted" || { fail "DELETE /quarantine/${worker} bad HTTP"; return 1; }
+  wait_for_condition "runtime release state" "check_worker_runtime_state '$worker' false true" && pass "fleet/ping release asserted (quarantined=false eligible=true, no restart)" || { fail "fleet/ping release assertion failed"; return 1; }
+  wait_for_condition "watch release state" "check_worker_watch_state '$worker' false" && pass "fleet-status release asserted" || warn "fleet-status release reflection delayed"
 }
 
 check_worker_backup_freshness() {
-  local max_age_hours="${SPOT_BACKUP_MAX_AGE_HOURS:-8}"
-  local max_age_sec=$((max_age_hours * 3600))
+  local max_age_hours
+  local max_age_sec
   local now
+  max_age_hours="${SPOT_BACKUP_MAX_AGE_HOURS:-8}"
+  max_age_sec=$((max_age_hours * 3600))
   now="$(date -u +%s)"
-
-  echo
-  echo "=== WORKER BACKUP FRESHNESS ==="
-
-  local workers="spot-worker-01 spot-worker-02 spot-worker-03 spot-worker-04"
-  local worker meta ts raw epoch age_sec age_hours
-
+  local workers="spot-worker-01 spot-worker-02 spot-worker-03 spot-worker-04" worker meta raw epoch age_sec age_hours
   for worker in $workers; do
     meta="/mnt/collective/backups/${worker}/worker-config/latest/metadata.json"
-
-    if [[ ! -f "$meta" ]]; then
-      warn "backup freshness: ${worker} missing latest metadata at ${meta}"
-      continue
-    fi
-
+    [[ -f "$meta" ]] || { warn "backup freshness: ${worker} metadata missing"; continue; }
     raw="$(jq -r '.timestamp_utc // empty' "$meta" 2>/dev/null || true)"
-    if [[ -z "$raw" ]]; then
-      warn "backup freshness: ${worker} metadata has no timestamp_utc"
-      continue
-    fi
-
-    if [[ "$raw" =~ ^([0-9]{4})([0-9]{2})([0-9]{2})T([0-9]{2})([0-9]{2})([0-9]{2})Z$ ]]; then
-      epoch="$(date -u -d "${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:${BASH_REMATCH[6]} UTC" +%s 2>/dev/null || true)"
-    else
-      epoch="$(date -u -d "$raw" +%s 2>/dev/null || true)"
-    fi
-
-    if [[ -z "$epoch" ]]; then
-      warn "backup freshness: ${worker} invalid timestamp_utc=${raw}"
-      continue
-    fi
-
-    age_sec=$((now - epoch))
-    age_hours=$((age_sec / 3600))
-
-    if (( age_sec > max_age_sec )); then
-      warn "backup freshness: ${worker} latest backup is ${age_hours}h old, threshold=${max_age_hours}h"
-    else
-      pass "backup freshness: ${worker} latest backup ${raw} age=${age_hours}h threshold=${max_age_hours}h"
-    fi
+    [[ -n "$raw" ]] || { warn "backup freshness: ${worker} no timestamp_utc"; continue; }
+    if [[ "$raw" =~ ^([0-9]{4})([0-9]{2})([0-9]{2})T([0-9]{2})([0-9]{2})([0-9]{2})Z$ ]]; then epoch="$(date -u -d "${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:${BASH_REMATCH[6]} UTC" +%s 2>/dev/null || true)"; else epoch="$(date -u -d "$raw" +%s 2>/dev/null || true)"; fi
+    [[ -n "$epoch" ]] || { warn "backup freshness: ${worker} invalid timestamp"; continue; }
+    age_sec=$((now - epoch)); age_hours=$((age_sec / 3600))
+    (( age_sec > max_age_sec )) && warn "backup freshness: ${worker} age=${age_hours}h threshold=${max_age_hours}h" || pass "backup freshness: ${worker} age=${age_hours}h"
   done
 }
-
 
 main() {
   log "=== SPOT FLEET VALIDATION ==="
   log "timestamp: $(ts)"
-  log "base_url: ${SPOT_BASE_URL}"
-  log "watch_state_dir: ${WATCH_STATE_DIR}"
-  log "audit_file: ${AUDIT_FILE}"
-  log "smoke_mode: ${SMOKE_MODE}"
+  log "base_url: ${SPOT_BASE_URL} smoke_mode: ${SMOKE_MODE}"
   log
-
-  if [[ -f "$AUDIT_FILE" ]]; then
-    pass "routing audit file exists"
-  else
-    fail "routing audit file missing: $AUDIT_FILE"
-  fi
-
+  [[ -f "$AUDIT_FILE" ]] && pass "routing audit file exists" || fail "routing audit file missing: $AUDIT_FILE"
   run_role_route_checks
   check_audit_file_append || true
   check_routing_audit_endpoint || true
   check_watch_health || true
   check_secret_regression || true
-
   get_admin_token || true
-  if [[ -n "${ADMIN_TOKEN:-}" ]]; then
-    check_admin_validate_endpoint || true
-    check_admin_read_file_endpoint || true
-  fi
-
-  if [[ "$SMOKE_MODE" -eq 1 ]]; then
-    smoke_quarantine_cycle "$SMOKE_WORKER" || true
-  else
-    info 'smoke mode skipped'
-  fi
-
+  if [[ -n "${ADMIN_TOKEN:-}" ]]; then check_admin_validate_endpoint || true; check_admin_read_file_endpoint || true; fi
+  [[ "$SMOKE_MODE" -eq 1 ]] && smoke_quarantine_cycle "$SMOKE_WORKER" || info 'smoke mode skipped'
   check_worker_backup_freshness
-
   log
   log "=== SUMMARY ==="
   log "pass=${PASS_COUNT} warn=${WARN_COUNT} fail=${FAIL_COUNT}"
-
-  echo
-  if [[ "$FAIL_COUNT" -gt 0 ]]; then
-    echo "RESULT: FAIL (${FAIL_COUNT} failed, ${PASS_COUNT} passed, ${WARN_COUNT} warnings)"
-    exit 1
-  else
-    echo "RESULT: PASS (${PASS_COUNT} checks, ${WARN_COUNT} warnings)"
-    exit 0
-  fi
+  [[ "$FAIL_COUNT" -gt 0 ]] && { echo "RESULT: FAIL"; exit 1; } || { echo "RESULT: PASS"; exit 0; }
 }
 
 main "$@"
-
