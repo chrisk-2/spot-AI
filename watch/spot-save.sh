@@ -44,11 +44,12 @@ main() {
     require_file "$APP_FILE"
     require_file "$ROOT_COMPOSE"
     require_file "$CONFIG_FILE"
+    require_file "NETWORK_DNS_CHECKPOINT.md"
 
     header "GIT STATUS"
     git status --short
 
-    git add "$HANDOFF_FILE" "$STATE_FILE" "$ROADMAP_FILE" "$APP_FILE" "$ROOT_COMPOSE" "$CONFIG_FILE" "$0"
+    git add "NETWORK_DNS_CHECKPOINT.md" "$HANDOFF_FILE" "$STATE_FILE" "$ROADMAP_FILE" "$APP_FILE" "$ROOT_COMPOSE" "$CONFIG_FILE" "$0"
     [[ -f "$CORE_COMPOSE" ]] && git add "$CORE_COMPOSE"
 
     header "STAGED DIFF SUMMARY"
@@ -82,6 +83,9 @@ READ IN THIS ORDER NEXT CHAT:
 1. /home/ogre/spot-stack/HANDOFF.md
 2. /home/ogre/spot-stack/spot-core/STATE.md
 3. /home/ogre/spot-stack/ROADMAP.md
+4. /home/ogre/spot-stack/NETWORK_DNS_CHECKPOINT.md
+7. /home/ogre/spot-stack/HANDOFF-CODEX-INTEGRATION.md
+6. /home/ogre/spot-stack/HANDOFF-SPOT-INTEGRATION.md
 
 NEXT CHAT DIRECTIVE:
 - Read referenced files silently.

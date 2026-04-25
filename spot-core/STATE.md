@@ -25,6 +25,7 @@ Confirmed working:
 - latest validation passed clean
 - fleet validator hardened and smoke cycle explicitly asserting quarantine/release state
 - validator backup freshness checks passing on all four workers
+- Spot UI cockpit renderer/publisher path now verified honest on live host
 
 Latest checkpoint commit:
 
@@ -151,29 +152,19 @@ Published browser artifacts under:
 Confirmed working:
 
 - all Spot UI shell scripts pass `bash -n`
-- one-shot publish succeeds
-- browser dashboard renders successfully
-- Caddy now exposes the dashboard over LAN HTTP
-- temporary Python server test proved static artifact validity
-- generated dashboard includes live telemetry, incident banner, fleet risk score, incident timeline, anomalies, remediation/autonomy state, workers, trends, and worker latency history
+- `spot-ui-publish.service` confirmed active as real system service on host
+- meta.json and index.html advance on publish cycle
+- browser dashboard renders successfully from live publish path
+- Fleet Risk card renders successfully
+- Incident Timeline renders successfully
+- Operator Acknowledgements card now renders successfully
+- acknowledgement feed `acks.json` confirmed wired into main HTML renderer
+- both risk/html renderers rebuilt to use temp files + jq `--slurpfile` to eliminate kernel argv `Argument list too long` failures under large history payloads
+- generated dashboard includes live telemetry, incident banner, fleet risk score, incident timeline, acknowledgements, anomalies, remediation/autonomy state, workers, trends, and worker latency history
 
 Current LAN cockpit URL:
 
 - http://192.168.60.30/spot/
-
-DNS/Cloudflare checkpoint
-
-~/spot-stack/NETWORK_DNS_CHECKPOINT.md
-
-Caddy exposure:
-
-- /etc/caddy/Caddyfile now keeps existing `spotapi.starfleet.local` reverse proxy
-- added HTTP-only LAN static file block for `http://192.168.60.30` serving `/var/www/html`
-
-Publisher daemon:
-
-- spot-ui-publish.service needed to be created on the real host because prior MCP-created unit existed only in container namespace
-- user reported service/deployment seems good after host-side correction
 
 Important implementation note:
 
@@ -181,17 +172,11 @@ Important implementation note:
 - files were copied from Docker overlay into `/home/ogre/spot-stack/watch/`
 - future file edits should target the real host path or confirm namespace mapping before editing
 
-Remaining known UI gap:
-
-- `spot-ui-render-acks.sh` exists and `acks.json` is published
-- acknowledgement card injection into `spot-ui-render-html.sh` may still need final visual confirmation after next publish
-
 ## Immediate next objective
 
-1. confirm `spot-ui-publish.service` status on real host
-2. confirm dashboard auto-refresh updates `meta.json` every 60s
-3. visually confirm acknowledgement card appears after renderer injection/publish
-4. run `spot_save`
-5. checkpoint repo drift if desired
-6. continue wiring Codex into practical Spot engineering workflow
-7. begin Spot Incident Engine autonomy layer
+1. run `spot_save`
+2. checkpoint repo drift if desired
+3. begin Spot Incident Engine autonomy layer
+4. implement anomaly -> incident creation thresholds
+5. implement remediation suggestion queue
+6. implement acknowledgement/autonomy transition logic
