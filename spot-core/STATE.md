@@ -23,6 +23,8 @@ Confirmed working:
 - worker-02 GTX1060 6GB left free for future monitoring/camera workloads
 - utility role warm-model policy enabled
 - latest validation passed clean
+- fleet validator hardened and smoke cycle explicitly asserting quarantine/release state
+- validator backup freshness checks passing on all four workers
 
 Latest checkpoint commit:
 
@@ -85,6 +87,36 @@ Spot Core enforcement hardening applied:
 This confirms the Codex/Spot controlled apply model is viable:
 
 Codex/assistant proposes; Spot Core backs up, writes, verifies, and logs.
+
+## Spot validator hardening (2026-04-25)
+
+Live host file verified and edited on:
+
+- /home/ogre/spot-stack/watch/fleet-validate.sh
+
+Confirmed not edited on `/mnt/collective` share namespace.
+
+Validator changes completed:
+
+- duplicate/noisy pass chatter removed
+- role route validation preserved
+- routing audit append validation preserved
+- `/stats/routing-audit` primary mapping validation preserved
+- admin validate/read-file checks preserved
+- smoke quarantine cycle now explicitly asserts quarantined=true eligible=false and release restoration without restart
+- backup freshness verification added for all four workers
+- strict-mode shell parser and nounset bugs corrected after live validation
+
+Host validation rerun results:
+
+- `bash -n /home/ogre/spot-stack/watch/fleet-validate.sh` PASS
+- `spot validate` PASS
+- `spot validate-smoke` PASS
+
+Validation backup artifacts:
+
+- /mnt/collective/backups/spot-core/filesystem_local/20260425-160236-1777132956687295108
+- /mnt/collective/backups/spot-core/filesystem_local/20260425-161303-1777133583866491294
 
 ## Spot UI / Cockpit status
 

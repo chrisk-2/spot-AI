@@ -14,6 +14,7 @@ import hashlib
 import shutil
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 APP_START_TS = int(time.time())
@@ -2244,6 +2245,249 @@ async def startup_event() -> None:
     seed_routing_audit()
     seed_recent_decisions()
     seed_latency_history()
+
+@app.head("/")
+async def dashboard_head() -> dict[str, Any]:
+    return {}
+
+@app.get("/", response_class=HTMLResponse)
+async def dashboard() -> str:
+    health = {"ok": True, "uptime_sec": _now() - APP_START_TS}
+    routing_state = await routing()
+    fleet = await fleet_ping()
+    latency = await stats_latency()
+    audit = await stats_routing_audit(limit=200)
+    decisions = await stats_recent_decisions(limit=5)
+
+    def esc(value: Any) -> str:
+        text = "" if value is None else str(value)
+        return (
+            text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+        )
+
+    worker_rows = []
+    for name, item in fleet.items():
+        lat = item.get("latency") or {}
+        status = "OK" if item.get("ok") else "BAD"
+        worker_rows.append(
+            "<tr>"
+            f"<td>{esc(name)}</td>"
+            f"<td class='{status.lower()}'>{esc(status)}</td>"
+            f"<td>{esc(item.get('primary_role'))}</td>"
+            f"<td>{esc(item.get('reason'))}</td>"
+            f"<td>{esc(item.get('quarantined'))}</td>"
+            f"<td>{esc(item.get('degraded'))}</td>"
+            f"<td>{esc(lat.get('p50_total_ms'))}</td>"
+            f"<td>{esc(lat.get('avg_tok_per_sec'))}</td>"
+            "</tr>"
+        )
+
+    owner_rows = []
+    role_owners = routing_state.get("role_owners") or {}
+    for role, worker in role_owners.items():
+        owner_rows.append(
+            "<tr>"
+            f"<td>{esc(role)}</td>"
+            f"<td>{esc(worker)}</td>"
+            "</tr>"
+        )
+
+    decision_rows = []
+    for item in decisions.get("items", []):
+        decision_rows.append(
+            "<tr>"
+            f"<td>{esc(item.get('ts'))}</td>"
+            f"<td>{esc(item.get('role'))}</td>"
+            f"<td>{esc(item.get('worker'))}</td>"
+            f"<td>{esc(item.get('model'))}</td>"
+            f"<td>{esc(item.get('status'))}</td>"
+            "</tr>"
+        )
+
+    return f"""
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="30">
+  <title>Spot Core</title>
+  <style>
+    body {{
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b1020;
+      color: #e8edf7;
+    }}
+    header {{
+      padding: 22px 28px;
+      background: #111936;
+      border-bottom: 1px solid #263252;
+    }}
+    h1 {{
+      margin: 0;
+      font-size: 28px;
+    }}
+    main {{
+      padding: 24px 28px;
+      display: grid;
+      gap: 20px;
+    }}
+    section {{
+      background: #111936;
+      border: 1px solid #263252;
+      border-radius: 12px;
+      padding: 18px;
+    }}
+    h2 {{
+      margin-top: 0;
+      font-size: 18px;
+    }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+    }}
+    th, td {{
+      padding: 9px 10px;
+      border-bottom: 1px solid #263252;
+      text-align: left;
+      font-size: 14px;
+    }}
+    th {{
+      color: #9fb3d9;
+      font-weight: 600;
+    }}
+    .cards {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }}
+    .card {{
+      background: #0b1020;
+      border: 1px solid #263252;
+      border-radius: 10px;
+      padding: 14px;
+    }}
+    .label {{
+      color: #9fb3d9;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }}
+    .value {{
+      margin-top: 6px;
+      font-size: 22px;
+      font-weight: 700;
+    }}
+    .ok {{
+      color: #74e39a;
+      font-weight: 700;
+    }}
+    .bad {{
+      color: #ff7676;
+      font-weight: 700;
+    }}
+    a {{
+      color: #8ab4ff;
+    }}
+    footer {{
+      color: #9fb3d9;
+      font-size: 12px;
+      padding: 0 28px 24px;
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Spot Core Operator Dashboard</h1>
+    <div>Read-only fleet status · auto-refresh 30s</div>
+  </header>
+
+  <main>
+    <section>
+      <div class="cards">
+        <div class="card">
+          <div class="label">Core</div>
+          <div class="value">{esc("OK" if health.get("ok") else "BAD")}</div>
+        </div>
+        <div class="card">
+          <div class="label">Uptime seconds</div>
+          <div class="value">{esc(health.get("uptime_sec"))}</div>
+        </div>
+        <div class="card">
+          <div class="label">Workers</div>
+          <div class="value">{esc(len(fleet))}</div>
+        </div>
+        <div class="card">
+          <div class="label">Routing violations</div>
+          <div class="value">{esc(audit.get("violations"))}</div>
+        </div>
+        <div class="card">
+          <div class="label">Fallbacks</div>
+          <div class="value">{esc(audit.get("fallbacks"))}</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Fleet</h2>
+      <table>
+        <tr>
+          <th>Worker</th>
+          <th>Status</th>
+          <th>Role</th>
+          <th>Reason</th>
+          <th>Quarantined</th>
+          <th>Degraded</th>
+          <th>P50 ms</th>
+          <th>Tok/sec</th>
+        </tr>
+        {''.join(worker_rows)}
+      </table>
+    </section>
+
+    <section>
+      <h2>Role owners</h2>
+      <table>
+        <tr><th>Role</th><th>Owner</th></tr>
+        {''.join(owner_rows)}
+      </table>
+    </section>
+
+    <section>
+      <h2>Recent decisions</h2>
+      <table>
+        <tr>
+          <th>TS</th>
+          <th>Role</th>
+          <th>Worker</th>
+          <th>Model</th>
+          <th>Status</th>
+        </tr>
+        {''.join(decision_rows)}
+      </table>
+    </section>
+
+    <section>
+      <h2>Raw endpoints</h2>
+      <p>
+        <a href="/health">/health</a> ·
+        <a href="/routing">/routing</a> ·
+        <a href="/fleet/ping">/fleet/ping</a> ·
+        <a href="/stats/latency">/stats/latency</a> ·
+        <a href="/stats/routing-audit">/stats/routing-audit</a>
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    Spot Core read-only dashboard. No admin actions exposed here.
+  </footer>
+</body>
+</html>
+"""
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
