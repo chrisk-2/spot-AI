@@ -28,10 +28,12 @@ Confirmed working:
 - Spot UI cockpit renderer/publisher path now verified honest on live host
 - Spot Incident Engine IE-1 persistent promotion validated
 - Spot Incident Engine IE-2 acknowledgement lifecycle validated
+- Spot Incident Engine IE-3 remediation suggestions validated
+- cockpit displays incident remediation guidance and capped history cleanly
 
 Latest checkpoint commit:
 
-b46e946 feat: wire acknowledgements into incident lifecycle
+1c500b5 feat: render incident guidance and cap dashboard history
 
 ## Strategic alignment
 
@@ -144,6 +146,8 @@ Confirmed working:
 - Operator Acknowledgements card renders successfully
 - acknowledgement feed `acks.json` wired into main HTML renderer
 - both risk/html renderers rebuilt to use temp files + jq `--slurpfile` to eliminate kernel argv `Argument list too long` failures under large history payloads
+- Incident Timeline now renders open incidents, recent history, and remediation suggestions
+- dashboard trend and latency history output capped to last 20 snapshots
 - generated dashboard includes live telemetry, incident banner, fleet risk score, incident timeline, acknowledgements, anomalies, remediation/autonomy state, workers, trends, and worker latency history
 
 Current LAN cockpit URL:
@@ -171,14 +175,31 @@ IE-2 acknowledgement lifecycle completed and committed:
 - resolved incident sets remediation_state=closed
 - resolved incident clears open signature from incident-engine-state.json so recurrence can reopen cleanly
 
+IE-3 remediation suggestion queue completed and committed:
+
+- commit: 277fceb feat: add incident remediation suggestions
+- remediation mapper: /home/ogre/spot-stack/watch/spot-ui-remediation-map.sh
+- new incidents receive advisory remediation object at creation
+- test incident INC-3 opened with remediation.class=ledger_cleanup
+- remediation output includes risk_class, backup_required, autonomy, state, and policy_note
+
+Cockpit rendering for IE-3 completed and committed:
+
+- commit: 1c500b5 feat: render incident guidance and cap dashboard history
+- Incident Timeline shows open incidents and suggested actions
+- live dashboard confirmed showing ledger_cleanup, backup_required=true, autonomy=advisory_only
+- dashboard trend/latency sections capped to last 20 snapshots
+
 Important caveat:
 
 - underlying factor `remediation violation memory=5` still exists in risk output
-- future captures may correctly open a new incident if the condition persists
+- current open incident is INC-3
+- next work should determine whether that remediation memory is real operational debt or stale state
 
 ## Immediate next objective
 
-1. implement IE-3 remediation suggestion queue
-2. keep IE-3 read-only/advisory unless routed through backup-first enforcement
-3. expose suggested actions in incident summary/dashboard
-4. only later wire controlled execution hooks through Spot Core policy gates
+1. investigate root cause of `remediation violation memory=5`
+2. inspect remediation-state.json and routing audit state
+3. classify debt as real or stale
+4. if stale, design read-only cleanup recommendation first
+5. only clear state through backup-first controlled path if approved
