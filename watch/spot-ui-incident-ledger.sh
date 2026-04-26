@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 SPOT_UI_RISK_RENDERER="${SPOT_UI_RISK_RENDERER:-/home/ogre/spot-stack/watch/spot-ui-render-risk.sh}"
+SPOT_UI_REMEDIATION_MAP="${SPOT_UI_REMEDIATION_MAP:-/home/ogre/spot-stack/watch/spot-ui-remediation-map.sh}"
 SPOT_UI_STATE_DIR="${SPOT_UI_STATE_DIR:-/home/ogre/spot-stack/watch/state}"
 SPOT_UI_LEDGER_FILE="${SPOT_UI_LEDGER_FILE:-${SPOT_UI_STATE_DIR}/spot-ui-incidents.jsonl}"
 SPOT_UI_ENGINE_STATE_FILE="${SPOT_UI_ENGINE_STATE_FILE:-${SPOT_UI_STATE_DIR}/incident-engine-state.json}"
@@ -27,12 +28,16 @@ trim(){
   mv "$tmp" "$SPOT_UI_LEDGER_FILE"
 }
 
+fallback_remediation(){
+  jq -c -n --argjson factors "$1" '{class:"general_investigation",suggestion:"Review incident factors, current fleet status, routing audit, and recent decisions.",risk_class:"LOW",backup_required:false,autonomy:"advisory_only",state:"advisory",policy_note:"advisory only; future mutating paths must use Spot Core backup-first policy",factors:$factors}'
+}
+
 capture(){
   need_file "$SPOT_UI_RISK_RENDERER"
   need_cmd jq
   init_state
 
-  local ts risk state result new_state incident
+  local ts risk state result new_state incident factors remediation
   ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
   risk="$(bash "$SPOT_UI_RISK_RENDERER")"
   state="$(cat "$SPOT_UI_ENGINE_STATE_FILE")"
@@ -53,7 +58,6 @@ capture(){
       else null end;
     def factor_key($f): ($f|tostring|gsub("[^A-Za-z0-9_.:-]";"_"));
     def sig($severity; $trigger; $factors): ($severity+":"+$trigger+":"+(($factors // [])|join("|")));
-
     ($risk.level | norm_level(.)) as $level |
     (($risk.factors // []) | map(tostring)) as $factors |
     (($state.last_level // "NONE") | norm_level(.)) as $prev_level |
@@ -72,36 +76,23 @@ capture(){
     (($state.open_signatures // {}) + (if $incident_id != null then {($signature): $incident_id} else {} end)) as $open_signatures |
     {
       incident: (if $incident_id == null then null else {
-        ts:$ts,
-        type:"incident_opened",
-        incident_id:$incident_id,
-        severity:$severity,
-        trigger:$trigger,
-        signature:$signature,
-        ack_state:"open",
-        remediation_state:"pending",
-        risk:$risk,
-        factors:$incident_factors,
-        engine:{level:$level,level_streak:$level_streak,persistent_factors:$persistent_factors}
+        ts:$ts,type:"incident_opened",incident_id:$incident_id,severity:$severity,trigger:$trigger,signature:$signature,ack_state:"open",remediation_state:"pending",risk:$risk,factors:$incident_factors,engine:{level:$level,level_streak:$level_streak,persistent_factors:$persistent_factors}
       } end),
-      state: {
-        version:1,
-        last_level:$level,
-        level_streak:$level_streak,
-        factor_counts:$factor_counts,
-        open_signatures:$open_signatures,
-        last_incident_id:$last_id,
-        last_capture_ts:$ts,
-        last_risk:$risk
-      }
-    }
-  ' )"
+      state: {version:1,last_level:$level,level_streak:$level_streak,factor_counts:$factor_counts,open_signatures:$open_signatures,last_incident_id:$last_id,last_capture_ts:$ts,last_risk:$risk}
+    }' )"
 
   new_state="$(jq -c '.state' <<<"$result")"
   printf '%s\n' "$new_state" > "$SPOT_UI_ENGINE_STATE_FILE"
 
   incident="$(jq -c '.incident // empty' <<<"$result")"
   if [[ -n "$incident" ]]; then
+    factors="$(jq -c '.factors // []' <<<"$incident")"
+    if [[ -x "$SPOT_UI_REMEDIATION_MAP" ]]; then
+      remediation="$(bash "$SPOT_UI_REMEDIATION_MAP" "$factors" || fallback_remediation "$factors")"
+    else
+      remediation="$(fallback_remediation "$factors")"
+    fi
+    incident="$(jq -c --argjson remediation "$remediation" '. + {remediation:$remediation}' <<<"$incident")"
     printf '%s\n' "$incident" >> "$SPOT_UI_LEDGER_FILE"
   fi
   trim

@@ -26,10 +26,12 @@ Confirmed working:
 - fleet validator hardened and smoke cycle explicitly asserting quarantine/release state
 - validator backup freshness checks passing on all four workers
 - Spot UI cockpit renderer/publisher path now verified honest on live host
+- Spot Incident Engine IE-1 persistent promotion validated
+- Spot Incident Engine IE-2 acknowledgement lifecycle validated
 
 Latest checkpoint commit:
 
-01da8b1 tune: finalize worker cleanup and utility lane warmup
+b46e946 feat: wire acknowledgements into incident lifecycle
 
 ## Strategic alignment
 
@@ -47,7 +49,7 @@ Canonical forward build doctrine now lives in:
 
 Current active roadmap phase:
 
-PHASE 1 — FINISH SPOT FOUNDATION
+PHASE 1 — FINISH SPOT FOUNDATION / operator-autonomy bridge
 
 ## Integration planning added
 
@@ -114,31 +116,13 @@ Host validation rerun results:
 - `spot validate` PASS
 - `spot validate-smoke` PASS
 
-Validation backup artifacts:
-
-- /mnt/collective/backups/spot-core/filesystem_local/20260425-160236-1777132956687295108
-- /mnt/collective/backups/spot-core/filesystem_local/20260425-161303-1777133583866491294
-
 ## Spot UI / Cockpit status
 
-Spot UI Phase 1 through Phase 7 foundation is now live on the real spot-core host filesystem.
+Spot UI Phase 1 through Phase 7 foundation is live on the real spot-core host filesystem.
 
 Confirmed host files under:
 
 - /home/ogre/spot-stack/watch/
-
-UI/operator files present:
-
-- spot-ui-01.sh
-- spot-ui-publish.sh
-- spot-ui-history.sh
-- spot-ui-incident-ledger.sh
-- spot-ui-ack.sh
-- spot-ui-render-html.sh
-- spot-ui-render-risk.sh
-- spot-ui-render-timeline.sh
-- spot-ui-render-acks.sh
-- spot-ui-risk.json.jq
 
 Published browser artifacts under:
 
@@ -157,8 +141,8 @@ Confirmed working:
 - browser dashboard renders successfully from live publish path
 - Fleet Risk card renders successfully
 - Incident Timeline renders successfully
-- Operator Acknowledgements card now renders successfully
-- acknowledgement feed `acks.json` confirmed wired into main HTML renderer
+- Operator Acknowledgements card renders successfully
+- acknowledgement feed `acks.json` wired into main HTML renderer
 - both risk/html renderers rebuilt to use temp files + jq `--slurpfile` to eliminate kernel argv `Argument list too long` failures under large history payloads
 - generated dashboard includes live telemetry, incident banner, fleet risk score, incident timeline, acknowledgements, anomalies, remediation/autonomy state, workers, trends, and worker latency history
 
@@ -166,17 +150,35 @@ Current LAN cockpit URL:
 
 - http://192.168.60.30/spot/
 
-Important implementation note:
+## Spot Incident Engine status
 
-- MCP-created Spot UI files initially landed in container overlay namespace, not the real host repo
-- files were copied from Docker overlay into `/home/ogre/spot-stack/watch/`
-- future file edits should target the real host path or confirm namespace mapping before editing
+IE-1 persistent promotion completed and committed:
+
+- commit: bef3ef1 feat: add persistent spot incident engine
+- incident engine state file: /home/ogre/spot-stack/watch/state/incident-engine-state.json
+- incident ledger file: /home/ogre/spot-stack/watch/state/spot-ui-incidents.jsonl
+- repeated factor promotion validated
+- deterministic incident IDs validated
+- open-signature dedupe validated
+- test incident INC-1 opened from persistent factor `remediation violation memory=5`
+
+IE-2 acknowledgement lifecycle completed and committed:
+
+- commit: b46e946 feat: wire acknowledgements into incident lifecycle
+- `spot-ui-ack.sh add INC-1 acknowledged ...` validated
+- `spot-ui-ack.sh add INC-1 resolved ...` validated
+- incident ack_state transitions validated: open -> acknowledged -> resolved
+- resolved incident sets remediation_state=closed
+- resolved incident clears open signature from incident-engine-state.json so recurrence can reopen cleanly
+
+Important caveat:
+
+- underlying factor `remediation violation memory=5` still exists in risk output
+- future captures may correctly open a new incident if the condition persists
 
 ## Immediate next objective
 
-1. run `spot_save`
-2. checkpoint repo drift if desired
-3. begin Spot Incident Engine autonomy layer
-4. implement anomaly -> incident creation thresholds
-5. implement remediation suggestion queue
-6. implement acknowledgement/autonomy transition logic
+1. implement IE-3 remediation suggestion queue
+2. keep IE-3 read-only/advisory unless routed through backup-first enforcement
+3. expose suggested actions in incident summary/dashboard
+4. only later wire controlled execution hooks through Spot Core policy gates
