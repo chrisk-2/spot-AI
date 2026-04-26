@@ -10,6 +10,7 @@ RISK_RENDERER="${RISK_RENDERER:-/home/ogre/spot-stack/watch/spot-ui-render-risk.
 TIMELINE_RENDERER="${TIMELINE_RENDERER:-/home/ogre/spot-stack/watch/spot-ui-render-timeline.sh}"
 ACK_RENDERER="${ACK_RENDERER:-/home/ogre/spot-stack/watch/spot-ui-render-acks.sh}"
 STALE_SNAPSHOT_SECONDS="${STALE_SNAPSHOT_SECONDS:-180}"
+HISTORY_SPARK_LIMIT="${HISTORY_SPARK_LIMIT:-20}"
 
 need_file(){ [[ -f "$1" ]] || { echo "ERROR: missing file: $1" >&2; exit 2; }; }
 need_cmd(){ command -v "$1" >/dev/null 2>&1 || { echo "ERROR: missing command: $1" >&2; exit 2; }; }
@@ -44,15 +45,16 @@ jq -r -n \
   --slurpfile kf "$TMPDIR/risk.json" \
   --arg timeline "$timeline_card" \
   --arg ack "$ack_card" \
-  --argjson stale "$STALE_SNAPSHOT_SECONDS" '
+  --argjson stale "$STALE_SNAPSHOT_SECONDS" \
+  --argjson spark_limit "$HISTORY_SPARK_LIMIT" '
   $sf[0] as $s |
   $hf[0] as $h |
   $rf[0] as $r |
   $kf[0] as $k |
   def safe($x): ($x // "n/a" | tostring);
   def cls($x): ($x|ascii_downcase);
-  def spark($a): ($a // [] | map(if . == null then "·" else tostring end) | join(" "));
   def lastn($a; $n): ($a // [] | if length > $n then .[(length-$n):] else . end);
+  def spark($a): (lastn($a; $spark_limit) | map(if . == null then "·" else tostring end) | join(" "));
   def increasing($a): ($a|length) >= 3 and ($a[-1] > $a[-2]) and ($a[-2] > $a[-3]);
   def age_sec: ((now | floor) - (($h.last_generated_at // $s.generated_at) | fromdateiso8601? // (now|floor)));
   def nonok_count: (($h.trends.banner_statuses // []) | lastn(.;5) | map(select(. != "OK")) | length);
@@ -72,7 +74,7 @@ $timeline+
 $ack+
 "<div class=\"grid\"><div class=\"card\"><h2>Anomalies</h2><ul>"+anomalies_html+"</ul><p class=\"meta\">History age: "+(age_sec|tostring)+"s</p></div><div class=\"card\"><h2>Autonomy / remediation state</h2><p class=\"meta\">last_run_ts="+safe($r._meta.last_run_ts)+" · audit violations="+safe($r._meta.last_audit_violations)+"</p><table><thead><tr><th>Worker</th><th>Q</th><th>Reason</th><th>Fb</th><th>Vi</th><th>Route</th><th>By</th><th>TS</th></tr></thead><tbody>"+remediation_rows+"</tbody></table></div></div>"+
 "<div class=\"card\"><h2>Workers</h2><table><thead><tr><th>Worker</th><th>Role</th><th>Status</th><th>Severity</th><th>Eligible</th><th>Quarantine</th><th>Degraded</th><th>Jobs</th><th>Avg ms</th><th>Tok/s</th></tr></thead><tbody>"+worker_rows+"</tbody></table></div>"+
-"<div class=\"card\"><h2>Trends</h2><p>Snapshots: "+safe($h.count)+" · First: "+safe($h.first_generated_at)+" · Last: "+safe($h.last_generated_at)+"</p><p>Routing violations: <code>"+spark($h.trends.routing_violations)+"</code></p><p>Routing fallbacks: <code>"+spark($h.trends.routing_fallbacks)+"</code></p><p>Banner statuses: <code>"+(($h.trends.banner_statuses // []) | join(" "))+"</code></p></div>"+
-"<div class=\"card\"><h2>Worker latency history</h2><table><thead><tr><th>Worker</th><th>Avg total ms</th><th>Tok/s</th></tr></thead><tbody>"+latency_rows+"</tbody></table></div>"+
+"<div class=\"card\"><h2>Trends (last "+($spark_limit|tostring)+" snapshots)</h2><p>Snapshots: "+safe($h.count)+" · First: "+safe($h.first_generated_at)+" · Last: "+safe($h.last_generated_at)+"</p><p>Routing violations: <code>"+spark($h.trends.routing_violations)+"</code></p><p>Routing fallbacks: <code>"+spark($h.trends.routing_fallbacks)+"</code></p><p>Banner statuses: <code>"+(lastn(($h.trends.banner_statuses // []); $spark_limit) | join(" "))+"</code></p></div>"+
+"<div class=\"card\"><h2>Worker latency history (last "+($spark_limit|tostring)+")</h2><table><thead><tr><th>Worker</th><th>Avg total ms</th><th>Tok/s</th></tr></thead><tbody>"+latency_rows+"</tbody></table></div>"+
 "<p class=\"meta\">Generated: "+safe($s.generated_at)+" · Feeds: <code>spot.json</code> <code>history.json</code> <code>incidents.json</code> <code>acks.json</code> <code>meta.json</code></p></body></html>"
 '
