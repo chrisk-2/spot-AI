@@ -2,7 +2,7 @@
 
 ## Current confirmed runtime state
 
-Spot rescue/hardening phase is effectively complete.
+Spot rescue/hardening phase is effectively complete and the current incident-engine chain is closed.
 
 Confirmed working:
 
@@ -25,15 +25,18 @@ Confirmed working:
 - latest validation passed clean
 - fleet validator hardened and smoke cycle explicitly asserting quarantine/release state
 - validator backup freshness checks passing on all four workers
-- Spot UI cockpit renderer/publisher path now verified honest on live host
+- Spot UI cockpit renderer/publisher path verified honest on live host
 - Spot Incident Engine IE-1 persistent promotion validated
 - Spot Incident Engine IE-2 acknowledgement lifecycle validated
 - Spot Incident Engine IE-3 remediation suggestions validated
 - cockpit displays incident remediation guidance and capped history cleanly
+- stale remediation violation memory root cause fixed
+- fleet risk returned to NORMAL (0)
+- open incident queue cleared
 
 Latest checkpoint commit:
 
-1c500b5 feat: render incident guidance and cap dashboard history
+b80bf42 fix: decay stale remediation violation memory
 
 ## Strategic alignment
 
@@ -74,10 +77,6 @@ Verified behavior:
 - post-write verification passed
 - structured success response returned
 
-Verified backup artifact:
-
-- /mnt/collective/backups/spot-core/filesystem_local/20260425-032201-1777087321245017714
-
 Root cause of prior HANDOFF.md write failure:
 
 - docker-compose.yml mounted HANDOFF.md into spot-core as read-only
@@ -86,8 +85,8 @@ Root cause of prior HANDOFF.md write failure:
 
 Spot Core enforcement hardening applied:
 
-- execute_with_enforcement now catches execute-stage exceptions and returns structured 503 details after backup instead of raw 500
-- rollback status normalization now respects rollback functions returning {"ok": true}
+- execute_with_enforcement catches execute-stage exceptions and returns structured 503 details after backup instead of raw 500
+- rollback status normalization respects rollback functions returning {"ok": true}
 
 This confirms the Codex/Spot controlled apply model is viable:
 
@@ -108,7 +107,7 @@ Validator changes completed:
 - routing audit append validation preserved
 - `/stats/routing-audit` primary mapping validation preserved
 - admin validate/read-file checks preserved
-- smoke quarantine cycle now explicitly asserts quarantined=true eligible=false and release restoration without restart
+- smoke quarantine cycle explicitly asserts quarantined=true eligible=false and release restoration without restart
 - backup freshness verification added for all four workers
 - strict-mode shell parser and nounset bugs corrected after live validation
 
@@ -135,6 +134,10 @@ Published browser artifacts under:
 - /var/www/html/spot/acks.json
 - /var/www/html/spot/meta.json
 
+Current LAN cockpit URL:
+
+- http://192.168.60.30/spot/
+
 Confirmed working:
 
 - all Spot UI shell scripts pass `bash -n`
@@ -146,13 +149,9 @@ Confirmed working:
 - Operator Acknowledgements card renders successfully
 - acknowledgement feed `acks.json` wired into main HTML renderer
 - both risk/html renderers rebuilt to use temp files + jq `--slurpfile` to eliminate kernel argv `Argument list too long` failures under large history payloads
-- Incident Timeline now renders open incidents, recent history, and remediation suggestions
+- Incident Timeline renders open incidents, recent history, and remediation suggestions
 - dashboard trend and latency history output capped to last 20 snapshots
 - generated dashboard includes live telemetry, incident banner, fleet risk score, incident timeline, acknowledgements, anomalies, remediation/autonomy state, workers, trends, and worker latency history
-
-Current LAN cockpit URL:
-
-- http://192.168.60.30/spot/
 
 ## Spot Incident Engine status
 
@@ -164,13 +163,10 @@ IE-1 persistent promotion completed and committed:
 - repeated factor promotion validated
 - deterministic incident IDs validated
 - open-signature dedupe validated
-- test incident INC-1 opened from persistent factor `remediation violation memory=5`
 
 IE-2 acknowledgement lifecycle completed and committed:
 
 - commit: b46e946 feat: wire acknowledgements into incident lifecycle
-- `spot-ui-ack.sh add INC-1 acknowledged ...` validated
-- `spot-ui-ack.sh add INC-1 resolved ...` validated
 - incident ack_state transitions validated: open -> acknowledged -> resolved
 - resolved incident sets remediation_state=closed
 - resolved incident clears open signature from incident-engine-state.json so recurrence can reopen cleanly
@@ -180,7 +176,6 @@ IE-3 remediation suggestion queue completed and committed:
 - commit: 277fceb feat: add incident remediation suggestions
 - remediation mapper: /home/ogre/spot-stack/watch/spot-ui-remediation-map.sh
 - new incidents receive advisory remediation object at creation
-- test incident INC-3 opened with remediation.class=ledger_cleanup
 - remediation output includes risk_class, backup_required, autonomy, state, and policy_note
 
 Cockpit rendering for IE-3 completed and committed:
@@ -190,16 +185,47 @@ Cockpit rendering for IE-3 completed and committed:
 - live dashboard confirmed showing ledger_cleanup, backup_required=true, autonomy=advisory_only
 - dashboard trend/latency sections capped to last 20 snapshots
 
-Important caveat:
+Stale remediation memory fix completed and committed:
 
-- underlying factor `remediation violation memory=5` still exists in risk output
-- current open incident is INC-3
-- next work should determine whether that remediation memory is real operational debt or stale state
+- commit: b80bf42 fix: decay stale remediation violation memory
+- root cause: fleet-remediate.sh set violation_count_window when fresh violations existed but did not zero old counters after the current audit window became clean
+- affected stale values were spot-worker-01 violation_count_window=3 and spot-worker-03 violation_count_window=2
+- current routing audit window showed zero active violations
+- fleet-remediate.sh now decays stale per-worker violation_count_window to 0 when no fresh violation exists in the current audit window
+- last_route_class normalizes from violation to primary for decayed stale entries
+- INC-3 resolved with note: stale remediation violation memory cleared by fleet-remediate decay fix
+- incident-engine open_signatures cleared
+- open_incidents now empty
+- dashboard shows Fleet Risk NORMAL (0), No risk factors active, No anomalies detected
+
+## Current worker role map / hardware snapshot
+
+Locked roles:
+
+- spot-worker-01: general
+- spot-worker-02: utility
+- spot-worker-03: coding
+- spot-worker-04: heavy
+
+Worker context from uploaded inventory snapshots:
+
+- spot-worker-01: Ubuntu 22.04.5, AMD EPYC 4245P, 30GiB RAM, RTX 3060 12GB, IP 192.168.10.10, Ollama 0.18.2, models mistral:7b and llama3.1:8b
+- spot-worker-02: Ubuntu 24.04.4, Xeon E5-1620 v2, 31GiB RAM, Quadro M4000 8GB plus GTX 1060 6GB, IP 192.168.10.11, Ollama 0.18.2, models bge-m3, nomic-embed-text, phi3.5
+- spot-worker-03: Ubuntu 24.04.4, Ryzen 7 2700X, 31GiB RAM, GTX 1070 8GB plus RTX 3060 12GB, IP 192.168.10.13, Ollama 0.18.2, models qwen2.5-coder:7b, codellama:7b, deepseek-coder:6.7b, qwen2.5:14b
+- spot-worker-04: Ubuntu 24.04.4, i7-13700KF, 62GiB RAM, TITAN Xp 12GB, IP 192.168.10.14, Ollama 0.20.6, model qwen2.5:14b
+
+## Policy posture
+
+Spot Autonomy Policy remains locked:
+
+- primary rule: no backup, no change
+- mutating autonomous actions must follow Detect -> Analyze -> Classify -> Backup -> Plan -> Verify -> Execute -> Test/Rollback
+- Spot may create/read backup artifacts but must not delete/overwrite/alter existing backups
+- high-risk network/firewall/VLAN/DNS/DHCP changes remain gated
 
 ## Immediate next objective
 
-1. investigate root cause of `remediation violation memory=5`
-2. inspect remediation-state.json and routing audit state
-3. classify debt as real or stale
-4. if stale, design read-only cleanup recommendation first
-5. only clear state through backup-first controlled path if approved
+1. run `git status --short` and confirm the tree is clean after commit b80bf42
+2. run `spot validate` and `spot validate-smoke` as a final health checkpoint if not already done after the stale-memory fix
+3. run `spot_save` if desired for final project checkpoint
+4. next engineering lane: either audit write failure hardening in app.py or transition into Spot Operator Ready polish
