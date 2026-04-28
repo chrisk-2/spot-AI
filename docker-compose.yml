@@ -7,7 +7,7 @@ services:
       - ./spot-core:/srv/spot-core
       - ./watch:/srv/watch
       - ./HANDOFF.md:/home/ogre/spot-stack/HANDOFF.md:rw
-      - ./ROADMAP.md:/home/ogre/spot-stack/ROADMAP.md:ro
+      - ./ROADMAP.md:/home/ogre/spot-stack/ROADMAP.md:rw
       - /mnt/collective:/mnt/collective
       - /mnt/collective/fleet/spot-core/shared_memory:/srv/spot-core/shared_memory
       - ./watch:/watch
