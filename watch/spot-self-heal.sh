@@ -80,6 +80,7 @@ main(){
     --arg readiness_file "$READINESS_FILE" \
     --arg meta_file "$META_FILE" \
     --arg state_file "$SELF_HEAL_STATE_FILE" \
+    --arg log_file "$SELF_HEAL_LOG_FILE" \
     --argjson core "$core_json" \
     --argjson routing "$routing_json" \
     --argjson readiness "$readiness_json" \
@@ -119,7 +120,7 @@ main(){
           autonomy_level: "level_0_1_preview",
           apply_enabled: false,
           backup_required_for_mutation: true,
-          log_file: env.SELF_HEAL_LOG_FILE
+          log_file: $log_file
         },
         state: {
           file: $state_file,
