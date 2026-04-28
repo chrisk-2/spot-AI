@@ -8,6 +8,8 @@ SPOT_UI_OUT_DIR="${SPOT_UI_OUT_DIR:-/var/www/html/spot}"
 READINESS_FILE="${READINESS_FILE:-${SPOT_UI_OUT_DIR}/operator-readiness.json}"
 META_FILE="${META_FILE:-${SPOT_UI_OUT_DIR}/meta.json}"
 DASHBOARD_MAX_AGE_SECONDS="${DASHBOARD_MAX_AGE_SECONDS:-180}"
+SELF_HEAL_STATE_FILE="${SELF_HEAL_STATE_FILE:-${REPO}/watch/state/self-heal-state.json}"
+SELF_HEAL_COOLDOWN_SECONDS="${SELF_HEAL_COOLDOWN_SECONDS:-300}"
 SELF_HEAL_MODE="${1:-audit}"
 
 need_cmd(){ command -v "$1" >/dev/null 2>&1 || { echo "ERROR: missing command: $1" >&2; exit 2; }; }
@@ -50,31 +52,54 @@ main(){
 
   cd "$REPO"
 
-  local generated_at core_json routing_json readiness_json meta_json mcp_ok dirty
+  local generated_at core_json routing_json readiness_json meta_json state_json mcp_ok dirty output_tmp
   generated_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
   core_json="$(http_json_or_empty "${SPOT_BASE_URL}/health")"
   routing_json="$(http_json_or_empty "${SPOT_BASE_URL}/stats/routing-audit")"
   readiness_json="$(json_file_or_empty "$READINESS_FILE")"
   meta_json="$(json_file_or_empty "$META_FILE")"
+  state_json="$(json_file_or_empty "$SELF_HEAL_STATE_FILE")"
 
   if http_ok "$MCP_LOCAL_URL"; then mcp_ok=true; else mcp_ok=false; fi
   if [[ -n "$(git status --short 2>/dev/null)" ]]; then dirty=true; else dirty=false; fi
+
+  output_tmp="$(mktemp)"
+  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp"' EXIT
 
   jq -n \
     --arg generated_at "$generated_at" \
     --arg mode "$SELF_HEAL_MODE" \
     --arg readiness_file "$READINESS_FILE" \
     --arg meta_file "$META_FILE" \
+    --arg state_file "$SELF_HEAL_STATE_FILE" \
     --argjson core "$core_json" \
     --argjson routing "$routing_json" \
     --argjson readiness "$readiness_json" \
     --argjson meta "$meta_json" \
+    --argjson state "$state_json" \
     --argjson mcp_ok "$mcp_ok" \
     --argjson git_dirty "$dirty" \
-    --argjson dashboard_max_age_seconds "$DASHBOARD_MAX_AGE_SECONDS" '
+    --argjson dashboard_max_age_seconds "$DASHBOARD_MAX_AGE_SECONDS" \
+    --argjson cooldown_seconds "$SELF_HEAL_COOLDOWN_SECONDS" '
       def age_seconds($ts):
         if ($ts == null) then null
         else ((now | floor) - (($ts | fromdateiso8601?) // 0))
+        end;
+
+      def previous_action($id):
+        (($state.actions // []) | map(select(.id == $id)) | .[0] // null);
+
+      def cooldown_for($id):
+        (previous_action($id)) as $prev |
+        if ($prev == null or ($prev.last_seen_at // null) == null) then
+          {active:false, previous_age_seconds:null, cooldown_seconds:$cooldown_seconds}
+        else
+          (age_seconds($prev.last_seen_at)) as $age |
+          {
+            active: (($age != null) and ($age >= 0) and ($age < $cooldown_seconds)),
+            previous_age_seconds: $age,
+            cooldown_seconds: $cooldown_seconds
+          }
         end;
 
       (age_seconds($meta.published_at // null)) as $dashboard_age |
@@ -82,6 +107,13 @@ main(){
         generated_at: $generated_at,
         mode: $mode,
         ok: true,
+        state: {
+          file: $state_file,
+          exists: (($state | length) > 0),
+          updated_at: ($state.updated_at // null),
+          last_ok: ($state.last_ok // null),
+          cooldown_seconds: $cooldown_seconds
+        },
         checks: {
           spot_core: {
             ok: (($core.ok // false) == true),
@@ -119,6 +151,7 @@ main(){
             id: "restart_mcp",
             severity: "WARN",
             safe_apply: true,
+            cooldown: cooldown_for("restart_mcp"),
             command: "systemctl --user restart spot-mcp.service",
             reason: "MCP local health endpoint is not responding"
           } else empty end,
@@ -127,6 +160,7 @@ main(){
             id: "republish_dashboard",
             severity: "WARN",
             safe_apply: true,
+            cooldown: cooldown_for("republish_dashboard"),
             command: "SPOT_UI_ONCE=1 bash watch/spot-ui-publish.sh --once",
             reason: "Published dashboard metadata is missing or stale"
           } else empty end,
@@ -135,6 +169,7 @@ main(){
             id: "refresh_validation_stamp",
             severity: "WARN",
             safe_apply: true,
+            cooldown: cooldown_for("refresh_validation_stamp"),
             command: "watch/spot-validation-stamp.sh -- spot validate",
             reason: "Validation stamp is missing, stale, or not PASS"
           } else empty end,
@@ -143,6 +178,7 @@ main(){
             id: "routing_violation_escalate",
             severity: "FAIL",
             safe_apply: false,
+            cooldown: cooldown_for("routing_violation_escalate"),
             command: null,
             reason: "Routing violations detected; automatic routing rewrites are forbidden"
           } else empty end,
@@ -151,6 +187,7 @@ main(){
             id: "backup_gate_escalate",
             severity: "FAIL",
             safe_apply: false,
+            cooldown: cooldown_for("backup_gate_escalate"),
             command: null,
             reason: "Backup freshness gate is not OK; no automatic changes should run"
           } else empty end,
@@ -159,6 +196,7 @@ main(){
             id: "repo_dirty_warn",
             severity: "WARN",
             safe_apply: false,
+            cooldown: cooldown_for("repo_dirty_warn"),
             command: null,
             reason: "Repository has uncommitted changes"
           } else empty end
@@ -170,7 +208,21 @@ main(){
             and ((.checks.routing.violations // 0) == 0)
             and (.checks.readiness.backups_ok == true)
           )
-    '
+    ' > "$output_tmp"
+
+  if [[ "$SELF_HEAL_MODE" == "plan" ]]; then
+    mkdir -p "$(dirname "$SELF_HEAL_STATE_FILE")"
+    jq '. as $root | {
+      updated_at: $root.generated_at,
+      last_mode: $root.mode,
+      last_ok: $root.ok,
+      last_action_ids: [$root.actions[].id],
+      checks: $root.checks,
+      actions: ($root.actions | map(. + {last_seen_at: $root.generated_at}))
+    }' "$output_tmp" > "$SELF_HEAL_STATE_FILE"
+  fi
+
+  cat "$output_tmp"
 }
 
 main "$@"
