@@ -10,6 +10,7 @@ META_FILE="${META_FILE:-${SPOT_UI_OUT_DIR}/meta.json}"
 DASHBOARD_MAX_AGE_SECONDS="${DASHBOARD_MAX_AGE_SECONDS:-180}"
 SELF_HEAL_STATE_FILE="${SELF_HEAL_STATE_FILE:-${REPO}/watch/state/self-heal-state.json}"
 SELF_HEAL_COOLDOWN_SECONDS="${SELF_HEAL_COOLDOWN_SECONDS:-300}"
+SELF_HEAL_LOG_FILE="${SELF_HEAL_LOG_FILE:-/mnt/collective/logs/spot/self-heal-actions.jsonl}"
 SELF_HEAL_MODE="${1:-audit}"
 
 need_cmd(){ command -v "$1" >/dev/null 2>&1 || { echo "ERROR: missing command: $1" >&2; exit 2; }; }
@@ -31,6 +32,13 @@ json_file_or_empty(){
   else
     printf '{}'
   fi
+}
+
+log_event(){
+  local event="$1"
+  local payload="${2:-{}}"
+  mkdir -p "$(dirname "$SELF_HEAL_LOG_FILE")"
+  jq -nc     --arg ts "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"     --arg event "$event"     --argjson payload "$payload"     '{ts:$ts,event:$event,payload:$payload}' >> "$SELF_HEAL_LOG_FILE"
 }
 
 main(){
@@ -107,6 +115,12 @@ main(){
         generated_at: $generated_at,
         mode: $mode,
         ok: true,
+        policy: {
+          autonomy_level: "level_0_1_preview",
+          apply_enabled: false,
+          backup_required_for_mutation: true,
+          log_file: env.SELF_HEAL_LOG_FILE
+        },
         state: {
           file: $state_file,
           exists: (($state | length) > 0),
