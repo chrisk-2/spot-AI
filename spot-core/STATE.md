@@ -2,7 +2,7 @@
 
 ## Current confirmed runtime state
 
-Spot rescue/hardening phase is effectively complete and the current incident-engine chain is closed.
+Spot rescue/hardening phase is complete enough to treat Milestone A — Spot Core Trusted as locked.
 
 Confirmed working:
 
@@ -31,12 +31,13 @@ Confirmed working:
 - Spot Incident Engine IE-3 remediation suggestions validated
 - cockpit displays incident remediation guidance and capped history cleanly
 - stale remediation violation memory root cause fixed
+- routing audit persistence now explicitly hardened against write failure with logged exception path
 - fleet risk returned to NORMAL (0)
 - open incident queue cleared
 
 Latest checkpoint commit:
 
-b80bf42 fix: decay stale remediation violation memory
+11f64e5 checkpoint: post Milestone A runtime verification
 
 ## Strategic alignment
 
@@ -54,7 +55,7 @@ Canonical forward build doctrine now lives in:
 
 Current active roadmap phase:
 
-PHASE 1 — FINISH SPOT FOUNDATION / operator-autonomy bridge
+PHASE 1 — SPOT OPERATOR READY / ENGINEERING WORKFLOW POLISH
 
 ## Integration planning added
 
@@ -87,6 +88,7 @@ Spot Core enforcement hardening applied:
 
 - execute_with_enforcement catches execute-stage exceptions and returns structured 503 details after backup instead of raw 500
 - rollback status normalization respects rollback functions returning {"ok": true}
+- read-only bind mount failures now return backup-preserved structured denial instead of silent corruption
 
 This confirms the Codex/Spot controlled apply model is viable:
 
@@ -207,13 +209,6 @@ Locked roles:
 - spot-worker-03: coding
 - spot-worker-04: heavy
 
-Worker context from uploaded inventory snapshots:
-
-- spot-worker-01: Ubuntu 22.04.5, AMD EPYC 4245P, 30GiB RAM, RTX 3060 12GB, IP 192.168.10.10, Ollama 0.18.2, models mistral:7b and llama3.1:8b
-- spot-worker-02: Ubuntu 24.04.4, Xeon E5-1620 v2, 31GiB RAM, Quadro M4000 8GB plus GTX 1060 6GB, IP 192.168.10.11, Ollama 0.18.2, models bge-m3, nomic-embed-text, phi3.5
-- spot-worker-03: Ubuntu 24.04.4, Ryzen 7 2700X, 31GiB RAM, GTX 1070 8GB plus RTX 3060 12GB, IP 192.168.10.13, Ollama 0.18.2, models qwen2.5-coder:7b, codellama:7b, deepseek-coder:6.7b, qwen2.5:14b
-- spot-worker-04: Ubuntu 24.04.4, i7-13700KF, 62GiB RAM, TITAN Xp 12GB, IP 192.168.10.14, Ollama 0.20.6, model qwen2.5:14b
-
 ## Policy posture
 
 Spot Autonomy Policy remains locked:
@@ -225,7 +220,7 @@ Spot Autonomy Policy remains locked:
 
 ## Immediate next objective
 
-1. run `git status --short` and confirm the tree is clean after commit b80bf42
-2. run `spot validate` and `spot validate-smoke` as a final health checkpoint if not already done after the stale-memory fix
-3. run `spot_save` if desired for final project checkpoint
-4. next engineering lane: either audit write failure hardening in app.py or transition into Spot Operator Ready polish
+1. accept ROADMAP.md remains read-only inside current spot-core mount profile or later remount if in-container mutation is desired
+2. run `git status --short` and capture exact dirty files after checkpoint 11f64e5
+3. run `spot_save` for formal Milestone A lock if desired
+4. begin next engineering lane: Spot Operator Ready / workflow polish
