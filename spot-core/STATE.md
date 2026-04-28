@@ -34,10 +34,91 @@ Confirmed working:
 - routing audit persistence now explicitly hardened against write failure with logged exception path
 - fleet risk returned to NORMAL (0)
 - open incident queue cleared
+- 2026-04-28 bare-metal spot-core restore completed after failed system SSD
+- replacement Kingston SKC600 SATA SSD stress-tested and accepted for service
+- fresh Ubuntu install restored from SPOTBACKUP rescue payload
+- spot-core Docker container restored and healthy on port 8787
+- Spot UI publisher restored and publishing non-empty dashboard artifacts under /var/www/html/spot
+- worker SSH trust restored from existing worker key material
+- ChatGPT/Spot MCP connector restored through existing user-level MCP stack on 127.0.0.1:8001
+- duplicate restored system-level spot-mcp/cloudflared stack disabled to prevent /spot route conflicts
 
 Latest checkpoint commit:
 
-11f64e5 checkpoint: post Milestone A runtime verification
+4b414b0 checkpoint: 2026-04-28-16:04:28
+
+## 2026-04-28 Spot Core bare-metal recovery checkpoint
+
+Incident:
+
+- spot-core original system SSD failed
+- replacement SSD installed
+- Ubuntu reinstalled, static IP restored, updates completed
+- backup restored from external SPOTBACKUP volume
+
+Storage acceptance:
+
+- replacement drive identified as KINGSTON SKC600 SATA SSD
+- SMART showed no reallocated sectors, no uncorrectable errors, no UDMA CRC errors, and no ATA error log entries after testing
+- drive is used/worn rather than pristine, but passed acceptance testing
+- sequential fio write test completed at approximately 359 MiB/s with zero fio errors
+- mixed random fio test completed at approximately 35k read IOPS and 35k write IOPS with zero fio errors
+- post-test SMART remained clean
+- accepted for service as interim control-plane disk; future fresh SSD/NVMe replacement still recommended
+
+Restore results:
+
+- root LV expanded and mounted cleanly with roughly 232G available
+- SPOTBACKUP mounted read-only and spotcore_rescue payload restored surgically
+- /home/ogre, spot-stack, spot-mcp, service files, docker/caddy/cron/systemd configs, and operational assets restored
+- Docker package baseline rebuilt
+- spot-core container started successfully from /home/ogre/spot-stack/docker-compose.yml
+- /health endpoint confirmed healthy
+- MCP wrapper fixed to use /home/ogre/spot-mcp/spot_mcp_wrapper.py
+- systemd spot services restored and confirmed active
+
+Post-reboot verified services:
+
+- spot-bridge-api.service running
+- spot-mcp.service running where applicable before duplicate cleanup
+- spot-ui-publish.service running
+- spot-monitor-alert-state.timer active
+- spot-monitor-snapshot.timer active
+- docker spot-core container running on 8787
+- Spot UI output files regenerated and non-empty: index.html, spot.json, history.json, incidents.json, acks.json, meta.json
+
+MCP/tunnel correction:
+
+- legacy working user-level MCP stack is canonical:
+  - /home/ogre/.config/systemd/user/spot-mcp.service
+  - /home/ogre/.config/systemd/user/mcp-tunnel.service
+  - uvicorn app:app on 127.0.0.1:8001
+- restored system-level duplicate stack was disabled:
+  - /etc/systemd/system/spot-mcp.service
+  - /etc/systemd/system/cloudflared.service
+- reason: duplicate system-level stack listened on 8000 and returned 404 for /spot, causing intermittent connector failures
+- after disabling duplicate stack, connector routing calls succeeded again
+
+Confirmed current routing ownership:
+
+- general: spot-worker-01
+- utility: spot-worker-02
+- coding: spot-worker-03
+- heavy: spot-worker-04
+
+Known remaining external issue:
+
+- Homer/tower at 192.168.30.5:7575 is still offline
+- curl to / and /b timed out
+- ping to 192.168.30.5 showed 100 percent packet loss
+- this is outside restored spot-core stack and requires physical/network inspection of tower
+
+Current recommended next checks:
+
+1. run `spot validate` and `spot validate-smoke` after final recovery cleanup
+2. run `spot_save` once this STATE.md recovery section is committed
+3. inspect worker backup status because recovery checkpoint showed worker backup status as MISSING even though previous baseline had backup freshness passing
+4. resolve Homer/tower offline separately
 
 ## Strategic alignment
 
@@ -220,7 +301,8 @@ Spot Autonomy Policy remains locked:
 
 ## Immediate next objective
 
-1. accept ROADMAP.md remains read-only inside current spot-core mount profile or later remount if in-container mutation is desired
-2. run `git status --short` and capture exact dirty files after checkpoint 11f64e5
-3. run `spot_save` for formal Milestone A lock if desired
-4. begin next engineering lane: Spot Operator Ready / workflow polish
+1. run `spot validate` and `spot validate-smoke` after the 2026-04-28 recovery
+2. investigate worker backup status reported as MISSING during recovery checkpoint
+3. commit this STATE.md recovery update with `spot_save`
+4. resolve Homer/tower offline at 192.168.30.5 separately
+5. resume Spot Operator Ready / workflow polish after recovery closure
