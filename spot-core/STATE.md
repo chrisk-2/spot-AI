@@ -2,7 +2,7 @@
 
 ## Current confirmed runtime state
 
-Spot rescue/hardening phase is complete enough to treat Milestone A — Spot Core Trusted as locked.
+Spot rescue/hardening and 2026-04-28 bare-metal recovery closure are complete enough to treat Milestone A — Spot Core Trusted as locked.
 
 Confirmed working:
 
@@ -12,8 +12,14 @@ Confirmed working:
 - quarantine/release proven
 - routing audit and latency stats working
 - `spot` operator commands working
-- `spot validate` and `spot validate-smoke` passing
-- worker backup automation working on all four workers
+- `spot validate` and `spot validate-smoke` passing from prior baseline
+- worker backup automation restored and working on all four workers
+- worker-local backup service/timer deployed on all four workers
+- worker backup metadata visible to `spot_save` for all four workers
+- scoped sudo maintenance drop-in installed and validated on all four workers for approved maintenance commands
+- `/mnt/collective` mounted and usable by all four workers for backup writes
+- spot-core container recreated after mount correction and healthy on port 8787
+- spot-core host/container backup view restored enough for `spot_save` to see worker metadata
 - validator secret regression checks working
 - worker home cleanup/archive pass completed
 - worker-02 full legacy service/env/opt cleanup archived
@@ -22,9 +28,9 @@ Confirmed working:
 - worker-02 Quadro M4000 8GB pinned as utility Ollama lane
 - worker-02 GTX1060 6GB left free for future monitoring/camera workloads
 - utility role warm-model policy enabled
-- latest validation passed clean
+- latest routing audit window clean: 200 primary routes, 0 fallbacks, 0 violations, 0 manual overrides
 - fleet validator hardened and smoke cycle explicitly asserting quarantine/release state
-- validator backup freshness checks passing on all four workers
+- validator backup freshness checks passing on all four workers from prior baseline and backup gate now restored after recovery
 - Spot UI cockpit renderer/publisher path verified honest on live host
 - Spot Incident Engine IE-1 persistent promotion validated
 - Spot Incident Engine IE-2 acknowledgement lifecycle validated
@@ -45,7 +51,7 @@ Confirmed working:
 
 Latest checkpoint commit:
 
-4b414b0 checkpoint: 2026-04-28-16:04:28
+4d31a9e checkpoint: 2026-04-28-16:18:36
 
 ## 2026-04-28 Spot Core bare-metal recovery checkpoint
 
@@ -99,7 +105,27 @@ MCP/tunnel correction:
 - reason: duplicate system-level stack listened on 8000 and returned 404 for /spot, causing intermittent connector failures
 - after disabling duplicate stack, connector routing calls succeeded again
 
-Confirmed current routing ownership:
+Worker backup restoration after recovery:
+
+- `scripts/spot-worker-backup.sh` was deployed to all four workers under /home/ogre/bin/spot-worker-backup.sh
+- per-worker user systemd units were installed:
+  - /home/ogre/.config/systemd/user/spot-worker-backup.service
+  - /home/ogre/.config/systemd/user/spot-worker-backup.timer
+- timer cadence configured with OnBootSec=2min, OnUnitActiveSec=6h, Persistent=true
+- scoped sudo drop-in installed on workers for approved maintenance commands:
+  - /etc/sudoers.d/spot-maintenance
+- sudoers validation passed with visudo on workers 01, 03, and 04; worker 02 already had working maintenance sudo
+- allowed-command sudo test passed on all four workers using `sudo -n /usr/bin/mkdir -p /tmp/spot-sudo-test`
+- worker-01 and worker-04 backup failures were traced to `/mnt/collective` not being mounted after recovery
+- `/mnt/collective` was mounted from the affected units and backup reruns succeeded
+- all four workers produced worker-config backup metadata:
+  - spot-worker-01: 20260428T162815Z
+  - spot-worker-02: 20260428T162815Z
+  - spot-worker-03: 20260428T162816Z
+  - spot-worker-04: 20260428T162817Z
+- `spot_save` now reports worker backup status OK for all four workers
+
+Current confirmed routing ownership:
 
 - general: spot-worker-01
 - utility: spot-worker-02
@@ -115,10 +141,10 @@ Known remaining external issue:
 
 Current recommended next checks:
 
-1. run `spot validate` and `spot validate-smoke` after final recovery cleanup
-2. run `spot_save` once this STATE.md recovery section is committed
-3. inspect worker backup status because recovery checkpoint showed worker backup status as MISSING even though previous baseline had backup freshness passing
-4. resolve Homer/tower offline separately
+1. run `spot validate` and `spot validate-smoke` after this STATE.md recovery closure is saved
+2. run `spot_save` to commit this STATE.md recovery closure
+3. resolve Homer/tower offline separately
+4. resume Spot Operator Ready / workflow polish after recovery closure
 
 ## Strategic alignment
 
@@ -163,13 +189,13 @@ Root cause of prior HANDOFF.md write failure:
 
 - docker-compose.yml mounted HANDOFF.md into spot-core as read-only
 - mount was changed from :ro to :rw for HANDOFF.md only
-- ROADMAP.md remains read-only
+- ROADMAP.md may now be writable depending on current docker-compose.yml and container recreation state; treat doctrine mutation as operator-gated
 
 Spot Core enforcement hardening applied:
 
 - execute_with_enforcement catches execute-stage exceptions and returns structured 503 details after backup instead of raw 500
 - rollback status normalization respects rollback functions returning {"ok": true}
-- read-only bind mount failures now return backup-preserved structured denial instead of silent corruption
+- read-only bind mount failures return backup-preserved structured denial instead of silent corruption
 
 This confirms the Codex/Spot controlled apply model is viable:
 
@@ -301,8 +327,7 @@ Spot Autonomy Policy remains locked:
 
 ## Immediate next objective
 
-1. run `spot validate` and `spot validate-smoke` after the 2026-04-28 recovery
-2. investigate worker backup status reported as MISSING during recovery checkpoint
-3. commit this STATE.md recovery update with `spot_save`
-4. resolve Homer/tower offline at 192.168.30.5 separately
-5. resume Spot Operator Ready / workflow polish after recovery closure
+1. run `spot validate` and `spot validate-smoke` after this STATE.md recovery closure is saved
+2. run `spot_save` to commit this STATE.md recovery closure
+3. resolve Homer/tower offline at 192.168.30.5 separately
+4. resume Spot Operator Ready / workflow polish after recovery closure
