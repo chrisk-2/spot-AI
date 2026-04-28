@@ -5,6 +5,7 @@ SPOT_UI_JSON="${SPOT_UI_JSON:-/var/www/html/spot/spot.json}"
 SPOT_UI_HISTORY_JSON="${SPOT_UI_HISTORY_JSON:-/var/www/html/spot/history.json}"
 SPOT_UI_INCIDENTS_JSON="${SPOT_UI_INCIDENTS_JSON:-/var/www/html/spot/incidents.json}"
 SPOT_UI_ACKS_JSON="${SPOT_UI_ACKS_JSON:-/var/www/html/spot/acks.json}"
+SPOT_UI_READINESS_JSON="${SPOT_UI_READINESS_JSON:-/var/www/html/spot/operator-readiness.json}"
 REMEDIATION_STATE_FILE="${REMEDIATION_STATE_FILE:-/home/ogre/spot-stack/watch/state/remediation-state.json}"
 RISK_RENDERER="${RISK_RENDERER:-/home/ogre/spot-stack/watch/spot-ui-render-risk.sh}"
 TIMELINE_RENDERER="${TIMELINE_RENDERER:-/home/ogre/spot-stack/watch/spot-ui-render-timeline.sh}"
@@ -25,6 +26,7 @@ trap 'rm -rf "$TMPDIR"' EXIT
 cp "$SPOT_UI_JSON" "$TMPDIR/spot.json"
 if [[ -f "$SPOT_UI_HISTORY_JSON" ]]; then cp "$SPOT_UI_HISTORY_JSON" "$TMPDIR/history.json"; else printf '{"count":0,"trends":{}}' > "$TMPDIR/history.json"; fi
 if [[ -f "$REMEDIATION_STATE_FILE" ]]; then cp "$REMEDIATION_STATE_FILE" "$TMPDIR/remediation.json"; else printf '{}' > "$TMPDIR/remediation.json"; fi
+if [[ -f "$SPOT_UI_READINESS_JSON" ]]; then cp "$SPOT_UI_READINESS_JSON" "$TMPDIR/readiness.json"; else printf '{"status":"UNKNOWN"}' > "$TMPDIR/readiness.json"; fi
 
 SPOT_UI_JSON="$SPOT_UI_JSON" SPOT_UI_HISTORY_JSON="$SPOT_UI_HISTORY_JSON" REMEDIATION_STATE_FILE="$REMEDIATION_STATE_FILE" STALE_SNAPSHOT_SECONDS="$STALE_SNAPSHOT_SECONDS" bash "$RISK_RENDERER" > "$TMPDIR/risk.json"
 
@@ -43,6 +45,7 @@ jq -r -n \
   --slurpfile hf "$TMPDIR/history.json" \
   --slurpfile rf "$TMPDIR/remediation.json" \
   --slurpfile kf "$TMPDIR/risk.json" \
+  --slurpfile of "$TMPDIR/readiness.json" \
   --arg timeline "$timeline_card" \
   --arg ack "$ack_card" \
   --argjson stale "$STALE_SNAPSHOT_SECONDS" \
@@ -51,6 +54,7 @@ jq -r -n \
   $hf[0] as $h |
   $rf[0] as $r |
   $kf[0] as $k |
+  $of[0] as $o |
   def safe($x): ($x // "n/a" | tostring);
   def cls($x): ($x|ascii_downcase);
   def lastn($a; $n): ($a // [] | if length > $n then .[(length-$n):] else . end);
@@ -63,18 +67,12 @@ jq -r -n \
   def incidents: if (($s.banner.incidents // [])|length)==0 then "<li>No active incidents</li>" else (($s.banner.incidents // []) | map("<li>"+. +"</li>") | join("")) end;
   def risk_html: if (($k.factors // [])|length)==0 then "<li>No risk factors active</li>" else (($k.factors // []) | map("<li>"+. +"</li>") | join("")) end;
   def anomalies_html: if (anomaly_list|length)==0 then "<li>No anomalies detected</li>" else (anomaly_list | map("<li>"+. +"</li>") | join("")) end;
-  def worker_fail_count: (($s.workers // []) | map(select(.ok != true)) | length);
-  def endpoint_fail_count: ($s.endpoints.fail_count // 0);
-  def latest_route_violations: ((lastn(($h.trends.routing_violations // []); 1)[0]) // 0);
-  def latest_route_fallbacks: ((lastn(($h.trends.routing_fallbacks // []); 1)[0]) // 0);
-  def integrity_class: if latest_route_violations == 0 and latest_route_fallbacks == 0 and nonok_count == 0 then "ok" elif latest_route_violations == 0 then "warn" else "fail" end;
-  def control_class: if worker_fail_count == 0 and endpoint_fail_count == 0 and age_sec <= $stale then "ok" elif age_sec <= ($stale * 2) then "warn" else "fail" end;
-  def safety_class: if (($k.score // 0) == 0 and worker_fail_count == 0 and (($r._meta.last_audit_violations // 0) == 0)) then "ok" elif (($k.score // 0) < 5) then "warn" else "fail" end;
+  def readiness_status_class: (($o.status // "UNKNOWN") | ascii_downcase | if . == "ok" then "ok" elif . == "warn" then "warn" else "fail" end);
   def readiness_strip:
     "<div class=\"grid\">"+
-    "<div class=\"card\"><h2>Fleet Integrity: <span class=\""+integrity_class+"\">"+(integrity_class|ascii_upcase)+"</span></h2><p>Latest route violations: <b>"+(latest_route_violations|tostring)+"</b></p><p>Latest fallbacks: <b>"+(latest_route_fallbacks|tostring)+"</b></p><p class=\"meta\">Banner non-OK count, last 5: "+(nonok_count|tostring)+"</p></div>"+
-    "<div class=\"card\"><h2>Control Surface: <span class=\""+control_class+"\">"+(control_class|ascii_upcase)+"</span></h2><p>Worker failures: <b>"+(worker_fail_count|tostring)+"</b></p><p>Endpoint failures: <b>"+(endpoint_fail_count|tostring)+"</b></p><p class=\"meta\">History age: "+(age_sec|tostring)+"s</p></div>"+
-    "<div class=\"card\"><h2>Backup / Safety Gate: <span class=\""+safety_class+"\">"+(safety_class|ascii_upcase)+"</span></h2><p>Fleet risk score: <b>"+(($k.score // 0)|tostring)+"</b></p><p>Audit violations: <b>"+safe($r._meta.last_audit_violations)+"</b></p><p class=\"meta\">Policy: no backup, no change</p></div>"+
+    "<div class=\"card\"><h2>Fleet Integrity: <span class=\""+readiness_status_class+"\">"+safe($o.status)+"</span></h2><p>Primary routes: <b>"+safe($o.routing.primaries)+"</b></p><p>Violations: <b>"+safe($o.routing.violations)+"</b> · Fallbacks: <b>"+safe($o.routing.fallbacks)+"</b></p><p class=\"meta\">Manual overrides: "+safe($o.routing.manual_overrides)+" · Window: "+safe($o.routing.window_count)+"</p></div>"+
+    "<div class=\"card\"><h2>Control Surface: <span class=\""+(if (($o.health.spot_core // false) and ($o.health.mcp_local // false)) then "ok" else "fail" end)+"\">"+(if (($o.health.spot_core // false) and ($o.health.mcp_local // false)) then "OK" else "FAIL" end)+"</span></h2><p>Spot Core: <b>"+safe($o.health.spot_core)+"</b></p><p>MCP Local: <b>"+safe($o.health.mcp_local)+"</b></p><p class=\"meta\">Uptime: "+safe($o.health.uptime_sec)+"s · Commit: "+safe($o.git.commit)+"</p></div>"+
+    "<div class=\"card\"><h2>Backup / Safety Gate: <span class=\""+(if ($o.backups.workers_ok // false) then "ok" else "fail" end)+"\">"+(if ($o.backups.workers_ok // false) then "OK" else "FAIL" end)+"</span></h2><p>Workers backed up: <b>"+safe(($o.backups.items // [] | map(select(.ok == true)) | length))+"/"+safe(($o.backups.items // [] | length))+"</b></p><p>Repo dirty: <b>"+safe($o.git.dirty)+"</b></p><p class=\"meta\">Max backup age: "+safe($o.backups.max_age_hours)+"h · Policy: no backup, no change</p></div>"+
     "</div>";
   def worker_rows: ($s.workers // []) | map("<tr class=\""+.severity+"\"><td>"+.worker+"</td><td>"+.role+"</td><td>"+(if .ok then "OK" else "FAIL" end)+"</td><td>"+.severity+"</td><td>"+(.eligible|tostring)+"</td><td>"+(.quarantined|tostring)+"</td><td>"+(.degraded|tostring)+"</td><td>"+(.running_jobs|tostring)+"</td><td>"+safe(.avg_total_ms)+"</td><td>"+safe(.avg_tok_per_sec)+"</td></tr>") | join("");
   def remediation_rows: rem_entries | map("<tr class=\""+(if .value.quarantined then "warn" else "ok" end)+"\"><td>"+.key+"</td><td>"+safe(.value.quarantined)+"</td><td>"+safe(.value.reason)+"</td><td>"+safe(.value.fallback_count_window)+"</td><td>"+safe(.value.violation_count_window)+"</td><td>"+safe(.value.last_route_class)+"</td><td>"+safe(.value.last_updated_by)+"</td><td>"+safe(.value.last_updated_ts)+"</td></tr>") | join("");
