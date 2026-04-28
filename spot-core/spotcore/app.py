@@ -139,6 +139,39 @@ class AdminReleaseRequest(BaseModel):
     token: str
     worker: str
 
+class AdminOperatorCommandRequest(BaseModel):
+    token: str
+    command: str
+
+
+OPERATOR_COMMANDS: dict[str, dict[str, Any]] = {
+    "validate": {
+        "argv": ["spot", "validate"],
+        "cwd": "/home/ogre/spot-stack",
+        "timeout": 300,
+        "mutating": False,
+    },
+    "validate_smoke": {
+        "argv": ["spot", "validate-smoke"],
+        "cwd": "/home/ogre/spot-stack",
+        "timeout": 300,
+        "mutating": True,
+    },
+    "save": {
+        "argv": ["spot_save"],
+        "cwd": "/home/ogre/spot-stack",
+        "timeout": 300,
+        "mutating": True,
+    },
+    "status": {
+        "argv": ["spot", "status"],
+        "cwd": "/home/ogre/spot-stack",
+        "timeout": 120,
+        "mutating": False,
+    },
+}
+
+
 def _now() -> int:
     return int(time.time())
 
@@ -2223,6 +2256,84 @@ async def admin_write_local_file(payload: AdminWriteLocalFileRequest):
         },
         require_backup=preexisting_file,
     )
+
+@app.post("/admin/operator-command")
+async def admin_operator_command(payload: AdminOperatorCommandRequest):
+    require_admin_token(payload.model_dump())
+
+    spec = OPERATOR_COMMANDS.get(payload.command)
+    if not spec:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "message": "operator command not allowed",
+                "command": payload.command,
+                "allowed": sorted(OPERATOR_COMMANDS.keys()),
+            },
+        )
+
+    async def run_local_command() -> dict[str, Any]:
+        proc = await asyncio.create_subprocess_exec(
+            *spec["argv"],
+            cwd=spec["cwd"],
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=int(spec.get("timeout", 120)),
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            stdout, stderr = await proc.communicate()
+            return {
+                "ok": False,
+                "command": payload.command,
+                "argv": spec["argv"],
+                "cwd": spec["cwd"],
+                "returncode": None,
+                "timed_out": True,
+                "stdout": stdout.decode("utf-8", errors="replace"),
+                "stderr": stderr.decode("utf-8", errors="replace"),
+            }
+
+        return {
+            "ok": proc.returncode == 0,
+            "command": payload.command,
+            "argv": spec["argv"],
+            "cwd": spec["cwd"],
+            "returncode": proc.returncode,
+            "timed_out": False,
+            "stdout": stdout.decode("utf-8", errors="replace"),
+            "stderr": stderr.decode("utf-8", errors="replace"),
+        }
+
+    async def verify(result: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
+        return result.get("ok") is True, {
+            "returncode": result.get("returncode"),
+            "timed_out": result.get("timed_out"),
+            "command": result.get("command"),
+        }
+
+    return await execute_with_enforcement(
+        action_name="operator_command",
+        target="spot-core",
+        service="operator",
+        backup_sources=[],
+        execute_fn=run_local_command,
+        verify_fn=verify,
+        rollback_fn=None,
+        metadata={
+            "command": payload.command,
+            "argv": spec["argv"],
+            "cwd": spec["cwd"],
+            "mutating": bool(spec.get("mutating", False)),
+        },
+        require_backup=False,
+    )
+
 
 @app.post("/admin/quarantine")
 async def admin_quarantine_worker(payload: AdminQuarantineRequest):
