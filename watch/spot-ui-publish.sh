@@ -28,7 +28,21 @@ publish_once(){
   bash "$SPOT_UI_ACK" summary > "$ack_tmp"
   bash "$SPOT_UI_READINESS" > "$readiness_tmp"
   SPOT_UI_JSON="$json_tmp" SPOT_UI_HISTORY_JSON="$hist_tmp" SPOT_UI_INCIDENTS_JSON="$inc_tmp" SPOT_UI_ACKS_JSON="$ack_tmp" SPOT_UI_READINESS_JSON="$readiness_tmp" bash "$SPOT_UI_RENDER_HTML" > "$html_tmp"
-  printf '{"published_at":"%s","source":"%s"}\n' "$ts" "$SPOT_UI_SCRIPT" > "$meta_tmp"
+  jq -n \
+    --arg published_at "$ts" \
+    --arg source "$SPOT_UI_SCRIPT" \
+    '{
+      published_at: $published_at,
+      source: $source,
+      feeds: [
+        "spot.json",
+        "history.json",
+        "incidents.json",
+        "acks.json",
+        "operator-readiness.json",
+        "meta.json"
+      ]
+    }' > "$meta_tmp"
   mv "$html_tmp" "${SPOT_UI_OUT_DIR}/index.html"; mv "$json_tmp" "${SPOT_UI_OUT_DIR}/spot.json"; mv "$hist_tmp" "${SPOT_UI_OUT_DIR}/history.json"; mv "$inc_tmp" "${SPOT_UI_OUT_DIR}/incidents.json"; mv "$ack_tmp" "${SPOT_UI_OUT_DIR}/acks.json"; mv "$readiness_tmp" "${SPOT_UI_OUT_DIR}/operator-readiness.json"; mv "$meta_tmp" "${SPOT_UI_OUT_DIR}/meta.json"
   echo "published spot dashboard set at ${ts}"
 }
