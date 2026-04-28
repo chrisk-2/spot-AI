@@ -63,11 +63,24 @@ jq -r -n \
   def incidents: if (($s.banner.incidents // [])|length)==0 then "<li>No active incidents</li>" else (($s.banner.incidents // []) | map("<li>"+. +"</li>") | join("")) end;
   def risk_html: if (($k.factors // [])|length)==0 then "<li>No risk factors active</li>" else (($k.factors // []) | map("<li>"+. +"</li>") | join("")) end;
   def anomalies_html: if (anomaly_list|length)==0 then "<li>No anomalies detected</li>" else (anomaly_list | map("<li>"+. +"</li>") | join("")) end;
+  def worker_fail_count: (($s.workers // []) | map(select(.ok != true)) | length);
+  def endpoint_fail_count: ($s.endpoints.fail_count // 0);
+  def latest_route_violations: ((lastn(($h.trends.routing_violations // []); 1)[0]) // 0);
+  def latest_route_fallbacks: ((lastn(($h.trends.routing_fallbacks // []); 1)[0]) // 0);
+  def integrity_class: if latest_route_violations == 0 and latest_route_fallbacks == 0 and nonok_count == 0 then "ok" elif latest_route_violations == 0 then "warn" else "fail" end;
+  def control_class: if worker_fail_count == 0 and endpoint_fail_count == 0 and age_sec <= $stale then "ok" elif age_sec <= ($stale * 2) then "warn" else "fail" end;
+  def safety_class: if (($k.score // 0) == 0 and worker_fail_count == 0 and (($r._meta.last_audit_violations // 0) == 0)) then "ok" elif (($k.score // 0) < 5) then "warn" else "fail" end;
+  def readiness_strip:
+    "<div class=\"grid\">"+
+    "<div class=\"card\"><h2>Fleet Integrity: <span class=\""+integrity_class+"\">"+(integrity_class|ascii_upcase)+"</span></h2><p>Latest route violations: <b>"+(latest_route_violations|tostring)+"</b></p><p>Latest fallbacks: <b>"+(latest_route_fallbacks|tostring)+"</b></p><p class=\"meta\">Banner non-OK count, last 5: "+(nonok_count|tostring)+"</p></div>"+
+    "<div class=\"card\"><h2>Control Surface: <span class=\""+control_class+"\">"+(control_class|ascii_upcase)+"</span></h2><p>Worker failures: <b>"+(worker_fail_count|tostring)+"</b></p><p>Endpoint failures: <b>"+(endpoint_fail_count|tostring)+"</b></p><p class=\"meta\">History age: "+(age_sec|tostring)+"s</p></div>"+
+    "<div class=\"card\"><h2>Backup / Safety Gate: <span class=\""+safety_class+"\">"+(safety_class|ascii_upcase)+"</span></h2><p>Fleet risk score: <b>"+(($k.score // 0)|tostring)+"</b></p><p>Audit violations: <b>"+safe($r._meta.last_audit_violations)+"</b></p><p class=\"meta\">Policy: no backup, no change</p></div>"+
+    "</div>";
   def worker_rows: ($s.workers // []) | map("<tr class=\""+.severity+"\"><td>"+.worker+"</td><td>"+.role+"</td><td>"+(if .ok then "OK" else "FAIL" end)+"</td><td>"+.severity+"</td><td>"+(.eligible|tostring)+"</td><td>"+(.quarantined|tostring)+"</td><td>"+(.degraded|tostring)+"</td><td>"+(.running_jobs|tostring)+"</td><td>"+safe(.avg_total_ms)+"</td><td>"+safe(.avg_tok_per_sec)+"</td></tr>") | join("");
   def remediation_rows: rem_entries | map("<tr class=\""+(if .value.quarantined then "warn" else "ok" end)+"\"><td>"+.key+"</td><td>"+safe(.value.quarantined)+"</td><td>"+safe(.value.reason)+"</td><td>"+safe(.value.fallback_count_window)+"</td><td>"+safe(.value.violation_count_window)+"</td><td>"+safe(.value.last_route_class)+"</td><td>"+safe(.value.last_updated_by)+"</td><td>"+safe(.value.last_updated_ts)+"</td></tr>") | join("");
   def latency_rows: (($h.trends.worker_latency // []) | map("<tr><td>"+.worker+"</td><td><code>"+spark(.avg_total_ms)+"</code></td><td><code>"+spark(.avg_tok_per_sec)+"</code></td></tr>") | join(""));
 "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta http-equiv=\"refresh\" content=\"60\"><title>Spot UI Cockpit</title><style>body{font-family:system-ui,Segoe UI,sans-serif;background:#0b1020;color:#e6edf3;margin:2rem}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}.card{background:#111827;border:1px solid #263244;border-radius:12px;padding:1rem;margin:1rem 0}.banner{border-radius:12px;padding:1rem;margin:1rem 0;border:1px solid #263244}.banner.ok{background:#0f2a1d}.banner.warn{background:#3a2f12}.banner.alert{background:#3b1517}table{border-collapse:collapse;width:100%;font-size:.95rem}th,td{border-bottom:1px solid #263244;padding:.5rem;text-align:left;vertical-align:top}.ok{color:#7ee787}.warn{color:#f2cc60}.fail,.alert,.critical,.high{color:#ff7b72}.elevated{color:#f2cc60}.normal{color:#7ee787}.meta{color:#9ca3af}tr.warn{background:#241f11}tr.fail{background:#2a1114}code{color:#9cdcfe;white-space:normal}</style></head><body>"+
-"<h1>Spot UI Cockpit</h1>"+
+"<h1>Spot UI Cockpit</h1>"+\nreadiness_strip+
 "<div class=\"banner "+cls($s.banner.status)+"\"><h2>Incident Banner: <span class=\""+cls($s.banner.status)+"\">"+$s.banner.status+"</span></h2><ul>"+incidents+"</ul></div>"+
 "<div class=\"card\"><h2>Fleet Risk: <span class=\""+cls($k.level)+"\">"+$k.level+"</span> ("+($k.score|tostring)+")</h2><ul>"+risk_html+"</ul></div>"+
 $timeline+
