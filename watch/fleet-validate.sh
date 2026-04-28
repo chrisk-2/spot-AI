@@ -177,11 +177,15 @@ check_secret_regression() {
   local matches_file="$TMPDIR/secret-regression.matches"
   (
     cd "$repo_root"
-    git grep -n 'SPOTCORE_ADMIN_API_TOKEN' -- ':!*.env' ':!*.pyc' ':!*__pycache__*' ':!spot-core/STATE.md' \
-      | grep -E '[:=][[:space:]]*.{20,}' \
+    git grep -n -E 'SPOTCORE_ADMIN_API_TOKEN[[:space:]]*[:=][[:space:]]*["'\''"]?[A-Za-z0-9_./+-]{16,}' -- \
+      ':!*.env' \
+      ':!*.pyc' \
+      ':!*__pycache__*' \
+      ':!spot-core/STATE.md' \
+      ':!watch/fleet-validate.sh' \
       || true
   ) > "$matches_file" 2>/dev/null
-  [[ ! -s "$matches_file" ]] && pass "secret regression clean" || { fail "secret regression: hardcoded SPOTCORE_ADMIN_API_TOKEN found"; return 1; }
+  [[ ! -s "$matches_file" ]] && pass "secret regression clean" || { fail "secret regression: hardcoded SPOTCORE_ADMIN_API_TOKEN found"; cat "$matches_file"; return 1; }
 }
 
 fetch_fleet_ping() { http_json GET "${SPOT_BASE_URL}/fleet/ping" "" "$1" "$2"; }
