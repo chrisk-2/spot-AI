@@ -35,13 +35,13 @@ json_file_or_empty(){
 
 main(){
   case "$SELF_HEAL_MODE" in
-    audit|plan) ;;
+    audit|plan|dry-run) ;;
     apply)
       echo "ERROR: apply mode is intentionally not implemented in Self-Heal v1" >&2
       exit 2
       ;;
     *)
-      echo "Usage: $(basename "$0") [audit|plan]" >&2
+      echo "Usage: $(basename "$0") [audit|plan|dry-run]" >&2
       exit 2
       ;;
   esac
@@ -210,7 +210,7 @@ main(){
           )
     ' > "$output_tmp"
 
-  if [[ "$SELF_HEAL_MODE" == "plan" ]]; then
+  if [[ "$SELF_HEAL_MODE" == "plan" || "$SELF_HEAL_MODE" == "dry-run" ]]; then
     mkdir -p "$(dirname "$SELF_HEAL_STATE_FILE")"
     jq '. as $root | {
       updated_at: $root.generated_at,
@@ -222,7 +222,21 @@ main(){
     }' "$output_tmp" > "$SELF_HEAL_STATE_FILE"
   fi
 
-  cat "$output_tmp"
+  if [[ "$SELF_HEAL_MODE" == "dry-run" ]]; then
+    jq '. + {
+      would_apply: [
+        .actions[]
+        | select(.safe_apply == true)
+        | select((.cooldown.active // false) == false)
+      ],
+      blocked_or_skipped: [
+        .actions[]
+        | select((.safe_apply != true) or ((.cooldown.active // false) == true))
+      ]
+    }' "$output_tmp"
+  else
+    cat "$output_tmp"
+  fi
 }
 
 main "$@"
