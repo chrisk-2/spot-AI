@@ -12,7 +12,7 @@ Confirmed working:
 - quarantine/release proven
 - routing audit and latency stats working
 - `spot` operator commands working
-- `spot validate` and `spot validate-smoke` passing from prior baseline
+- `spot validate` and `spot validate-smoke` passing after 2026-04-28 restore closure
 - worker backup automation restored and working on all four workers
 - worker-local backup service/timer deployed on all four workers
 - worker backup metadata visible to `spot_save` for all four workers
@@ -48,10 +48,15 @@ Confirmed working:
 - worker SSH trust restored from existing worker key material
 - ChatGPT/Spot MCP connector restored through existing user-level MCP stack on 127.0.0.1:8001
 - duplicate restored system-level spot-mcp/cloudflared stack disabled to prevent /spot route conflicts
+- user-level Cloudflare MCP tunnel corrected from stale localhost:8000 origin to canonical localhost:8001
+- ChatGPT-to-MCP health path restored after tunnel correction
+- `admin_operator_command` added to Spot MCP wrapper and confirmed in live FastMCP tool manager
+- `admin_operator_command` confirmed visible over local streamable HTTP endpoint at http://127.0.0.1:8001/spot/
 
-Latest checkpoint commit:
+Latest checkpoint commits:
 
-4d31a9e checkpoint: 2026-04-28-16:18:36
+- 0a677e1 fix restore validation secret regression
+- 4f51f4b checkpoint: 2026-04-28-17:39:05
 
 ## 2026-04-28 Spot Core bare-metal recovery checkpoint
 
@@ -82,11 +87,17 @@ Restore results:
 - /health endpoint confirmed healthy
 - MCP wrapper fixed to use /home/ogre/spot-mcp/spot_mcp_wrapper.py
 - systemd spot services restored and confirmed active
+- restored SPOTCORE_ADMIN_API_TOKEN confirmed token-value identical to old backup, running container, and MCP env consumer
+- stale restored compose backup containing placeholder token reference removed from tracked repo
+- validator secret-regression rule corrected to detect literal token assignment without flagging safe env-var references
+- `spot validate` passed after restore closure with 19 pass / 0 fail
+- `spot validate-smoke` passed after restore closure with 25 pass / 0 fail
+- restore validation cleanup committed and pushed as 0a677e1
 
 Post-reboot verified services:
 
 - spot-bridge-api.service running
-- spot-mcp.service running where applicable before duplicate cleanup
+- spot-mcp.service running through canonical user-level service
 - spot-ui-publish.service running
 - spot-monitor-alert-state.timer active
 - spot-monitor-snapshot.timer active
@@ -99,11 +110,15 @@ MCP/tunnel correction:
   - /home/ogre/.config/systemd/user/spot-mcp.service
   - /home/ogre/.config/systemd/user/mcp-tunnel.service
   - uvicorn app:app on 127.0.0.1:8001
+  - MCP streamable HTTP mounted at /spot/
 - restored system-level duplicate stack was disabled:
   - /etc/systemd/system/spot-mcp.service
   - /etc/systemd/system/cloudflared.service
 - reason: duplicate system-level stack listened on 8000 and returned 404 for /spot, causing intermittent connector failures
-- after disabling duplicate stack, connector routing calls succeeded again
+- user-level Cloudflare config at /home/ogre/.cloudflared/config.yml was corrected so mcp.starfleetcore.com points to http://localhost:8001 instead of stale http://localhost:8000
+- /etc/cloudflared/config.yml still contains the old 8000 value but is not used by the active user-level mcp-tunnel.service; update separately only if system-level tunnel is intentionally re-enabled
+- after tunnel correction, ChatGPT MCP health calls succeeded again
+- `admin_operator_command` exists server-side, but current ChatGPT tool manifest may remain stale until connector/schema cache refreshes
 
 Worker backup restoration after recovery:
 
@@ -141,10 +156,10 @@ Known remaining external issue:
 
 Current recommended next checks:
 
-1. run `spot validate` and `spot validate-smoke` after this STATE.md recovery closure is saved
-2. run `spot_save` to commit this STATE.md recovery closure
+1. continue Phase 1 Spot Operator Ready / engineering workflow polish
+2. when ChatGPT connector schema refreshes, verify `admin_operator_command` from ChatGPT directly
 3. resolve Homer/tower offline separately
-4. resume Spot Operator Ready / workflow polish after recovery closure
+4. keep SPOTBACKUP/sdb2 read-only until recovery archive policy is decided
 
 ## Strategic alignment
 
@@ -219,6 +234,7 @@ Validator changes completed:
 - smoke quarantine cycle explicitly asserts quarantined=true eligible=false and release restoration without restart
 - backup freshness verification added for all four workers
 - strict-mode shell parser and nounset bugs corrected after live validation
+- 2026-04-28 restore cleanup corrected secret-regression grep so safe env-var references are allowed while literal token assignments remain blocked
 
 Host validation rerun results:
 
@@ -327,7 +343,7 @@ Spot Autonomy Policy remains locked:
 
 ## Immediate next objective
 
-1. run `spot validate` and `spot validate-smoke` after this STATE.md recovery closure is saved
-2. run `spot_save` to commit this STATE.md recovery closure
-3. resolve Homer/tower offline at 192.168.30.5 separately
-4. resume Spot Operator Ready / workflow polish after recovery closure
+1. continue Phase 1 Spot Operator Ready / engineering workflow polish
+2. improve operator dashboard/status clarity without changing routing/auth semantics
+3. verify `admin_operator_command` from ChatGPT after connector schema refresh exposes the already-registered tool
+4. resolve Homer/tower offline at 192.168.30.5 separately
