@@ -5,7 +5,7 @@ BASE_DIR="${BASE_DIR:-/home/ogre/spot-stack/watch}"
 STATE_DIR="${STATE_DIR:-${BASE_DIR}/state}"
 LOG_DIR="${LOG_DIR:-${BASE_DIR}/logs}"
 SPOT_BASE_URL="${SPOT_BASE_URL:-http://127.0.0.1:8787}"
-
+SELF_HEAL_SCRIPT="${SELF_HEAL_SCRIPT:-${BASE_DIR}/spot-self-heal.sh}"
 VALIDATOR="${VALIDATOR:-${BASE_DIR}/fleet-validate.sh}"
 FLEET_STATUS_FILE="${FLEET_STATUS_FILE:-${STATE_DIR}/fleet-status.json}"
 AUDIT_SUMMARY_FILE="${AUDIT_SUMMARY_FILE:-${STATE_DIR}/routing-audit-summary.json}"
@@ -44,6 +44,7 @@ Operator commands:
   quick-health             Show one-screen operator health summary
   routing                  Show routing ownership and scheduler routing state
   audit [limit]            Show routing audit summary and recent items
+  self-heal [audit|plan|dry-run|apply]  Run self-heal audit/plan/preview/apply wrapper
   net-basics               Show current basic network facts and cleanup targets
   endpoints                Show basic live endpoint reachability checks
   dns-check                Verify key starfleet.local records against both DNS servers
@@ -99,6 +100,8 @@ Examples:
   $(basename "$0") quick-health
   $(basename "$0") routing
   $(basename "$0") audit
+  $(basename "$0") self-heal audit
+  $(basename "$0") self-heal apply
   $(basename "$0") net-basics
   $(basename "$0") endpoints
   $(basename "$0") dns-check
@@ -484,6 +487,24 @@ cmd_status() {
   else
     echo "Fleet:       DEGRADED"
   fi
+}
+
+cmd_self_heal() {
+  need_cmd bash
+  need_file "$SELF_HEAL_SCRIPT"
+
+  local mode="${1:-audit}"
+
+  case "$mode" in
+    audit|plan|dry-run|apply) ;;
+    *)
+      echo "ERROR: invalid self-heal mode: $mode" >&2
+      echo "Usage: $(basename "$0") self-heal [audit|plan|dry-run|apply]" >&2
+      exit 2
+      ;;
+  esac
+
+  bash "$SELF_HEAL_SCRIPT" "$mode"
 }
 
 cmd_validate() {
@@ -1347,6 +1368,7 @@ main() {
     quick-health)        cmd_quick_health "$@" ;;
     routing)             cmd_routing "$@" ;;
     audit)               cmd_audit "$@" ;;
+    self-heal)           cmd_self_heal "$@" ;;
     net-basics)          cmd_net_basics "$@" ;;
     endpoints)           cmd_endpoints "$@" ;;
     dns-check)           cmd_dns_check "$@" ;;
