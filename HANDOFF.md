@@ -38,9 +38,11 @@ Rules:
 1. /home/ogre/spot-stack/HANDOFF.md
 2. /home/ogre/spot-stack/spot-core/STATE.md
 3. /home/ogre/spot-stack/ROADMAP.md
-4. integration handoff docs if task is architectural:
+4. /home/ogre/spot-stack/Spot_Autonomy_Policy 
+5. integration handoff docs if task is architectural:
    - /home/ogre/spot-stack/HANDOFF-CODEX-INTEGRATION.md
    - /home/ogre/spot-stack/HANDOFF-SPOT-INTEGRATION.md
+
 
 ---
 
@@ -199,12 +201,16 @@ Update:
 ### Step 3
 Start new chat and read:
 
-- /home/ogre/spot-stack/HANDOFF.md
-- /home/ogre/spot-stack/spot-core/STATE.md
+1. /home/ogre/spot-stack/HANDOFF.md
+2. /home/ogre/spot-stack/spot-core/STATE.md
+3. /home/ogre/spot-stack/ROADMAP.md
+4. /home/ogre/spot-stack/Spot_Autonomy_Policy
+5. integration handoff docs if task is architectural:
+   - /home/ogre/spot-stack/HANDOFF-CODEX-INTEGRATION.md
+   - /home/ogre/spot-stack/HANDOFF-SPOT-INTEGRATION.md
 
-Then read integration docs if the task is architectural or phased.
 
-Do not use HANDOFF.md as state tracking.
+]Do not use HANDOFF.md as state tracking.
 Do not put next-task details in HANDOFF.md.
 Put current status, verified results, open issues, and next steps in STATE.md only.
 Put phased long-range construction planning in ROADMAP.md only.

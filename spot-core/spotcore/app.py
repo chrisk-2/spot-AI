@@ -144,28 +144,32 @@ class AdminOperatorCommandRequest(BaseModel):
     command: str
 
 
+SPOT_CORE_ROOT = Path(os.environ.get("SPOTCORE_ROOT", "/srv/spot-core"))
+SPOT_WATCH_ROOT = Path(os.environ.get("SPOTCORE_WATCH_ROOT", "/srv/watch"))
+SPOT_HOST_STACK_ROOT = Path(os.environ.get("SPOTCORE_HOST_STACK_ROOT", "/home/ogre/spot-stack"))
+
 OPERATOR_COMMANDS: dict[str, dict[str, Any]] = {
     "validate": {
-        "argv": ["spot", "validate"],
-        "cwd": "/home/ogre/spot-stack",
+        "argv": ["bash", str(SPOT_WATCH_ROOT / "fleet-validate.sh")],
+        "cwd": str(SPOT_CORE_ROOT),
         "timeout": 300,
         "mutating": False,
     },
     "validate_smoke": {
-        "argv": ["spot", "validate-smoke"],
-        "cwd": "/home/ogre/spot-stack",
+        "argv": ["bash", str(SPOT_WATCH_ROOT / "fleet-validate.sh"), "--smoke"],
+        "cwd": str(SPOT_CORE_ROOT),
         "timeout": 300,
         "mutating": True,
     },
     "save": {
-        "argv": ["spot_save"],
-        "cwd": "/home/ogre/spot-stack",
+        "argv": ["bash", str(SPOT_WATCH_ROOT / "spot-save.sh")],
+        "cwd": str(SPOT_CORE_ROOT),
         "timeout": 300,
         "mutating": True,
     },
     "status": {
-        "argv": ["spot", "status"],
-        "cwd": "/home/ogre/spot-stack",
+        "argv": ["bash", str(SPOT_WATCH_ROOT / "spot-ops.sh"), "status"],
+        "cwd": str(SPOT_CORE_ROOT),
         "timeout": 120,
         "mutating": False,
     },
@@ -639,22 +643,32 @@ def worker_host(worker_name: str, cfg: dict[str, Any]) -> str:
 
 def resolve_local_path(path_str: str) -> Path:
     raw = Path(path_str)
-
+    text = str(raw)
     candidates = [raw]
 
-    text = str(raw)
-    if text.startswith("/home/ogre/spot-stack/watch/"):
-        rel = text.removeprefix("/home/ogre/spot-stack/watch/")
-        candidates.append(Path("/srv/watch") / rel)
-    if text.startswith("/home/ogre/spot-stack/spot-core/"):
-        rel = text.removeprefix("/home/ogre/spot-stack/spot-core/")
-        candidates.append(Path("/srv/spot-core") / rel)
+    path_aliases = [
+        ("/home/ogre/spot-stack/watch/", SPOT_WATCH_ROOT),
+        ("/home/ogre/spot-stack/spot-core/", SPOT_CORE_ROOT),
+        ("/home/ogre/spot-stack/", SPOT_CORE_ROOT.parent),
+        ("/srv/watch/", SPOT_WATCH_ROOT),
+        ("/srv/spot-core/", SPOT_CORE_ROOT),
+    ]
+
+    for prefix, target_root in path_aliases:
+        if text.startswith(prefix):
+            rel = text.removeprefix(prefix)
+            candidates.append(target_root / rel)
+
+    if text == "/home/ogre/spot-stack/spot-core":
+        candidates.append(SPOT_CORE_ROOT)
+    if text == "/home/ogre/spot-stack/watch":
+        candidates.append(SPOT_WATCH_ROOT)
 
     for candidate in candidates:
         if candidate.exists():
             return candidate
 
-    return candidates[0]
+    return candidates[-1] if len(candidates) > 1 else candidates[0]
 
 async def systemctl_show_service(host: str, service: str) -> dict[str, Any]:
     fields = [
