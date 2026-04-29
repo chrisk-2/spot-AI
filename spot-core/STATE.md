@@ -60,16 +60,16 @@ Confirmed working:
 - Self-Heal v1.1 plan state and per-action cooldown scaffolding added, committed, and validated
 - Self-Heal dry-run preview added, committed, and validated
 - Self-Heal action ledger scaffolding added and ledger policy path fixed
-- Self-Heal allowlisted apply mode is present and locally validated; apply remains limited to `republish_dashboard` only and does not restart services
 - Self-Heal noop, apply_start, apply_finish, and apply_failure ledger events now preserve full JSON payloads through file-backed writes
 - Self-Heal `republish_dashboard` apply now runs post-condition verification and only reports OK when dashboard metadata freshness verifies after execution
-- Self-Heal failure path now emits explicit `apply_failure` ledger entries when command execution or post-condition verification fails
+- Self-Heal `restart_mcp` apply is now allowlisted, single-attempt, cooldown-controlled, ledgered, and verified against local MCP `/health`
+- Self-Heal live MCP restart recovery test passed: service stopped, self-heal restarted `spot-mcp.service`, `/health` returned healthy, and systemd reported active
+- Self-Heal failure path emits explicit `apply_failure` ledger entries when command execution or post-condition verification fails
 - Self-Heal deterministic test hook `SELF_HEAL_FORCE_VERIFY_FAIL=1` validated the failure ledger without service disruption
-- Self-Heal `restart_mcp` verifier is implemented but policy-gated and not apply-allowlisted
 - Self-Heal `refresh_validation_stamp` verifier is implemented but policy-gated and not apply-allowlisted
-- Self-Heal policy now gates both `restart_mcp` and `refresh_validation_stamp` outside the apply allowlist
-- `watch/spot-self-heal.sh apply` currently reports policy `level_1_assisted_allowlisted`, `apply_enabled=true`, allowlist `["republish_dashboard"]`, and verified OK/NOOP/FAIL paths work as expected
-- latest `spot validate` after self-heal apply work passed: 19 pass / 0 fail
+- Self-Heal policy now gates only `refresh_validation_stamp` outside the apply allowlist
+- `watch/spot-self-heal.sh apply` currently reports policy `level_1_assisted_allowlisted`, `apply_enabled=true`, allowlist `["republish_dashboard", "restart_mcp"]`, and verified OK/NOOP/FAIL paths work as expected
+- latest `spot validate` after self-heal MCP restart work passed: 19 pass / 0 fail
 
 Latest checkpoint commits:
 
@@ -85,7 +85,9 @@ Latest checkpoint commits:
 - 6893539 gate self heal mcp restart verifier
 - edab45c harden self heal apply failure ledger
 - 98c3d3e update state for self heal failure ledger
-- pending/local: gate self heal validation refresh
+- bf10a93 gate self heal validation refresh
+- b61363a allow self heal mcp restart
+- pending/local: update state for self heal mcp restart
 
 ## 2026-04-29 Self-Heal checkpoint
 
@@ -103,15 +105,16 @@ Modes:
 Current apply behavior:
 
 - apply is level 1 assisted/allowlisted only
-- only allowlisted action is `republish_dashboard`
-- allowed command is `SPOT_UI_ONCE=1 bash watch/spot-ui-publish.sh --once`
-- no service restart is allowlisted yet
+- allowlisted actions are `republish_dashboard` and `restart_mcp`
+- `republish_dashboard` command is `SPOT_UI_ONCE=1 bash watch/spot-ui-publish.sh --once`
+- `restart_mcp` command is `systemctl --user restart spot-mcp.service`
+- `restart_mcp` is single-attempt only, then verify-or-escalate; no restart loop
+- `restart_mcp` verifier checks `http://127.0.0.1:8001/health`
+- `refresh_validation_stamp` has a verifier and policy metadata but remains `safe_apply=false`
+- `refresh_validation_stamp` is listed under `policy.gated_not_allowlisted`
 - routing rewrites remain forbidden
 - backup-gate failures remain escalation only
 - repo dirty remains warning only and safe_apply=false
-- `restart_mcp` has a verifier and policy metadata but remains `safe_apply=false`
-- `refresh_validation_stamp` has a verifier and policy metadata but remains `safe_apply=false`
-- `restart_mcp` and `refresh_validation_stamp` are listed under `policy.gated_not_allowlisted`
 - apply_noop ledger entries preserve `{ok, actions, would_apply, blocked_or_skipped}` payloads
 - apply_start ledger entries preserve the selected action payload
 - apply_finish ledger entries preserve execution metadata, command log, and verification payload
@@ -136,18 +139,20 @@ Validation performed:
 - apply_finish ledger payload was populated with exit_code, command log, and verifier result
 - verifier returned `verify_ok=true` and `age_seconds=1` after dashboard republish during normal success validation
 - apply_result returned `status=OK` only after verification succeeded
-- `watch/spot-self-heal.sh audit` showed `restart_mcp` verifier implemented and not apply-allowlisted
 - forced verifier-failure test with `SELF_HEAL_COOLDOWN_SECONDS=0 SELF_HEAL_FORCE_VERIFY_FAIL=1` produced populated apply_failure payload
 - failure validation returned apply_result `status=FAIL` with full finish payload embedded in failure ledger
 - `watch/spot-self-heal.sh audit` showed `refresh_validation_stamp` verifier implemented and not apply-allowlisted
-- `watch/spot-self-heal.sh audit` showed policy gated_not_allowlisted contains both `restart_mcp` and `refresh_validation_stamp`
-- `spot validate` passed after self-heal apply work with 19 pass / 0 fail
+- `watch/spot-self-heal.sh audit` showed policy gated_not_allowlisted contains `refresh_validation_stamp`
+- `watch/spot-self-heal.sh audit` showed `restart_mcp` apply_allowlisted=true and max_attempts=1
+- live MCP restart test stopped `spot-mcp.service`, ran self-heal apply, logged apply_start/apply_finish for `restart_mcp`, verified MCP health, and returned apply_result `status=OK`
+- direct post-test checks returned `{"status":"healthy"}` from MCP health and `active` from systemd
+- `spot validate` passed after self-heal MCP restart work with 19 pass / 0 fail
 
 Known issue / next cleanup:
 
-- Commit and checkpoint `watch/spot-self-heal.sh` and this STATE update if local git still shows changes.
-- Do not expand apply allowlist beyond `republish_dashboard` until backup/rollback policy for each new action is explicitly designed and validated.
-- Next recommended implementation task after commit/checkpoint: decide whether to build rollback/policy spec for `restart_mcp` or `refresh_validation_stamp` first.
+- Commit and checkpoint this STATE update if local git still shows changes.
+- Keep `refresh_validation_stamp` gated until its apply execution policy is intentionally approved.
+- Next recommended implementation task after checkpoint: make the self-heal status visible in the cockpit/operator readiness feed or add a simple operator command wrapper for self-heal audit/apply.
 
 ## 2026-04-28 Spot Core bare-metal recovery checkpoint
 
@@ -247,7 +252,7 @@ Known remaining external issue:
 
 Current recommended next checks:
 
-1. commit/checkpoint current self-heal validation-refresh gate and STATE.md updates
+1. commit/checkpoint current self-heal MCP restart STATE update
 2. when ChatGPT connector schema refreshes, verify `admin_operator_command` from ChatGPT directly
 3. resolve Homer/tower offline separately
 4. keep SPOTBACKUP/sdb2 read-only until recovery archive policy is decided
@@ -436,7 +441,6 @@ Spot Autonomy Policy remains locked:
 
 ## Immediate next objective
 
-1. commit/checkpoint current self-heal validation-refresh gate and STATE.md updates
-2. do not add service restarts until backup/rollback policy is explicitly checked
-3. next implementation target after checkpoint: choose first action for rollback/policy specification
-4. resolve Homer/tower offline at 192.168.30.5 separately
+1. commit/checkpoint current self-heal MCP restart STATE update
+2. expose self-heal status in cockpit/operator readiness or add a simple operator command wrapper for self-heal audit/apply
+3. resolve Homer/tower offline at 192.168.30.5 separately
