@@ -71,6 +71,33 @@ log_event_file(){
     '{ts:$ts,event:$event,payload:($payload[0] // {})}' >> "$SELF_HEAL_LOG_FILE"
 }
 
+verify_action_result(){
+  local action_id="$1"
+
+  case "$action_id" in
+    republish_dashboard)
+      local meta_json published_at age
+      meta_json="$(json_or_empty "$(json_file_or_empty "$META_FILE")")"
+      published_at="$(jq -r '.published_at // empty' <<<"$meta_json")"
+      age="$(jq -nr --arg ts "$published_at" 'if ($ts == "") then 999999 else ((now|floor) - (($ts|fromdateiso8601?) // 0)) end')"
+
+      if [[ "$age" -ge 0 && "$age" -le "$DASHBOARD_MAX_AGE_SECONDS" ]]; then
+        jq -n --arg id "$action_id" --argjson verify_ok true --argjson age_seconds "$age" \
+          '{id:$id,verify_ok:$verify_ok,age_seconds:$age_seconds}'
+        return 0
+      fi
+
+      jq -n --arg id "$action_id" --argjson verify_ok false --argjson age_seconds "$age" \
+        '{id:$id,verify_ok:$verify_ok,age_seconds:$age_seconds,reason:"dashboard meta still stale after republish"}'
+      return 1
+      ;;
+    *)
+      jq -n --arg id "$action_id" '{id:$id,verify_ok:false,reason:"no verifier implemented"}'
+      return 1
+      ;;
+  esac
+}
+
 main(){
   case "$SELF_HEAL_MODE" in
     audit|plan|dry-run|apply) ;;
@@ -98,7 +125,7 @@ main(){
   if [[ -n "$(git status --short 2>/dev/null)" ]]; then dirty=true; else dirty=false; fi
 
   output_tmp="$(mktemp)"
-  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp" "${output_tmp}.preview" "${output_tmp}.noop_payload" "${output_tmp}.start_payload" "${output_tmp}.finish_payload"' EXIT
+  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp" "${output_tmp}.preview" "${output_tmp}.noop_payload" "${output_tmp}.start_payload" "${output_tmp}.finish_payload" "${output_tmp}.verify_payload"' EXIT
 
   jq -n \
     --arg generated_at "$generated_at" \
@@ -297,7 +324,7 @@ main(){
 
         case "$action_id" in
           republish_dashboard)
-            local start_ts finish_ts exit_code
+            local start_ts finish_ts exit_code verify_rc
             jq --arg id "$action_id" '.would_apply[] | select(.id == $id)' "${output_tmp}.preview" > "${output_tmp}.start_payload"
             log_event_file "apply_start" "${output_tmp}.start_payload"
             start_ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
@@ -305,6 +332,8 @@ main(){
             set +e
             SPOT_UI_ONCE=1 bash watch/spot-ui-publish.sh --once >/tmp/spot-self-heal-republish.log 2>&1
             exit_code=$?
+            verify_action_result "$action_id" > "${output_tmp}.verify_payload"
+            verify_rc=$?
             set -e
 
             finish_ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
@@ -313,18 +342,19 @@ main(){
               --arg started_at "$start_ts" \
               --arg finished_at "$finish_ts" \
               --argjson exit_code "$exit_code" \
+              --slurpfile verify "${output_tmp}.verify_payload" \
               --rawfile log /tmp/spot-self-heal-republish.log \
-              '{id:$id,started_at:$started_at,finished_at:$finished_at,exit_code:$exit_code,log:$log}' > "${output_tmp}.finish_payload"
+              '{id:$id,started_at:$started_at,finished_at:$finished_at,exit_code:$exit_code,verify:($verify[0] // {}),log:$log}' > "${output_tmp}.finish_payload"
 
             log_event_file "apply_finish" "${output_tmp}.finish_payload"
 
             jq --slurpfile item "${output_tmp}.finish_payload" '. + [$item[0]]' "$executed_tmp" > "${executed_tmp}.next"
             mv "${executed_tmp}.next" "$executed_tmp"
 
-            if [[ "$exit_code" -ne 0 ]]; then
+            if [[ "$exit_code" -ne 0 || "$verify_rc" -ne 0 ]]; then
               jq --slurpfile executed "$executed_tmp" '. + {apply_result:{executed:$executed[0], status:"FAIL"}}' "${output_tmp}.preview"
               rm -f "$executed_tmp"
-              return "$exit_code"
+              return 1
             fi
             ;;
           *)
