@@ -8,6 +8,7 @@ BACKUP_ROOT="${BACKUP_ROOT:-/mnt/collective/backups}"
 BACKUP_MAX_AGE_HOURS="${BACKUP_MAX_AGE_HOURS:-8}"
 VALIDATION_STAMP_FILE="${VALIDATION_STAMP_FILE:-${REPO}/watch/state/operator-validation.json}"
 VALIDATION_MAX_AGE_MINUTES="${VALIDATION_MAX_AGE_MINUTES:-1440}"
+SELF_HEAL_SCRIPT="${SELF_HEAL_SCRIPT:-${REPO}/watch/spot-self-heal.sh}"
 
 need_cmd(){ command -v "$1" >/dev/null 2>&1 || { echo "ERROR: missing command: $1" >&2; exit 2; }; }
 
@@ -73,10 +74,11 @@ main(){
   routing_json="$(http_json_or_empty "${SPOT_BASE_URL}/stats/routing-audit")"
   if http_ok "$MCP_LOCAL_URL"; then mcp_ok=true; else mcp_ok=false; fi
 
-  local backups_tmp="" validation_tmp=""
+  local backups_tmp="" validation_tmp="" self_heal_tmp=""
   backups_tmp="$(mktemp)"
   validation_tmp="$(mktemp)"
-  trap '[[ -n "${backups_tmp:-}" ]] && rm -f "$backups_tmp"; [[ -n "${validation_tmp:-}" ]] && rm -f "$validation_tmp"' EXIT
+  self_heal_tmp="$(mktemp)"
+  trap '[[ -n "${backups_tmp:-}" ]] && rm -f "$backups_tmp"; [[ -n "${validation_tmp:-}" ]] && rm -f "$validation_tmp"; [[ -n "${self_heal_tmp:-}" ]] && rm -f "$self_heal_tmp"' EXIT
 
   jq -s '.' \
     <(backup_item spot-worker-01) \
@@ -104,6 +106,12 @@ main(){
     }' > "$validation_tmp"
   fi
 
+  if [[ -x "$SELF_HEAL_SCRIPT" || -f "$SELF_HEAL_SCRIPT" ]]; then
+    bash "$SELF_HEAL_SCRIPT" audit > "$self_heal_tmp" 2>/dev/null || jq -n '{ok:false,error:"self_heal_audit_failed"}' > "$self_heal_tmp"
+  else
+    jq -n --arg path "$SELF_HEAL_SCRIPT" '{ok:false,error:"self_heal_script_missing",path:$path}' > "$self_heal_tmp"
+  fi
+
   jq -n \
     --arg generated_at "$generated_at" \
     --arg commit "$commit" \
@@ -113,9 +121,11 @@ main(){
     --argjson mcp_ok "$mcp_ok" \
     --argjson backup_max_age_hours "$BACKUP_MAX_AGE_HOURS" \
     --slurpfile backups "$backups_tmp" \
-    --slurpfile validation "$validation_tmp" '
+    --slurpfile validation "$validation_tmp" \
+    --slurpfile self_heal "$self_heal_tmp" ' 
       ($backups[0] // []) as $b |
       ($validation[0] // {status:"UNKNOWN", fresh:false}) as $v |
+      ($self_heal[0] // {ok:false,error:"self_heal_unavailable"}) as $sh |
       {
         generated_at: $generated_at,
         git: {
@@ -150,6 +160,31 @@ main(){
           max_age_minutes: ($v.max_age_minutes // null),
           duration_sec: ($v.duration_sec // null),
           log_file: ($v.log_file // null)
+        },
+        self_heal: {
+          ok: (($sh.ok // false) == true),
+          generated_at: ($sh.generated_at // null),
+          mode: ($sh.mode // "audit"),
+          autonomy_level: ($sh.policy.autonomy_level // null),
+          apply_enabled: (($sh.policy.apply_enabled // false) == true),
+          apply_allowlist: ($sh.policy.apply_allowlist // []),
+          gated_not_allowlisted: ($sh.policy.gated_not_allowlisted // []),
+          action_count: (($sh.actions // []) | length),
+          actions: (($sh.actions // []) | map({
+            id,
+            severity,
+            safe_apply,
+            reason,
+            cooldown: (.cooldown // null)
+          })),
+          checks: {
+            spot_core_ok: (($sh.checks.spot_core.ok // false) == true),
+            mcp_local_ok: (($sh.checks.mcp_local.ok // false) == true),
+            dashboard_ok: (($sh.checks.dashboard.ok // false) == true),
+            routing_ok: (($sh.checks.routing.ok // false) == true),
+            backups_ok: (($sh.checks.readiness.backups_ok // false) == true),
+            validation_fresh: (($sh.checks.readiness.validation_fresh // false) == true)
+          }
         }
       }
       | .status =
