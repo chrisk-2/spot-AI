@@ -150,6 +150,33 @@ verify_action_result(){
   esac
 }
 
+append_executed(){
+  local executed_tmp="$1"
+  local finish_payload="$2"
+  jq --slurpfile item "$finish_payload" '. + [$item[0]]' "$executed_tmp" > "${executed_tmp}.next"
+  mv "${executed_tmp}.next" "$executed_tmp"
+}
+
+write_apply_failure(){
+  local action_id="$1"
+  local finish_payload="$2"
+  local failure_payload="$3"
+  local policy_note="$4"
+
+  jq -n \
+    --arg policy_note "$policy_note" \
+    --slurpfile finish "$finish_payload" \
+    '{action_id:($finish[0].id // null),status:"FAIL",policy_note:$policy_note,finish:($finish[0] // {})}' > "$failure_payload"
+
+  if [[ ! -s "$failure_payload" ]] || ! jq -e . "$failure_payload" >/dev/null 2>&1; then
+    jq -n \
+      --arg action_id "$action_id" \
+      '{action_id:$action_id,status:"FAIL",policy_note:"failure_payload_generation_failed_no_rollback_attempted"}' > "$failure_payload"
+  fi
+
+  log_event_file "apply_failure" "$failure_payload"
+}
+
 main(){
   case "$SELF_HEAL_MODE" in
     audit|plan|dry-run|apply) ;;
@@ -224,8 +251,8 @@ main(){
         policy: {
           autonomy_level: (if $mode == "apply" then "level_1_assisted_allowlisted" else "level_0_1_preview" end),
           apply_enabled: ($mode == "apply"),
-          apply_allowlist: ["republish_dashboard"],
-          gated_not_allowlisted: ["restart_mcp", "refresh_validation_stamp"],
+          apply_allowlist: ["republish_dashboard", "restart_mcp"],
+          gated_not_allowlisted: ["refresh_validation_stamp"],
           backup_required_for_mutation: true,
           log_file: $log_file
         },
@@ -246,8 +273,10 @@ main(){
             verifier: {
               implemented: true,
               action_id: "restart_mcp",
-              apply_allowlisted: false,
-              policy_gate: "preview_only_until_backup_rollback_policy_approved"
+              apply_allowlisted: true,
+              max_attempts: 1,
+              verify_url: "http://127.0.0.1:8001/health",
+              failure_policy: "single_restart_then_escalate_no_loop"
             }
           },
           dashboard: {
@@ -284,12 +313,16 @@ main(){
           if (.checks.mcp_local.ok | not) then {
             id: "restart_mcp",
             severity: "WARN",
-            safe_apply: false,
+            safe_apply: true,
             cooldown: cooldown_for("restart_mcp"),
             command: "systemctl --user restart spot-mcp.service",
             reason: "MCP local health endpoint is not responding",
             verifier_implemented: true,
-            policy_gate: "not_apply_allowlisted_until_backup_rollback_policy_approved"
+            restart_policy: {
+              max_attempts: 1,
+              verify_url: "http://127.0.0.1:8001/health",
+              failure_policy: "single_restart_then_escalate_no_loop"
+            }
           } else empty end,
 
           if (.checks.dashboard.ok | not) then {
@@ -416,23 +449,44 @@ main(){
               '{id:$id,started_at:$started_at,finished_at:$finished_at,exit_code:$exit_code,verify:($verify[0] // {}),log:$log}' > "${output_tmp}.finish_payload"
 
             log_event_file "apply_finish" "${output_tmp}.finish_payload"
-
-            jq --slurpfile item "${output_tmp}.finish_payload" '. + [$item[0]]' "$executed_tmp" > "${executed_tmp}.next"
-            mv "${executed_tmp}.next" "$executed_tmp"
+            append_executed "$executed_tmp" "${output_tmp}.finish_payload"
 
             if [[ "$exit_code" -ne 0 || "$verify_rc" -ne 0 ]]; then
-              jq -n \
-                --arg policy_note "verification_failed_no_rollback_attempted_apply_allowlist_remains_restricted" \
-                --slurpfile finish "${output_tmp}.finish_payload" \
-                '{action_id:($finish[0].id // null),status:"FAIL",policy_note:$policy_note,finish:($finish[0] // {})}' > "${output_tmp}.failure_payload"
+              write_apply_failure "$action_id" "${output_tmp}.finish_payload" "${output_tmp}.failure_payload" "verification_failed_no_rollback_attempted_apply_allowlist_remains_restricted"
+              jq --slurpfile executed "$executed_tmp" '. + {apply_result:{executed:$executed[0], status:"FAIL"}}' "${output_tmp}.preview"
+              rm -f "$executed_tmp"
+              return 1
+            fi
+            ;;
+          restart_mcp)
+            local start_ts finish_ts exit_code verify_rc
+            jq --arg id "$action_id" '.would_apply[] | select(.id == $id)' "${output_tmp}.preview" > "${output_tmp}.start_payload"
+            log_event_file "apply_start" "${output_tmp}.start_payload"
+            start_ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
-              if [[ ! -s "${output_tmp}.failure_payload" ]] || ! jq -e . "${output_tmp}.failure_payload" >/dev/null 2>&1; then
-                jq -n \
-                  --arg action_id "$action_id" \
-                  '{action_id:$action_id,status:"FAIL",policy_note:"failure_payload_generation_failed_no_rollback_attempted"}' > "${output_tmp}.failure_payload"
-              fi
+            set +e
+            systemctl --user restart spot-mcp.service >/tmp/spot-self-heal-restart-mcp.log 2>&1
+            exit_code=$?
+            sleep 2
+            verify_action_result "$action_id" > "${output_tmp}.verify_payload"
+            verify_rc=$?
+            set -e
 
-              log_event_file "apply_failure" "${output_tmp}.failure_payload"
+            finish_ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            jq -n \
+              --arg id "$action_id" \
+              --arg started_at "$start_ts" \
+              --arg finished_at "$finish_ts" \
+              --argjson exit_code "$exit_code" \
+              --slurpfile verify "${output_tmp}.verify_payload" \
+              --rawfile log /tmp/spot-self-heal-restart-mcp.log \
+              '{id:$id,started_at:$started_at,finished_at:$finished_at,exit_code:$exit_code,verify:($verify[0] // {}),log:$log}' > "${output_tmp}.finish_payload"
+
+            log_event_file "apply_finish" "${output_tmp}.finish_payload"
+            append_executed "$executed_tmp" "${output_tmp}.finish_payload"
+
+            if [[ "$exit_code" -ne 0 || "$verify_rc" -ne 0 ]]; then
+              write_apply_failure "$action_id" "${output_tmp}.finish_payload" "${output_tmp}.failure_payload" "restart_mcp_failed_single_attempt_no_loop_escalate_to_operator"
               jq --slurpfile executed "$executed_tmp" '. + {apply_result:{executed:$executed[0], status:"FAIL"}}' "${output_tmp}.preview"
               rm -f "$executed_tmp"
               return 1
