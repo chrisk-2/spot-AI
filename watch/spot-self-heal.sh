@@ -91,6 +91,17 @@ verify_action_result(){
         '{id:$id,verify_ok:$verify_ok,age_seconds:$age_seconds,reason:"dashboard meta still stale after republish"}'
       return 1
       ;;
+    restart_mcp)
+      if http_ok "$MCP_LOCAL_URL"; then
+        jq -n --arg id "$action_id" --arg url "$MCP_LOCAL_URL" --argjson verify_ok true \
+          '{id:$id,verify_ok:$verify_ok,url:$url}'
+        return 0
+      fi
+
+      jq -n --arg id "$action_id" --arg url "$MCP_LOCAL_URL" --argjson verify_ok false \
+        '{id:$id,verify_ok:$verify_ok,url:$url,reason:"MCP local health endpoint is not responding"}'
+      return 1
+      ;;
     *)
       jq -n --arg id "$action_id" '{id:$id,verify_ok:false,reason:"no verifier implemented"}'
       return 1
@@ -125,7 +136,7 @@ main(){
   if [[ -n "$(git status --short 2>/dev/null)" ]]; then dirty=true; else dirty=false; fi
 
   output_tmp="$(mktemp)"
-  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp" "${output_tmp}.preview" "${output_tmp}.noop_payload" "${output_tmp}.start_payload" "${output_tmp}.finish_payload" "${output_tmp}.verify_payload"' EXIT
+  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp" "${output_tmp}.preview" "${output_tmp}.noop_payload" "${output_tmp}.start_payload" "${output_tmp}.finish_payload" "${output_tmp}.verify_payload" "${output_tmp}.policy_payload"' EXIT
 
   jq -n \
     --arg generated_at "$generated_at" \
@@ -173,6 +184,7 @@ main(){
           autonomy_level: (if $mode == "apply" then "level_1_assisted_allowlisted" else "level_0_1_preview" end),
           apply_enabled: ($mode == "apply"),
           apply_allowlist: ["republish_dashboard"],
+          gated_not_allowlisted: ["restart_mcp"],
           backup_required_for_mutation: true,
           log_file: $log_file
         },
@@ -189,7 +201,13 @@ main(){
             uptime_sec: ($core.uptime_sec // null)
           },
           mcp_local: {
-            ok: $mcp_ok
+            ok: $mcp_ok,
+            verifier: {
+              implemented: true,
+              action_id: "restart_mcp",
+              apply_allowlisted: false,
+              policy_gate: "preview_only_until_backup_rollback_policy_approved"
+            }
           },
           dashboard: {
             ok: (($dashboard_age != null) and ($dashboard_age >= 0) and ($dashboard_age <= $dashboard_max_age_seconds)),
@@ -219,10 +237,12 @@ main(){
           if (.checks.mcp_local.ok | not) then {
             id: "restart_mcp",
             severity: "WARN",
-            safe_apply: true,
+            safe_apply: false,
             cooldown: cooldown_for("restart_mcp"),
             command: "systemctl --user restart spot-mcp.service",
-            reason: "MCP local health endpoint is not responding"
+            reason: "MCP local health endpoint is not responding",
+            verifier_implemented: true,
+            policy_gate: "not_apply_allowlisted_until_backup_rollback_policy_approved"
           } else empty end,
 
           if (.checks.dashboard.ok | not) then {
