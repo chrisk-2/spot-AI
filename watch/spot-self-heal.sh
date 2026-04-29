@@ -27,8 +27,17 @@ http_ok(){
 
 json_file_or_empty(){
   local path="$1"
-  if [[ -f "$path" ]]; then
+  if [[ -f "$path" ]] && jq -e . "$path" >/dev/null 2>&1; then
     cat "$path"
+  else
+    printf '{}'
+  fi
+}
+
+json_or_empty(){
+  local raw="${1:-}"
+  if jq -e . >/dev/null 2>&1 <<<"$raw"; then
+    printf '%s' "$raw"
   else
     printf '{}'
   fi
@@ -37,19 +46,20 @@ json_file_or_empty(){
 log_event(){
   local event="$1"
   local payload="${2:-{}}"
+  payload="$(json_or_empty "$payload")"
   mkdir -p "$(dirname "$SELF_HEAL_LOG_FILE")"
-  jq -nc     --arg ts "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"     --arg event "$event"     --argjson payload "$payload"     '{ts:$ts,event:$event,payload:$payload}' >> "$SELF_HEAL_LOG_FILE"
+  jq -nc \
+    --arg ts "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+    --arg event "$event" \
+    --argjson payload "$payload" \
+    '{ts:$ts,event:$event,payload:$payload}' >> "$SELF_HEAL_LOG_FILE"
 }
 
 main(){
   case "$SELF_HEAL_MODE" in
-    audit|plan|dry-run) ;;
-    apply)
-      echo "ERROR: apply mode is intentionally not implemented in Self-Heal v1" >&2
-      exit 2
-      ;;
+    audit|plan|dry-run|apply) ;;
     *)
-      echo "Usage: $(basename "$0") [audit|plan|dry-run]" >&2
+      echo "Usage: $(basename "$0") [audit|plan|dry-run|apply]" >&2
       exit 2
       ;;
   esac
@@ -62,17 +72,17 @@ main(){
 
   local generated_at core_json routing_json readiness_json meta_json state_json mcp_ok dirty output_tmp
   generated_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-  core_json="$(http_json_or_empty "${SPOT_BASE_URL}/health")"
-  routing_json="$(http_json_or_empty "${SPOT_BASE_URL}/stats/routing-audit")"
-  readiness_json="$(json_file_or_empty "$READINESS_FILE")"
-  meta_json="$(json_file_or_empty "$META_FILE")"
-  state_json="$(json_file_or_empty "$SELF_HEAL_STATE_FILE")"
+  core_json="$(json_or_empty "$(http_json_or_empty "${SPOT_BASE_URL}/health")")"
+  routing_json="$(json_or_empty "$(http_json_or_empty "${SPOT_BASE_URL}/stats/routing-audit")")"
+  readiness_json="$(json_or_empty "$(json_file_or_empty "$READINESS_FILE")")"
+  meta_json="$(json_or_empty "$(json_file_or_empty "$META_FILE")")"
+  state_json="$(json_or_empty "$(json_file_or_empty "$SELF_HEAL_STATE_FILE")")"
 
   if http_ok "$MCP_LOCAL_URL"; then mcp_ok=true; else mcp_ok=false; fi
   if [[ -n "$(git status --short 2>/dev/null)" ]]; then dirty=true; else dirty=false; fi
 
   output_tmp="$(mktemp)"
-  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp"' EXIT
+  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp" "${output_tmp}.preview"' EXIT
 
   jq -n \
     --arg generated_at "$generated_at" \
@@ -117,8 +127,9 @@ main(){
         mode: $mode,
         ok: true,
         policy: {
-          autonomy_level: "level_0_1_preview",
-          apply_enabled: false,
+          autonomy_level: (if $mode == "apply" then "level_1_assisted_allowlisted" else "level_0_1_preview" end),
+          apply_enabled: ($mode == "apply"),
+          apply_allowlist: ["republish_dashboard"],
           backup_required_for_mutation: true,
           log_file: $log_file
         },
@@ -225,7 +236,7 @@ main(){
           )
     ' > "$output_tmp"
 
-  if [[ "$SELF_HEAL_MODE" == "plan" || "$SELF_HEAL_MODE" == "dry-run" ]]; then
+  if [[ "$SELF_HEAL_MODE" == "plan" || "$SELF_HEAL_MODE" == "dry-run" || "$SELF_HEAL_MODE" == "apply" ]]; then
     mkdir -p "$(dirname "$SELF_HEAL_STATE_FILE")"
     jq '. as $root | {
       updated_at: $root.generated_at,
@@ -237,7 +248,7 @@ main(){
     }' "$output_tmp" > "$SELF_HEAL_STATE_FILE"
   fi
 
-  if [[ "$SELF_HEAL_MODE" == "dry-run" ]]; then
+  if [[ "$SELF_HEAL_MODE" == "dry-run" || "$SELF_HEAL_MODE" == "apply" ]]; then
     jq '. + {
       would_apply: [
         .actions[]
@@ -248,7 +259,68 @@ main(){
         .actions[]
         | select((.safe_apply != true) or ((.cooldown.active // false) == true))
       ]
-    }' "$output_tmp"
+    }' "$output_tmp" > "${output_tmp}.preview"
+
+    if [[ "$SELF_HEAL_MODE" == "apply" ]]; then
+      local apply_ids
+      apply_ids="$(jq -r '.would_apply[].id' "${output_tmp}.preview")"
+
+      if [[ -z "$apply_ids" ]]; then
+        log_event "apply_noop" "$(jq -c '{ok, actions, would_apply, blocked_or_skipped}' "${output_tmp}.preview")"
+        jq '. + {apply_result:{status:"NOOP", executed:[], skipped_reason:"no eligible safe actions"}}' "${output_tmp}.preview"
+        return 0
+      fi
+
+      local executed_tmp
+      executed_tmp="$(mktemp)"
+      printf '[]' > "$executed_tmp"
+
+      while IFS= read -r action_id; do
+        [[ -z "$action_id" ]] && continue
+
+        case "$action_id" in
+          republish_dashboard)
+            local action_payload start_ts finish_ts exit_code result_payload
+            action_payload="$(jq -c --arg id "$action_id" '.would_apply[] | select(.id == $id)' "${output_tmp}.preview")"
+            log_event "apply_start" "$action_payload"
+            start_ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+            set +e
+            SPOT_UI_ONCE=1 bash watch/spot-ui-publish.sh --once >/tmp/spot-self-heal-republish.log 2>&1
+            exit_code=$?
+            set -e
+
+            finish_ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            result_payload="$(jq -n \
+              --arg id "$action_id" \
+              --arg started_at "$start_ts" \
+              --arg finished_at "$finish_ts" \
+              --argjson exit_code "$exit_code" \
+              --rawfile log /tmp/spot-self-heal-republish.log \
+              '{id:$id,started_at:$started_at,finished_at:$finished_at,exit_code:$exit_code,log:$log}')"
+
+            log_event "apply_finish" "$result_payload"
+
+            jq --argjson item "$result_payload" '. + [$item]' "$executed_tmp" > "${executed_tmp}.next"
+            mv "${executed_tmp}.next" "$executed_tmp"
+
+            if [[ "$exit_code" -ne 0 ]]; then
+              jq --slurpfile executed "$executed_tmp" '. + {apply_result:{executed:$executed[0], status:"FAIL"}}' "${output_tmp}.preview"
+              rm -f "$executed_tmp"
+              return "$exit_code"
+            fi
+            ;;
+          *)
+            log_event "apply_blocked_unknown_action" "$(jq -n --arg id "$action_id" '{id:$id,reason:"action not allowlisted for apply"}')"
+            ;;
+        esac
+      done <<< "$apply_ids"
+
+      jq --slurpfile executed "$executed_tmp" '. + {apply_result:{executed:$executed[0], status:"OK"}}' "${output_tmp}.preview"
+      rm -f "$executed_tmp"
+    else
+      cat "${output_tmp}.preview"
+    fi
   else
     cat "$output_tmp"
   fi
