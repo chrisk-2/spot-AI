@@ -60,8 +60,10 @@ Confirmed working:
 - Self-Heal v1.1 plan state and per-action cooldown scaffolding added, committed, and validated
 - Self-Heal dry-run preview added, committed, and validated
 - Self-Heal action ledger scaffolding added and ledger policy path fixed
-- Self-Heal allowlisted apply mode is present and locally validated in NOOP path; apply is limited to `republish_dashboard` only and does not restart services
-- `watch/spot-self-heal.sh apply` currently reports policy `level_1_assisted_allowlisted`, `apply_enabled=true`, allowlist `["republish_dashboard"]`, `ok=true`, no eligible action on clean/fresh system, and `apply_result.status=NOOP`
+- Self-Heal allowlisted apply mode is present and locally validated; apply remains limited to `republish_dashboard` only and does not restart services
+- Self-Heal noop, apply_start, and apply_finish ledger events now preserve full JSON payloads through file-backed `log_event_file` writes
+- Self-Heal `republish_dashboard` apply now runs post-condition verification and only reports OK when dashboard metadata freshness verifies after execution
+- `watch/spot-self-heal.sh apply` currently reports policy `level_1_assisted_allowlisted`, `apply_enabled=true`, allowlist `["republish_dashboard"]`, and verified apply/NOOP paths work as expected
 - latest `spot validate` after self-heal apply work passed: 19 pass / 0 fail
 
 Latest checkpoint commits:
@@ -73,6 +75,9 @@ Latest checkpoint commits:
 - fbeeb5c add self heal dry run preview
 - 6bf2c2b add self heal action ledger scaffolding
 - 648cc49 fix self heal ledger policy path
+- 062b996 fix self heal noop ledger payload
+- pending/local: harden self heal apply ledger events
+- pending/local: add self heal apply verification
 
 ## 2026-04-29 Self-Heal checkpoint
 
@@ -96,6 +101,11 @@ Current apply behavior:
 - routing rewrites remain forbidden
 - backup-gate failures remain escalation only
 - repo dirty remains warning only and safe_apply=false
+- apply_noop ledger entries preserve `{ok, actions, would_apply, blocked_or_skipped}` payloads
+- apply_start ledger entries preserve the selected action payload
+- apply_finish ledger entries preserve execution metadata, command log, and verification payload
+- republish_dashboard verification checks `/var/www/html/spot/meta.json` `published_at` freshness after execution
+- apply result is FAIL if command exit code is nonzero or post-condition verification fails
 
 Runtime state/log paths:
 
@@ -104,21 +114,20 @@ Runtime state/log paths:
 
 Validation performed:
 
-- `bash -n watch/spot-self-heal.sh` passed
-- `watch/spot-self-heal.sh apply | jq '.policy, .ok, .would_apply, .apply_result'` returned:
-  - autonomy_level: level_1_assisted_allowlisted
-  - apply_enabled: true
-  - apply_allowlist: ["republish_dashboard"]
-  - ok: true
-  - would_apply: []
-  - apply_result.status: NOOP
-- `spot validate` passed after apply test with 19 pass / 0 fail
+- `bash -n watch/spot-self-heal.sh` passed after ledger and verification changes
+- `watch/spot-self-heal.sh apply` NOOP path produced populated apply_noop payload
+- forced stale dashboard metadata test triggered `republish_dashboard`
+- apply_start ledger payload was populated with selected action details
+- apply_finish ledger payload was populated with exit_code, command log, and verifier result
+- verifier returned `verify_ok=true` and `age_seconds=1` after dashboard republish
+- apply_result returned `status=OK` only after verification succeeded
+- `spot validate` passed after self-heal apply work with 19 pass / 0 fail
 
 Known issue / next cleanup:
 
-- `apply_noop` ledger currently writes payload `{}` instead of preserving the full compact preview payload.
-- This does not block apply gating or fleet validation, but should be cleaned up before expanding apply beyond dashboard republish.
-- Next recommended implementation task: improve self-heal ledger payload fidelity, then commit `watch/spot-self-heal.sh` if local git still shows changes.
+- Commit and checkpoint any remaining `watch/spot-self-heal.sh` verification-wrapper changes if local git still shows changes.
+- Do not expand apply allowlist beyond `republish_dashboard` until backup/rollback policy for each new action is explicitly designed and validated.
+- Next recommended implementation task after commit/checkpoint: design verifier stub and policy gate for `restart_mcp`, but keep it outside apply allowlist until rollback/backup boundaries are approved.
 
 ## 2026-04-28 Spot Core bare-metal recovery checkpoint
 
@@ -218,7 +227,7 @@ Known remaining external issue:
 
 Current recommended next checks:
 
-1. continue Phase 1 Spot Operator Ready / engineering workflow polish
+1. commit/checkpoint current self-heal verification-wrapper and STATE.md updates
 2. when ChatGPT connector schema refreshes, verify `admin_operator_command` from ChatGPT directly
 3. resolve Homer/tower offline separately
 4. keep SPOTBACKUP/sdb2 read-only until recovery archive policy is decided
@@ -407,8 +416,7 @@ Spot Autonomy Policy remains locked:
 
 ## Immediate next objective
 
-1. run `spot_save` after this state update and verify checkpoint output
-2. switch chats and read HANDOFF.md then STATE.md silently
-3. continue with self-heal ledger payload fidelity cleanup, or if already clean, commit any remaining `watch/spot-self-heal.sh` changes
-4. keep apply expansion limited; do not add service restarts until ledger fidelity, verification wrapper, and rollback/backup policy are explicitly checked
-5. resolve Homer/tower offline at 192.168.30.5 separately
+1. commit/checkpoint current self-heal verification-wrapper and STATE.md updates
+2. do not add service restarts until backup/rollback policy is explicitly checked
+3. next implementation target after checkpoint: design restart_mcp verifier/policy gate without adding it to apply allowlist
+4. resolve Homer/tower offline at 192.168.30.5 separately
