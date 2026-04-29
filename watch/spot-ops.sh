@@ -769,11 +769,11 @@ cmd_net_basics() {
     ],
     reverse_proxy: [
       {
-        name: "unifi.starfleet.local",
+        name: "adguard2.starfleet.local",
         target: "192.168.60.20:8443"
       },
       {
-        name: "adguard.starfleet.local",
+        name: "adguard1.starfleet.local",
         target: "192.168.60.10:80"
       },
       {
@@ -826,10 +826,10 @@ cmd_dns_check() {
   print_header "dns checks"
   jq -n \
     --argjson items "[
-      $(dns_record_check '192.168.60.10' 'unifi.starfleet.local' '192.168.60.20'),
-      $(dns_record_check '192.168.60.20' 'unifi.starfleet.local' '192.168.60.20'),
-      $(dns_record_check '192.168.60.10' 'adguard.starfleet.local' '192.168.60.10'),
-      $(dns_record_check '192.168.60.20' 'adguard.starfleet.local' '192.168.60.10'),
+      $(dns_record_check '192.168.60.10' 'adguard1.starfleet.local' '192.168.60.10'),
+      $(dns_record_check '192.168.60.20' 'adguard1.starfleet.local' '192.168.60.10'),
+      $(dns_record_check '192.168.60.10' 'adguard2.starfleet.local' '192.168.60.20'),
+      $(dns_record_check '192.168.60.20' 'adguard2.starfleet.local' '192.168.60.20'),
       $(dns_record_check '192.168.60.10' 'dashboard.starfleet.local' '192.168.30.5'),
       $(dns_record_check '192.168.60.20' 'dashboard.starfleet.local' '192.168.30.5')
     ]" \
