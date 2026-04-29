@@ -76,6 +76,12 @@ verify_action_result(){
 
   case "$action_id" in
     republish_dashboard)
+      if [[ "${SELF_HEAL_FORCE_VERIFY_FAIL:-0}" == "1" ]]; then
+        jq -n --arg id "$action_id" --argjson verify_ok false \
+          '{id:$id,verify_ok:$verify_ok,reason:"forced verifier failure for self-heal test"}'
+        return 1
+      fi
+
       local meta_json published_at age
       meta_json="$(json_or_empty "$(json_file_or_empty "$META_FILE")")"
       published_at="$(jq -r '.published_at // empty' <<<"$meta_json")"
@@ -136,7 +142,7 @@ main(){
   if [[ -n "$(git status --short 2>/dev/null)" ]]; then dirty=true; else dirty=false; fi
 
   output_tmp="$(mktemp)"
-  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp" "${output_tmp}.preview" "${output_tmp}.noop_payload" "${output_tmp}.start_payload" "${output_tmp}.finish_payload" "${output_tmp}.verify_payload" "${output_tmp}.policy_payload"' EXIT
+  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp" "$output_tmp.preview" "$output_tmp.noop_payload" "$output_tmp.start_payload" "$output_tmp.finish_payload" "$output_tmp.verify_payload" "$output_tmp.failure_payload" "$output_tmp.policy_payload"' EXIT
 
   jq -n \
     --arg generated_at "$generated_at" \
@@ -372,6 +378,18 @@ main(){
             mv "${executed_tmp}.next" "$executed_tmp"
 
             if [[ "$exit_code" -ne 0 || "$verify_rc" -ne 0 ]]; then
+              jq -n \
+                --arg policy_note "verification_failed_no_rollback_attempted_apply_allowlist_remains_restricted" \
+                --slurpfile finish "${output_tmp}.finish_payload" \
+                '{action_id:($finish[0].id // null),status:"FAIL",policy_note:$policy_note,finish:($finish[0] // {})}' > "${output_tmp}.failure_payload"
+
+              if [[ ! -s "${output_tmp}.failure_payload" ]] || ! jq -e . "${output_tmp}.failure_payload" >/dev/null 2>&1; then
+                jq -n \
+                  --arg action_id "$action_id" \
+                  '{action_id:$action_id,status:"FAIL",policy_note:"failure_payload_generation_failed_no_rollback_attempted"}' > "${output_tmp}.failure_payload"
+              fi
+
+              log_event_file "apply_failure" "${output_tmp}.failure_payload"
               jq --slurpfile executed "$executed_tmp" '. + {apply_result:{executed:$executed[0], status:"FAIL"}}' "${output_tmp}.preview"
               rm -f "$executed_tmp"
               return 1
