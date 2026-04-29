@@ -52,11 +52,73 @@ Confirmed working:
 - ChatGPT-to-MCP health path restored after tunnel correction
 - `admin_operator_command` added to Spot MCP wrapper and confirmed in live FastMCP tool manager
 - `admin_operator_command` confirmed visible over local streamable HTTP endpoint at http://127.0.0.1:8001/spot/
+- Operator Readiness v2 completed: readiness feed generated, published, rendered, advertised to humans in cockpit footer, and advertised to machines in meta.json
+- `operator-readiness.json` now includes Spot Core health, MCP local health, routing integrity, backup freshness, git dirty state, and validation freshness
+- `watch/spot-validation-stamp.sh` added and validated; it records `spot validate` result, exit code, duration, log tail, and freshness metadata
+- cockpit Control Surface card now displays validation status and validation age
+- Self-Heal v1 audit mode added, committed, and validated
+- Self-Heal v1.1 plan state and per-action cooldown scaffolding added, committed, and validated
+- Self-Heal dry-run preview added, committed, and validated
+- Self-Heal action ledger scaffolding added and ledger policy path fixed
+- Self-Heal allowlisted apply mode is present and locally validated in NOOP path; apply is limited to `republish_dashboard` only and does not restart services
+- `watch/spot-self-heal.sh apply` currently reports policy `level_1_assisted_allowlisted`, `apply_enabled=true`, allowlist `["republish_dashboard"]`, `ok=true`, no eligible action on clean/fresh system, and `apply_result.status=NOOP`
+- latest `spot validate` after self-heal apply work passed: 19 pass / 0 fail
 
 Latest checkpoint commits:
 
 - 0a677e1 fix restore validation secret regression
 - 4f51f4b checkpoint: 2026-04-28-17:39:05
+- 37e6fdc add self heal audit mode
+- 1782abb add self heal plan state cooldowns
+- fbeeb5c add self heal dry run preview
+- 6bf2c2b add self heal action ledger scaffolding
+- 648cc49 fix self heal ledger policy path
+
+## 2026-04-29 Self-Heal checkpoint
+
+Current self-heal file:
+
+- /home/ogre/spot-stack/watch/spot-self-heal.sh
+
+Modes:
+
+- `watch/spot-self-heal.sh audit`
+- `watch/spot-self-heal.sh plan`
+- `watch/spot-self-heal.sh dry-run`
+- `watch/spot-self-heal.sh apply`
+
+Current apply behavior:
+
+- apply is level 1 assisted/allowlisted only
+- only allowlisted action is `republish_dashboard`
+- allowed command is `SPOT_UI_ONCE=1 bash watch/spot-ui-publish.sh --once`
+- no service restart is allowlisted yet
+- routing rewrites remain forbidden
+- backup-gate failures remain escalation only
+- repo dirty remains warning only and safe_apply=false
+
+Runtime state/log paths:
+
+- self-heal state: /home/ogre/spot-stack/watch/state/self-heal-state.json
+- action ledger: /mnt/collective/logs/spot/self-heal-actions.jsonl
+
+Validation performed:
+
+- `bash -n watch/spot-self-heal.sh` passed
+- `watch/spot-self-heal.sh apply | jq '.policy, .ok, .would_apply, .apply_result'` returned:
+  - autonomy_level: level_1_assisted_allowlisted
+  - apply_enabled: true
+  - apply_allowlist: ["republish_dashboard"]
+  - ok: true
+  - would_apply: []
+  - apply_result.status: NOOP
+- `spot validate` passed after apply test with 19 pass / 0 fail
+
+Known issue / next cleanup:
+
+- `apply_noop` ledger currently writes payload `{}` instead of preserving the full compact preview payload.
+- This does not block apply gating or fleet validation, but should be cleaned up before expanding apply beyond dashboard republish.
+- Next recommended implementation task: improve self-heal ledger payload fidelity, then commit `watch/spot-self-heal.sh` if local git still shows changes.
 
 ## 2026-04-28 Spot Core bare-metal recovery checkpoint
 
@@ -257,6 +319,7 @@ Published browser artifacts under:
 - /var/www/html/spot/history.json
 - /var/www/html/spot/incidents.json
 - /var/www/html/spot/acks.json
+- /var/www/html/spot/operator-readiness.json
 - /var/www/html/spot/meta.json
 
 Current LAN cockpit URL:
@@ -273,10 +336,11 @@ Confirmed working:
 - Incident Timeline renders successfully
 - Operator Acknowledgements card renders successfully
 - acknowledgement feed `acks.json` wired into main HTML renderer
+- readiness feed `operator-readiness.json` wired into top cockpit strip and published feed metadata
 - both risk/html renderers rebuilt to use temp files + jq `--slurpfile` to eliminate kernel argv `Argument list too long` failures under large history payloads
 - Incident Timeline renders open incidents, recent history, and remediation suggestions
 - dashboard trend and latency history output capped to last 20 snapshots
-- generated dashboard includes live telemetry, incident banner, fleet risk score, incident timeline, acknowledgements, anomalies, remediation/autonomy state, workers, trends, and worker latency history
+- generated dashboard includes live telemetry, incident banner, fleet risk score, incident timeline, acknowledgements, anomalies, remediation/autonomy state, workers, trends, worker latency history, and operator readiness
 
 ## Spot Incident Engine status
 
@@ -343,7 +407,8 @@ Spot Autonomy Policy remains locked:
 
 ## Immediate next objective
 
-1. continue Phase 1 Spot Operator Ready / engineering workflow polish
-2. improve operator dashboard/status clarity without changing routing/auth semantics
-3. verify `admin_operator_command` from ChatGPT after connector schema refresh exposes the already-registered tool
-4. resolve Homer/tower offline at 192.168.30.5 separately
+1. run `spot_save` after this state update and verify checkpoint output
+2. switch chats and read HANDOFF.md then STATE.md silently
+3. continue with self-heal ledger payload fidelity cleanup, or if already clean, commit any remaining `watch/spot-self-heal.sh` changes
+4. keep apply expansion limited; do not add service restarts until ledger fidelity, verification wrapper, and rollback/backup policy are explicitly checked
+5. resolve Homer/tower offline at 192.168.30.5 separately
