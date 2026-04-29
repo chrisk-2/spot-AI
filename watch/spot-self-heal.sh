@@ -7,6 +7,8 @@ MCP_LOCAL_URL="${MCP_LOCAL_URL:-http://127.0.0.1:8001/health}"
 SPOT_UI_OUT_DIR="${SPOT_UI_OUT_DIR:-/var/www/html/spot}"
 READINESS_FILE="${READINESS_FILE:-${SPOT_UI_OUT_DIR}/operator-readiness.json}"
 META_FILE="${META_FILE:-${SPOT_UI_OUT_DIR}/meta.json}"
+VALIDATION_STAMP_FILE="${VALIDATION_STAMP_FILE:-${REPO}/watch/state/operator-validation.json}"
+VALIDATION_MAX_AGE_SECONDS="${VALIDATION_MAX_AGE_SECONDS:-900}"
 DASHBOARD_MAX_AGE_SECONDS="${DASHBOARD_MAX_AGE_SECONDS:-180}"
 SELF_HEAL_STATE_FILE="${SELF_HEAL_STATE_FILE:-${REPO}/watch/state/self-heal-state.json}"
 SELF_HEAL_COOLDOWN_SECONDS="${SELF_HEAL_COOLDOWN_SECONDS:-300}"
@@ -108,6 +110,39 @@ verify_action_result(){
         '{id:$id,verify_ok:$verify_ok,url:$url,reason:"MCP local health endpoint is not responding"}'
       return 1
       ;;
+    refresh_validation_stamp)
+      local stamp_json status exit_code command finished_at age
+      stamp_json="$(json_or_empty "$(json_file_or_empty "$VALIDATION_STAMP_FILE")")"
+      status="$(jq -r '.status // empty' <<<"$stamp_json")"
+      exit_code="$(jq -r '.exit_code // empty' <<<"$stamp_json")"
+      command="$(jq -r '.command // empty' <<<"$stamp_json")"
+      finished_at="$(jq -r '.finished_at // empty' <<<"$stamp_json")"
+      age="$(jq -nr --arg ts "$finished_at" 'if ($ts == "") then 999999 else ((now|floor) - (($ts|fromdateiso8601?) // 0)) end')"
+
+      if [[ "$status" == "PASS" && "$exit_code" == "0" && "$command" == "spot validate" && "$age" -ge 0 && "$age" -le "$VALIDATION_MAX_AGE_SECONDS" ]]; then
+        jq -n \
+          --arg id "$action_id" \
+          --arg stamp_file "$VALIDATION_STAMP_FILE" \
+          --arg status "$status" \
+          --arg command "$command" \
+          --argjson verify_ok true \
+          --argjson exit_code "$exit_code" \
+          --argjson age_seconds "$age" \
+          '{id:$id,verify_ok:$verify_ok,stamp_file:$stamp_file,status:$status,exit_code:$exit_code,command:$command,age_seconds:$age_seconds}'
+        return 0
+      fi
+
+      jq -n \
+        --arg id "$action_id" \
+        --arg stamp_file "$VALIDATION_STAMP_FILE" \
+        --arg status "$status" \
+        --arg command "$command" \
+        --arg reason "validation stamp is missing, stale, failing, or not from spot validate" \
+        --argjson verify_ok false \
+        --argjson age_seconds "$age" \
+        '{id:$id,verify_ok:$verify_ok,stamp_file:$stamp_file,status:$status,command:$command,age_seconds:$age_seconds,reason:$reason}'
+      return 1
+      ;;
     *)
       jq -n --arg id "$action_id" '{id:$id,verify_ok:false,reason:"no verifier implemented"}'
       return 1
@@ -190,7 +225,7 @@ main(){
           autonomy_level: (if $mode == "apply" then "level_1_assisted_allowlisted" else "level_0_1_preview" end),
           apply_enabled: ($mode == "apply"),
           apply_allowlist: ["republish_dashboard"],
-          gated_not_allowlisted: ["restart_mcp"],
+          gated_not_allowlisted: ["restart_mcp", "refresh_validation_stamp"],
           backup_required_for_mutation: true,
           log_file: $log_file
         },
@@ -228,6 +263,12 @@ main(){
             git_dirty: ($readiness.git.dirty // $git_dirty),
             validation_status: ($readiness.validation.status // "UNKNOWN"),
             validation_fresh: (($readiness.validation.fresh // false) == true),
+            validation_verifier: {
+              implemented: true,
+              action_id: "refresh_validation_stamp",
+              apply_allowlisted: false,
+              policy_gate: "preview_only_until_validation_refresh_policy_approved"
+            },
             backups_ok: (($readiness.backups.workers_ok // false) == true)
           },
           routing: {
@@ -263,10 +304,12 @@ main(){
           if (.checks.readiness.validation_fresh | not) then {
             id: "refresh_validation_stamp",
             severity: "WARN",
-            safe_apply: true,
+            safe_apply: false,
             cooldown: cooldown_for("refresh_validation_stamp"),
             command: "watch/spot-validation-stamp.sh -- spot validate",
-            reason: "Validation stamp is missing, stale, or not PASS"
+            reason: "Validation stamp is missing, stale, or not PASS",
+            verifier_implemented: true,
+            policy_gate: "not_apply_allowlisted_until_validation_refresh_policy_approved"
           } else empty end,
 
           if ((.checks.routing.violations // 0) > 0) then {
