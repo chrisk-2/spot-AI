@@ -98,7 +98,7 @@ main(){
   if [[ -n "$(git status --short 2>/dev/null)" ]]; then dirty=true; else dirty=false; fi
 
   output_tmp="$(mktemp)"
-  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp" "${output_tmp}.preview" "${output_tmp}.noop_payload"' EXIT
+  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp" "${output_tmp}.preview" "${output_tmp}.noop_payload" "${output_tmp}.start_payload" "${output_tmp}.finish_payload"' EXIT
 
   jq -n \
     --arg generated_at "$generated_at" \
@@ -297,9 +297,9 @@ main(){
 
         case "$action_id" in
           republish_dashboard)
-            local action_payload start_ts finish_ts exit_code result_payload
-            action_payload="$(jq -c --arg id "$action_id" '.would_apply[] | select(.id == $id)' "${output_tmp}.preview")"
-            log_event "apply_start" "$action_payload"
+            local start_ts finish_ts exit_code
+            jq --arg id "$action_id" '.would_apply[] | select(.id == $id)' "${output_tmp}.preview" > "${output_tmp}.start_payload"
+            log_event_file "apply_start" "${output_tmp}.start_payload"
             start_ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
             set +e
@@ -308,17 +308,17 @@ main(){
             set -e
 
             finish_ts="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-            result_payload="$(jq -n \
+            jq -n \
               --arg id "$action_id" \
               --arg started_at "$start_ts" \
               --arg finished_at "$finish_ts" \
               --argjson exit_code "$exit_code" \
               --rawfile log /tmp/spot-self-heal-republish.log \
-              '{id:$id,started_at:$started_at,finished_at:$finished_at,exit_code:$exit_code,log:$log}')"
+              '{id:$id,started_at:$started_at,finished_at:$finished_at,exit_code:$exit_code,log:$log}' > "${output_tmp}.finish_payload"
 
-            log_event "apply_finish" "$result_payload"
+            log_event_file "apply_finish" "${output_tmp}.finish_payload"
 
-            jq --argjson item "$result_payload" '. + [$item]' "$executed_tmp" > "${executed_tmp}.next"
+            jq --slurpfile item "${output_tmp}.finish_payload" '. + [$item[0]]' "$executed_tmp" > "${executed_tmp}.next"
             mv "${executed_tmp}.next" "$executed_tmp"
 
             if [[ "$exit_code" -ne 0 ]]; then
