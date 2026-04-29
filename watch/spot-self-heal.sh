@@ -46,13 +46,29 @@ json_or_empty(){
 log_event(){
   local event="$1"
   local payload="${2:-{}}"
-  payload="$(json_or_empty "$payload")"
+  if ! jq -e . >/dev/null 2>&1 <<<"$payload"; then
+    payload='{}'
+  fi
   mkdir -p "$(dirname "$SELF_HEAL_LOG_FILE")"
   jq -nc \
     --arg ts "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
     --arg event "$event" \
     --argjson payload "$payload" \
     '{ts:$ts,event:$event,payload:$payload}' >> "$SELF_HEAL_LOG_FILE"
+}
+
+log_event_file(){
+  local event="$1"
+  local payload_file="$2"
+  if [[ ! -f "$payload_file" ]] || ! jq -e . "$payload_file" >/dev/null 2>&1; then
+    payload_file="/dev/null"
+  fi
+  mkdir -p "$(dirname "$SELF_HEAL_LOG_FILE")"
+  jq -nc \
+    --arg ts "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+    --arg event "$event" \
+    --slurpfile payload "$payload_file" \
+    '{ts:$ts,event:$event,payload:($payload[0] // {})}' >> "$SELF_HEAL_LOG_FILE"
 }
 
 main(){
@@ -82,7 +98,7 @@ main(){
   if [[ -n "$(git status --short 2>/dev/null)" ]]; then dirty=true; else dirty=false; fi
 
   output_tmp="$(mktemp)"
-  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp" "${output_tmp}.preview"' EXIT
+  trap '[[ -n "${output_tmp:-}" ]] && rm -f "$output_tmp" "${output_tmp}.preview" "${output_tmp}.noop_payload"' EXIT
 
   jq -n \
     --arg generated_at "$generated_at" \
@@ -266,7 +282,8 @@ main(){
       apply_ids="$(jq -r '.would_apply[].id' "${output_tmp}.preview")"
 
       if [[ -z "$apply_ids" ]]; then
-        log_event "apply_noop" "$(jq -c '{ok, actions, would_apply, blocked_or_skipped}' "${output_tmp}.preview")"
+        jq '{ok, actions, would_apply, blocked_or_skipped}' "${output_tmp}.preview" > "${output_tmp}.noop_payload"
+        log_event_file "apply_noop" "${output_tmp}.noop_payload"
         jq '. + {apply_result:{status:"NOOP", executed:[], skipped_reason:"no eligible safe actions"}}' "${output_tmp}.preview"
         return 0
       fi
