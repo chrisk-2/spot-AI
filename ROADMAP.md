@@ -19,20 +19,20 @@ This prevents random engineering bouncing.
 
 ---
 
-# PHASE 1 — FINISH SPOT FOUNDATION
+# PHASE 1 — SPOT OPERATOR READY
 
-Spot must become dependable enough to assist later construction.
+Spot Core foundation is locked. This phase now focuses on making Spot comfortable and safe to operate day-to-day.
 
 ## Remaining objectives
-- confirm worker-02 final cosmetic archive closure
-- worker burn-in observation
-- repo/runtime hygiene decisions
-- build Spot UI operator interface
+- standardize operator entry points
+- build Spot UI/operator interface polish
+- tighten terminal workflows for status, validation, audit, quarantine, release, logs, and self-heal
 - tie Codex into practical engineering workflow
+- keep command safety boundaries explicit
 
 Goal:
 
-Spot = stable engineering/control assistant.
+Spot = stable operator-ready engineering/control assistant.
 
 ---
 
@@ -118,4 +118,4 @@ Expansion only after core maturity.
 
 Current active lane:
 
-PHASE 1 — FINISH SPOT FOUNDATION
+PHASE 1 — SPOT OPERATOR READY

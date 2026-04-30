@@ -1,5 +1,29 @@
 # SPOT FLEET STATE
 
+## 2026-04-30 Milestone A locked
+
+Milestone A — Spot Core Trusted is locked.
+
+Validation evidence:
+
+- `spot validate` passed.
+- `spot validate-smoke` passed.
+- `admin_operator_command status` passed through MCP.
+- `admin_operator_command validate` passed through MCP.
+- `admin_operator_command validate_smoke` passed through MCP.
+- quarantine/release smoke lifecycle verified live.
+- routing audit append and JSONL validation verified.
+- Spot Core container has required operator dependencies.
+- Spot Core operator commands run without Docker socket access.
+
+Baseline commit:
+
+- 9b8529f Milestone A - Spot Core trusted baseline locked
+
+Next active phase:
+
+- Milestone B — Spot Operator Ready.
+
 ## Current confirmed runtime state
 
 Spot rescue/hardening and 2026-04-28 bare-metal recovery closure are complete enough to treat Milestone A — Spot Core Trusted as locked.
@@ -257,7 +281,6 @@ Spot Autonomy Policy remains locked:
 
 ## Immediate next objective
 
-1. commit/checkpoint current STATE update plus pending readiness/DNS changes if not already committed
-2. switch chats and verify whether `admin_operator_command` appears in ChatGPT MCP tool surface
-3. keep `refresh_validation_stamp` gated until readiness self-heal visibility has aged through normal publish cycles
-4. resolve Homer/tower offline at 192.168.30.5:7575 separately
+1. build Milestone B operator-ready workflows and UI/terminal polish
+2. keep `refresh_validation_stamp` gated until readiness self-heal visibility has aged through normal publish cycles
+3. resolve Homer/tower offline at 192.168.30.5:7575 separately
