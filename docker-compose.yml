@@ -23,7 +23,7 @@ services:
     command: >
       bash -lc "
         apt-get update &&
-        apt-get install -y --no-install-recommends openssh-client &&
+        apt-get install -y --no-install-recommends openssh-client jq curl &&
         rm -rf /var/lib/apt/lists/* &&
         mkdir -p /root/.ssh &&
         cp /host-ssh/id_ed25519 /root/.ssh/id_ed25519 &&
