@@ -649,7 +649,7 @@ def resolve_local_path(path_str: str) -> Path:
     path_aliases = [
         ("/home/ogre/spot-stack/watch/", SPOT_WATCH_ROOT),
         ("/home/ogre/spot-stack/spot-core/", SPOT_CORE_ROOT),
-        ("/home/ogre/spot-stack/", SPOT_CORE_ROOT.parent),
+        ("/home/ogre/spot-stack/", Path("/home/ogre/spot-stack")),
         ("/srv/watch/", SPOT_WATCH_ROOT),
         ("/srv/spot-core/", SPOT_CORE_ROOT),
     ]
