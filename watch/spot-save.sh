@@ -99,8 +99,10 @@ READ IN THIS ORDER NEXT CHAT:
 2. /home/ogre/spot-stack/spot-core/STATE.md
 3. /home/ogre/spot-stack/ROADMAP.md
 4. /home/ogre/spot-stack/NETWORK_DNS_CHECKPOINT.md
-7. /home/ogre/spot-stack/HANDOFF-CODEX-INTEGRATION.md
+5. /home/ogre/spot-stack/Spot_Autonomy_Policy
 6. /home/ogre/spot-stack/HANDOFF-SPOT-INTEGRATION.md
+7. /home/ogre/spot-stack/HANDOFF-CODEX-INTEGRATION.md
+
 
 NEXT CHAT DIRECTIVE:
 - Read referenced files silently.
