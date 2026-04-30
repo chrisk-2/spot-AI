@@ -150,17 +150,19 @@ SPOT_HOST_STACK_ROOT = Path(os.environ.get("SPOTCORE_HOST_STACK_ROOT", "/home/og
 
 OPERATOR_COMMANDS: dict[str, dict[str, Any]] = {
     "validate": {
-        "argv": ["bash", str(SPOT_WATCH_ROOT / "fleet-validate.sh")],
-        "cwd": str(SPOT_CORE_ROOT),
-        "timeout": 300,
-        "mutating": False,
-    },
+    "argv": ["bash", str(SPOT_WATCH_ROOT / "fleet-validate.sh")],
+    "cwd": str(SPOT_CORE_ROOT),
+    "timeout": 300,
+    "mutating": False,
+    "env": {"SPOTCORE_ADMIN_API_TOKEN": ADMIN_API_TOKEN},
+},
     "validate_smoke": {
-        "argv": ["bash", str(SPOT_WATCH_ROOT / "fleet-validate.sh"), "--smoke"],
-        "cwd": str(SPOT_CORE_ROOT),
-        "timeout": 300,
-        "mutating": True,
-    },
+    "argv": ["bash", str(SPOT_WATCH_ROOT / "fleet-validate.sh"), "--smoke"],
+    "cwd": str(SPOT_CORE_ROOT),
+    "timeout": 300,
+    "mutating": True,
+    "env": {"SPOTCORE_ADMIN_API_TOKEN": ADMIN_API_TOKEN},
+},
     "save": {
         "argv": ["bash", str(SPOT_WATCH_ROOT / "spot-save.sh")],
         "cwd": str(SPOT_CORE_ROOT),
@@ -2287,9 +2289,13 @@ async def admin_operator_command(payload: AdminOperatorCommandRequest):
         )
 
     async def run_local_command() -> dict[str, Any]:
+        cmd_env = os.environ.copy()
+        cmd_env.update(spec.get("env", {}))
+
         proc = await asyncio.create_subprocess_exec(
             *spec["argv"],
             cwd=spec["cwd"],
+            env=cmd_env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

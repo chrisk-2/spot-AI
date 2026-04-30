@@ -12,6 +12,7 @@ services:
       - /mnt/collective/fleet/spot-core/shared_memory:/srv/spot-core/shared_memory
       - ./watch:/watch
       - /home/ogre/.ssh:/host-ssh:ro
+      - ./:/home/ogre/spot-stack:rw
     env_file:
       - ./spot-core/.env
     environment:

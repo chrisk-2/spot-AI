@@ -139,8 +139,12 @@ check_routing_audit_endpoint() {
 }
 
 get_admin_token() {
-  command -v docker >/dev/null 2>&1 || { fail "docker required for admin endpoint validation"; return 1; }
-  local token; token="$(docker exec spot-core /bin/sh -lc 'printf %s "$SPOTCORE_ADMIN_API_TOKEN"' 2>/dev/null || true)"
+  local token
+  token="${SPOTCORE_ADMIN_API_TOKEN:-}"
+  if [[ -z "$token" ]]; then
+    command -v docker >/dev/null 2>&1 || { fail "docker required for admin endpoint validation and SPOTCORE_ADMIN_API_TOKEN not set"; return 1; }
+    token="$(docker exec spot-core /bin/sh -lc 'printf %s "$SPOTCORE_ADMIN_API_TOKEN"' 2>/dev/null || true)"
+  fi
   [[ -n "$token" ]] || { fail "could not read SPOTCORE_ADMIN_API_TOKEN"; return 1; }
   ADMIN_TOKEN="$token"
 }
