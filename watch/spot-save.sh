@@ -45,12 +45,27 @@ main() {
     require_file "$ROOT_COMPOSE"
     require_file "$CONFIG_FILE"
     require_file "NETWORK_DNS_CHECKPOINT.md"
+    require_file "HANDOFF-SPOT-INTEGRATION.md"
+    require_file "Spot_Autonomy_Policy"
+    require_file "HANDOFF-CODEX-INTEGRATION.md"
 
     header "GIT STATUS"
     git status --short
 
-    git add "NETWORK_DNS_CHECKPOINT.md" "$HANDOFF_FILE" "$STATE_FILE" "$ROADMAP_FILE" "$APP_FILE" "$ROOT_COMPOSE" "$CONFIG_FILE" "$0"
-    [[ -f "$CORE_COMPOSE" ]] && git add "$CORE_COMPOSE"
+    git add \
+      "NETWORK_DNS_CHECKPOINT.md" \
+      "HANDOFF-CODEX-INTEGRATION.md" \
+      "HANDOFF-SPOT-INTEGRATION.md" \
+      "Spot_Autonomy_Policy" \
+      "$HANDOFF_FILE" \
+      "$STATE_FILE" \
+      "$ROADMAP_FILE" \
+      "$APP_FILE" \
+      "$ROOT_COMPOSE" \
+      "$CONFIG_FILE" \
+      "$0"
+
+[[ -f "$CORE_COMPOSE" ]] && git add "$CORE_COMPOSE"
 
     header "STAGED DIFF SUMMARY"
     if git diff --cached --quiet; then

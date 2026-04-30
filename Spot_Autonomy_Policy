@@ -1,0 +1,71 @@
+Spot Autonomy Policy
+and Safety Model
+Locked operating rules for autonomous detection, backup-first remediation, and controlled rollback
+Project reference for Starfleet / Spot Core
+
+System	Spot
+Control plane	spot-core
+Policy status	Locked
+Primary rule	No backup, no change
+
+Executive rule: Spot may diagnose and remediate approved systems autonomously, but no configuration change may be executed unless a verified pre-change backup is first created on Unimatrix. Spot may create and read backup artifacts and may use them for rollback, but may not delete, overwrite, or alter existing backups.
+1. Purpose and scope
+This document defines how Spot automation must behave when it is allowed to observe, diagnose, plan, and execute actions inside the Starfleet environment. The goal is useful autonomy without loss of control, silent damage, or irreversible change.
+• Applies to Spot Core as the control plane and to all Spot worker nodes when they are acting under Spot-directed automation.
+• Covers detection, risk classification, backup enforcement, execution, verification, rollback, and logging.
+• Treats Unimatrix as the authoritative backup target and audit record location.
+2. Locked execution chain
+Rule. All autonomous actions must follow the same sequence. Steps may not be skipped.
+Detect	Analyze	Classify	Backup	Plan	Verify	Execute	Test / Rollback
+If any step fails, Spot must stop and log the failure. There is no “best effort” mutating action without the full chain.
+3. Risk classes
+Autonomy is constrained by risk classification. Higher risk expands the amount of evidence, backup, and approval required before action.
+Class	Typical actions	Backup required	Approval
+Low	Restart service, retry job, clear temporary failure state	Yes for config/stateful services; optional for pure read/retry actions	Not required
+Medium	Service config update, container redeploy, known-good file replacement	Required	Not required if action is pre-approved and reversible
+High	Firewall, VLAN, routing, DHCP, DNS, interface, or access-control changes	Required	Required unless explicitly allowlisted
+4. Backup-first enforcement
+Mandatory. Before any mutating action, Spot must create a verified pre-change backup on Unimatrix.
+• Target path format: /mnt/collective/backups/<target>/<service>/<timestamp>/
+• Minimum artifact set: configuration file(s), metadata.json, and checksum or verification marker.
+• The backup must be readable and its path must be written into the action log before execution begins.
+• If backup creation or verification fails, the action is blocked.
+5. Backup permissions model
+Spot must be allowed to create new backup artifacts without being able to destroy historical state.
+Capability	Allowed	Not allowed
+Backup storage	Create new files and directories; read existing backups; restore from approved backups	Delete, overwrite, rename existing backups
+Logs	Append new action logs; read historical logs	Delete or edit historical logs
+Restore	Use last known good backup for rollback according to policy	Invent rollback without recorded artifact
+6. Verification and rollback
+• Every mutating action must include a pre-defined verification method such as service health, endpoint response, process state, or functional test.
+• If post-change verification fails, Spot must stop and either roll back automatically (low/medium risk) or halt for approval (high risk), according to policy.
+• Rollback instructions must exist before execution starts.
+7. Logging and observability
+Every action must be auditable.
+• Required fields: timestamp, target, service, detected issue, chosen action, risk class, backup path, verification result, final outcome, rollback status.
+• Primary log root: /mnt/collective/logs/spot/
+• No action may occur without a corresponding log entry.
+8. Scope boundaries
+Zone	Policy
+Approved autonomous zones	Spot AI nodes, approved infrastructure services, and pre-authorized service endpoints
+Restricted zones	Core firewall/routing, OPNsense policy changes, gateway changes, VLAN changes, DHCP/DNS authority changes unless explicitly approved
+9. Autonomy levels
+• Level 0 — Observe only: detect, summarize, recommend. No execution.
+• Level 1 — Assisted: execute safe actions only when user initiates.
+• Level 2 — Controlled autonomy: auto-detect, backup, execute, verify, and roll back safe approved actions.
+• Level 3 — Extended autonomy: chained workflows and cross-service remediation, only after lower levels are stable and audited.
+10. Implementation hooks for Spot Core
+The policy above should be enforced in code, not left to operator memory.
+• Preflight hook: classify risk and resolve target service.
+• Backup gate: call backup routine and require verified artifact before action.
+• Execution wrapper: all mutating actions run through one wrapper that logs start, finish, and verification.
+• Rollback hook: invoke approved rollback path when verification fails.
+• Policy engine: block restricted actions outside of allowlist / approval path.
+11. Acceptance criteria
+• A worker or service cannot be changed unless a backup path is recorded first.
+• Spot cannot delete or overwrite backup history.
+• Every executed action has an audit trail.
+• Rollback is possible from the generated backup artifacts.
+• High-risk network actions remain gated.
+12. Current fleet context
+This policy is intended for the current Starfleet layout in which spot-core acts as the control plane and the worker nodes provide role-based execution capacity. The locked worker roles are general (spot-worker-01), utility (spot-worker-02), coding (spot-worker-03), and heavy (spot-worker-04).
