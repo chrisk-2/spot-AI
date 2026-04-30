@@ -107,7 +107,8 @@ READ IN THIS ORDER NEXT CHAT:
 NEXT CHAT DIRECTIVE:
 - Read referenced files silently.
 - Do not restate checkpoint contents.
-- Begin highest priority unresolved implementation task immediately.
+- Do not reopen Milestone A unless a fresh regression is observed.
+- Begin PHASE 1 / Milestone B canonical next task: standardize operator entry points and unified terminal command surface.
 
 CURRENT ACTIVE PHASE:
 PHASE 1 — SPOT OPERATOR READY
@@ -141,7 +142,7 @@ BLOCK
 
     header "NEW CHAT BLOCK"
     cat <<'BLOCK'
-Read the referenced files silently and begin the highest priority unresolved implementation task.
+Read the referenced files silently. Do not reopen Milestone A unless a fresh regression is observed. Begin PHASE 1 / Milestone B canonical next task: standardize operator entry points and unified terminal command surface.
 BLOCK
 }
 
