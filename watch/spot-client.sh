@@ -24,6 +24,8 @@ Usage:
   spot-client.sh apply-plan-verify <id-or-file>
   spot-client.sh approve-apply-plan <id-or-file>
   spot-client.sh reject-apply-plan <id-or-file>
+  spot-client.sh prepare-execution-handoff <id-or-file>
+  spot-client.sh execution-handoff-verify <id-or-file>
   spot-client.sh generate-patch <id-or-file>   # legacy alias
   spot-client.sh remember <fact|decision|session|preference|roadmap> <text>
   spot-client.sh memory [count]
@@ -273,6 +275,9 @@ task: {task}
 risk_class: {risk}
 apply_status: pending_manual_review
 mutation_allowed: false
+backup_required: true
+backup_bound: false
+backup_artifact: pending
 
 ---
 
@@ -361,7 +366,7 @@ cmd_show_apply_plan(){
 cmd_apply_plan_status(){
   local file
   file="$(resolve_apply_plan_file "${1:-}")"
-  grep -E '^(linked_proposal:|approved_utc:|generated_utc:|task:|risk_class:|apply_status:|mutation_allowed:)' "$file"
+  grep -E '^(linked_proposal:|approved_utc:|generated_utc:|task:|risk_class:|apply_status:|mutation_allowed:|backup_required:|backup_bound:|backup_artifact:)' "$file"
 }
 
 cmd_apply_plan_check(){
@@ -469,6 +474,15 @@ mutation_allowed = line_value("mutation_allowed")
 
 if mutation_allowed != "false":
     fail.append("mutation_allowed must be false")
+
+if line_value("backup_required") != "true":
+    fail.append("backup_required must be true")
+
+if line_value("backup_bound") != "false":
+    fail.append("backup_bound must be false until a future Spot Core execution wrapper binds a verified backup")
+
+if line_value("backup_artifact") != "pending":
+    fail.append("backup_artifact must be pending before controlled execution")
 
 if status not in {"pending_manual_review", "review_approved"}:
     fail.append(f"apply_status must be pending_manual_review or review_approved, got: {status or '<missing>'}")
@@ -581,6 +595,249 @@ cmd_reject_apply_plan(){
   set_apply_plan_status "$file" review_rejected review_rejected_utc
   memory_append decision "review rejected apply plan $(basename "$file" .md)"
   echo "[apply-plan-review-rejected] $file"
+}
+
+cmd_prepare_execution_handoff(){
+  local file
+  file="$(resolve_apply_plan_file "${1:-}")"
+
+  # Reviewed artifacts must pass general verification before a handoff is generated.
+  cmd_apply_plan_verify "$file" >/dev/null
+
+  python3 - "$file" "${BASE_DIR}/execution-handoffs" <<'PYINNER'
+from pathlib import Path
+from datetime import datetime, UTC
+import re, sys
+
+plan = Path(sys.argv[1])
+out_dir = Path(sys.argv[2])
+out_dir.mkdir(parents=True, exist_ok=True)
+
+text = plan.read_text(errors="ignore")
+plan_id = plan.stem
+handoff_id = f"HANDOFF-{plan_id}"
+out = out_dir / f"{handoff_id}.md"
+now = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+
+def line_value(name):
+    m = re.search(rf'^{re.escape(name)}:\s*(.+?)\s*$', text, re.M)
+    return m.group(1).strip() if m else ""
+
+def section(name):
+    m = re.search(rf'^{re.escape(name)}\s*\n(?P<body>.*?)(?=\n[A-Z_]+\s*\n|\Z)', text, re.M | re.S)
+    return m.group("body").strip() if m else ""
+
+def copy_section(name):
+    body = section(name)
+    return body if body else "- missing"
+
+status = line_value("apply_status")
+mutation_allowed = line_value("mutation_allowed")
+backup_required = line_value("backup_required")
+backup_bound = line_value("backup_bound")
+backup_artifact = line_value("backup_artifact")
+
+if status != "review_approved":
+    raise SystemExit(f"ERROR: execution handoff requires apply_status review_approved, got {status or '<missing>'}")
+
+if mutation_allowed != "false":
+    raise SystemExit("ERROR: refusing handoff because mutation_allowed is not false")
+
+if backup_required != "true" or backup_bound != "false" or backup_artifact != "pending":
+    raise SystemExit("ERROR: backup binding metadata is not in pre-execution pending state")
+
+content = f"""# Spot Execution Handoff {handoff_id}
+
+linked_apply_plan: {plan_id}
+linked_proposal: {line_value("linked_proposal")}
+generated_utc: {now}
+apply_status: {status}
+risk_class: {line_value("risk_class")}
+execution_allowed: false
+mutation_allowed: false
+backup_required: {backup_required}
+backup_bound: {backup_bound}
+backup_artifact: {backup_artifact}
+
+---
+
+PURPOSE
+- Prepare reviewed apply-plan context for a future Spot Core controlled execution wrapper.
+- This artifact does not authorize execution.
+- This artifact does not mutate files.
+- This artifact does not bind a backup.
+
+FUTURE_EXECUTION_REQUIREMENTS
+- Spot Core must create and verify a pre-change backup before mutation.
+- Spot Core must record the verified backup artifact path before execution.
+- Spot Core must execute through a controlled policy/enforcement wrapper.
+- Spot Core must run post-apply validation.
+- Spot Core must rollback from the recorded backup artifact if validation fails.
+
+TARGET_FILES
+{copy_section("TARGET_FILES")}
+
+PRECHANGE_BACKUP_REQUIREMENTS
+{copy_section("PRECHANGE_BACKUP_REQUIREMENTS")}
+
+PRECHECK_VALIDATION
+{copy_section("PRECHECK_VALIDATION")}
+
+PLANNED_MUTATIONS
+{copy_section("PLANNED_MUTATIONS")}
+
+POST_APPLY_VALIDATION
+{copy_section("POST_APPLY_VALIDATION")}
+
+ROLLBACK_PLAN
+{copy_section("ROLLBACK_PLAN")}
+
+HUMAN_REVIEW_GATE
+{copy_section("HUMAN_REVIEW_GATE")}
+
+POLICY_GATES
+- No backup, no change.
+- Detect -> Analyze -> Classify -> Backup -> Plan -> Verify -> Execute -> Test/Rollback.
+- Execution remains blocked until a future Spot Core wrapper binds backup_artifact and changes execution_allowed under policy.
+- Memory and proposal history are context only, not authorization.
+
+NOTES
+- Generated from apply-plan: {plan.name}
+- Current handoff state is non-executing.
+"""
+out.write_text(content)
+print(out)
+PYINNER
+
+  local rc=$?
+  [[ $rc -eq 0 ]] || exit "$rc"
+
+  local id handoff_file
+  id="$(basename "$file" .md)"
+  handoff_file="${BASE_DIR}/execution-handoffs/HANDOFF-${id}.md"
+  memory_append roadmap "prepared non-mutating execution handoff HANDOFF-${id}"
+  memory_append session "execution handoff prepared from reviewed apply plan ${id}"
+  echo "[execution-handoff-prepared] $handoff_file"
+}
+
+resolve_execution_handoff_file(){
+  local id="${1:-}"
+  [[ -n "$id" ]] || { echo "ERROR: execution handoff id/file required" >&2; exit 2; }
+
+  local file="$id"
+  [[ -f "$file" ]] || file="${BASE_DIR}/execution-handoffs/${id%.md}.md"
+  [[ -f "$file" ]] || file="${BASE_DIR}/execution-handoffs/HANDOFF-${id#HANDOFF-}.md"
+
+  [[ -f "$file" ]] || { echo "ERROR: execution handoff not found: $id" >&2; exit 2; }
+  printf '%s' "$file"
+}
+
+cmd_execution_handoff_verify(){
+  local file
+  file="$(resolve_execution_handoff_file "${1:-}")"
+
+  python3 - "$file" "${BASE_DIR}" <<'PYINNER'
+from pathlib import Path
+import re, sys
+
+handoff = Path(sys.argv[1])
+base = Path(sys.argv[2])
+text = handoff.read_text(errors="ignore")
+fail = []
+warn = []
+
+def line_value(name):
+    m = re.search(rf'^{re.escape(name)}:\s*(.+?)\s*$', text, re.M)
+    return m.group(1).strip() if m else ""
+
+def section(name):
+    m = re.search(rf'^{re.escape(name)}\s*\n(?P<body>.*?)(?=\n[A-Z_]+\s*\n|\Z)', text, re.M | re.S)
+    return m.group("body").strip() if m else ""
+
+expected = {
+    "execution_allowed": "false",
+    "mutation_allowed": "false",
+    "backup_required": "true",
+    "backup_bound": "false",
+    "backup_artifact": "pending",
+}
+
+for key, value in expected.items():
+    actual = line_value(key)
+    if actual != value:
+        fail.append(f"{key} must be {value}, got {actual or '<missing>'}")
+
+apply_plan = line_value("linked_apply_plan")
+proposal = line_value("linked_proposal")
+
+if not apply_plan:
+    fail.append("linked_apply_plan missing")
+else:
+    apply_path = base / "apply-plans" / f"{apply_plan}.md"
+    if not apply_path.exists():
+        fail.append(f"linked apply-plan missing: {apply_path}")
+
+if not proposal:
+    fail.append("linked_proposal missing")
+else:
+    proposal_path = base / "proposals" / f"{proposal}.md"
+    if not proposal_path.exists():
+        fail.append(f"linked proposal missing: {proposal_path}")
+
+required_sections = [
+    "PURPOSE",
+    "FUTURE_EXECUTION_REQUIREMENTS",
+    "TARGET_FILES",
+    "PRECHANGE_BACKUP_REQUIREMENTS",
+    "PRECHECK_VALIDATION",
+    "PLANNED_MUTATIONS",
+    "POST_APPLY_VALIDATION",
+    "ROLLBACK_PLAN",
+    "HUMAN_REVIEW_GATE",
+    "POLICY_GATES",
+    "NOTES",
+]
+
+for name in required_sections:
+    if not section(name):
+        fail.append(f"{name} section missing or empty")
+
+validations = section("PRECHECK_VALIDATION")
+required_validations = [
+    "python3 -m json.tool /home/ogre/spot-stack/spot-core/config/cluster_config.json >/dev/null",
+    "spot validate",
+    'spot ask "show worker latency"',
+    'spot ask "what is the current fleet status"',
+    'spot ask "show current routing audit"',
+]
+for cmd in required_validations:
+    if cmd not in validations:
+        fail.append(f"required validation missing: {cmd}")
+
+policy = section("POLICY_GATES")
+for phrase in [
+    "No backup, no change.",
+    "Execution remains blocked",
+    "Memory and proposal history are context only, not authorization.",
+]:
+    if phrase not in policy:
+        fail.append(f"policy gate missing: {phrase}")
+
+if "This artifact does not authorize execution." not in text:
+    warn.append("explicit non-authorization sentence missing")
+
+for item in warn:
+    print(f"[WARN] {item}")
+
+for item in fail:
+    print(f"[FAIL] {item}")
+
+if fail:
+    print(f"RESULT: FAIL fail={len(fail)} warn={len(warn)}")
+    raise SystemExit(1)
+
+print(f"RESULT: PASS fail=0 warn={len(warn)}")
+PYINNER
 }
 
 memory_append(){
@@ -736,5 +993,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"

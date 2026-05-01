@@ -8,6 +8,9 @@ risk_class: low
 apply_status: review_approved
 review_approved_utc: 20260501-193814
 mutation_allowed: false
+backup_required: true
+backup_bound: false
+backup_artifact: pending
 
 ---
 

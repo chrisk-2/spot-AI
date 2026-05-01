@@ -51,6 +51,8 @@ Operator commands:
   apply-plan-verify <id|file> Verify reviewed or pending apply-plan safety guardrails
   approve-apply-plan <id|file> Mark apply-plan review approved without enabling mutation
   reject-apply-plan <id|file> Mark apply-plan review rejected
+  prepare-execution-handoff <id|file> Prepare non-mutating execution handoff artifact
+  execution-handoff-verify <id|file> Verify non-mutating execution handoff artifact
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -126,6 +128,8 @@ Examples:
   $(basename "$0") apply-plan-check APPLY-P-YYYYMMDD-HHMMSS-name
   $(basename "$0") apply-plan-verify APPLY-P-YYYYMMDD-HHMMSS-name
   $(basename "$0") approve-apply-plan APPLY-P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") prepare-execution-handoff APPLY-P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") execution-handoff-verify HANDOFF-APPLY-P-YYYYMMDD-HHMMSS-name
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -1410,6 +1414,8 @@ main() {
     apply-plan-verify)   bash "${BASE_DIR}/spot-client.sh" apply-plan-verify "$@" ;;
     approve-apply-plan)  bash "${BASE_DIR}/spot-client.sh" approve-apply-plan "$@" ;;
     reject-apply-plan)   bash "${BASE_DIR}/spot-client.sh" reject-apply-plan "$@" ;;
+    prepare-execution-handoff) bash "${BASE_DIR}/spot-client.sh" prepare-execution-handoff "$@" ;;
+    execution-handoff-verify) bash "${BASE_DIR}/spot-client.sh" execution-handoff-verify "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;
