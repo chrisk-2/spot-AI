@@ -44,6 +44,10 @@ Operator commands:
   proposal-status <id|file> Show proposal lifecycle metadata
   generate-patch <id|file> Generate patch artifact from approved proposal
   generate-apply-plan <id|file> Generate supervised apply-plan artifact from approved proposal
+  apply-plans [count]      List generated supervised apply-plan artifacts
+  show-apply-plan <id|file> Show a generated supervised apply-plan artifact
+  apply-plan-status <id|file> Show apply-plan lifecycle metadata
+  apply-plan-check <id|file> Verify apply-plan safety guardrails without mutation
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -114,6 +118,9 @@ Examples:
   $(basename "$0") proposal-status P-YYYYMMDD-HHMMSS-name
   $(basename "$0") generate-patch P-YYYYMMDD-HHMMSS-name
   $(basename "$0") generate-apply-plan P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") apply-plans
+  $(basename "$0") apply-plan-status APPLY-P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") apply-plan-check APPLY-P-YYYYMMDD-HHMMSS-name
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -1391,6 +1398,10 @@ main() {
     reject)              bash "${BASE_DIR}/spot-client.sh" reject "$@" ;;
     generate-apply-plan) bash "${BASE_DIR}/spot-client.sh" generate-apply-plan "$@" ;;
     proposal-status)     bash "${BASE_DIR}/spot-client.sh" proposal-status "$@" ;;
+    apply-plans)         bash "${BASE_DIR}/spot-client.sh" apply-plans "$@" ;;
+    show-apply-plan)     bash "${BASE_DIR}/spot-client.sh" show-apply-plan "$@" ;;
+    apply-plan-status)   bash "${BASE_DIR}/spot-client.sh" apply-plan-status "$@" ;;
+    apply-plan-check)    bash "${BASE_DIR}/spot-client.sh" apply-plan-check "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;

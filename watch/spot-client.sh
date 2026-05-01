@@ -20,6 +20,7 @@ Usage:
   spot-client.sh apply-plans [count]
   spot-client.sh show-apply-plan <id-or-file>
   spot-client.sh apply-plan-status <id-or-file>
+  spot-client.sh apply-plan-check <id-or-file>
   spot-client.sh generate-patch <id-or-file>   # legacy alias
   spot-client.sh remember <fact|decision|session|preference|roadmap> <text>
   spot-client.sh memory [count]
@@ -360,6 +361,85 @@ cmd_apply_plan_status(){
   grep -E '^(linked_proposal:|approved_utc:|generated_utc:|task:|risk_class:|apply_status:|mutation_allowed:)' "$file"
 }
 
+cmd_apply_plan_check(){
+  local file
+  file="$(resolve_apply_plan_file "${1:-}")"
+
+  python3 - "$file" <<'PYINNER'
+from pathlib import Path
+import re, sys
+
+path = Path(sys.argv[1])
+text = path.read_text(errors="ignore")
+fail = []
+warn = []
+
+def has_line(pattern):
+    return re.search(pattern, text, re.M) is not None
+
+def section(name):
+    m = re.search(rf'^{re.escape(name)}\s*\n(?P<body>.*?)(?=\n[A-Z_]+\s*\n|\Z)', text, re.M | re.S)
+    return m.group("body").strip() if m else ""
+
+if not has_line(r'^mutation_allowed:\s*false\s*$'):
+    fail.append("mutation_allowed must be false")
+
+if not has_line(r'^apply_status:\s*pending_manual_review\s*$'):
+    fail.append("apply_status must be pending_manual_review")
+
+targets = section("TARGET_FILES")
+if not targets:
+    fail.append("TARGET_FILES section missing or empty")
+else:
+    for raw in targets.splitlines():
+        item = raw.strip()
+        if not item.startswith("- "):
+            continue
+        target = item[2:].strip().strip("`")
+        if target.startswith("/") and not Path(target).exists():
+            fail.append(f"target file missing: {target}")
+
+validations = section("PRECHECK_VALIDATION")
+if not validations:
+    fail.append("PRECHECK_VALIDATION section missing or empty")
+else:
+    required = [
+        "python3 -m json.tool /home/ogre/spot-stack/spot-core/config/cluster_config.json >/dev/null",
+        "spot validate",
+        'spot ask "show worker latency"',
+        'spot ask "what is the current fleet status"',
+        'spot ask "show current routing audit"',
+    ]
+    for cmd in required:
+        if cmd not in validations:
+            fail.append(f"required validation missing: {cmd}")
+
+if not section("POST_APPLY_VALIDATION"):
+    fail.append("POST_APPLY_VALIDATION section missing or empty")
+
+if not section("ROLLBACK_PLAN"):
+    fail.append("ROLLBACK_PLAN section missing or empty")
+
+if not section("HUMAN_REVIEW_GATE"):
+    fail.append("HUMAN_REVIEW_GATE section missing or empty")
+
+if "Generated artifact is non-mutating" not in text:
+    warn.append("non-mutating note missing")
+
+for item in warn:
+    print(f"[WARN] {item}")
+
+for item in fail:
+    print(f"[FAIL] {item}")
+
+if fail:
+    print(f"RESULT: FAIL fail={len(fail)} warn={len(warn)}")
+    raise SystemExit(1)
+
+print(f"RESULT: PASS fail=0 warn={len(warn)}")
+PYINNER
+}
+
 memory_append(){
   local kind="$1"; shift
   local msg="$*"
@@ -513,5 +593,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"
