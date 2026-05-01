@@ -175,6 +175,36 @@ OPERATOR_COMMANDS: dict[str, dict[str, Any]] = {
         "timeout": 120,
         "mutating": False,
     },
+    "routing": {
+        "argv": ["bash", str(SPOT_WATCH_ROOT / "spot-ops.sh"), "routing"],
+        "cwd": str(SPOT_CORE_ROOT),
+        "timeout": 120,
+        "mutating": False,
+    },
+    "audit": {
+        "argv": ["bash", str(SPOT_WATCH_ROOT / "spot-ops.sh"), "audit"],
+        "cwd": str(SPOT_CORE_ROOT),
+        "timeout": 120,
+        "mutating": False,
+    },
+    "latency": {
+        "argv": ["curl", "-fsS", "http://127.0.0.1:8787/stats/latency"],
+        "cwd": str(SPOT_CORE_ROOT),
+        "timeout": 120,
+        "mutating": False,
+    },
+    "quarantine_state": {
+        "argv": ["bash", str(SPOT_WATCH_ROOT / "spot-ops.sh"), "quarantine-state"],
+        "cwd": str(SPOT_CORE_ROOT),
+        "timeout": 120,
+        "mutating": False,
+    },
+    "readiness": {
+        "argv": ["curl", "-fsS", "http://127.0.0.1:8787/operator/readiness"],
+        "cwd": str(SPOT_CORE_ROOT),
+        "timeout": 120,
+        "mutating": False,
+    },
 }
 
 
@@ -209,12 +239,20 @@ def append_jsonl(path: Path, payload: dict[str, Any]) -> None:
         f.write(json.dumps(payload, sort_keys=True) + "\n")
 
 def classify_action_risk(action_name: str, target: str, service: str, metadata: dict[str, Any] | None = None) -> str:
+    metadata = metadata or {}
+
+    # Read-only operator commands must not be escalated by words like
+    # "routing" appearing in the command name. Mutation is controlled by
+    # the OPERATOR_COMMANDS spec and the mutating flag.
+    if action_name == "operator_command" and metadata.get("mutating") is False:
+        return "low"
+
     text = " ".join(
         [
             action_name.lower(),
             target.lower(),
             service.lower(),
-            json.dumps(metadata or {}, sort_keys=True).lower(),
+            json.dumps(metadata, sort_keys=True).lower(),
         ]
     )
     if any(
@@ -2683,6 +2721,99 @@ async def fleet_ping() -> dict[str, Any]:
 async def stats_latency() -> dict[str, Any]:
     cfg = load_config()
     return {name: worker_latency_summary(name) for name in cfg["workers"].keys()}
+
+
+@app.get("/operator/readiness")
+async def operator_readiness() -> dict[str, Any]:
+    health_data = await health()
+    fleet = await fleet_ping()
+    audit = await stats_routing_audit(limit=200)
+    latency = await stats_latency()
+
+    workers = []
+    worker_failures = 0
+    quarantined = 0
+    degraded = 0
+    slow_workers = []
+
+    for name, item in fleet.items():
+        lat = latency.get(name, {}) or {}
+        p50_ms = lat.get("p50_total_ms")
+        avg_ms = lat.get("avg_total_ms")
+
+        worker_ok = bool(item.get("ok"))
+        is_quarantined = bool(item.get("quarantined"))
+        is_degraded = bool(item.get("degraded"))
+
+        if not worker_ok:
+            worker_failures += 1
+        if is_quarantined:
+            quarantined += 1
+        if is_degraded:
+            degraded += 1
+
+        if isinstance(p50_ms, (int, float)) and p50_ms >= 5000:
+            slow_workers.append(
+                {
+                    "worker": name,
+                    "p50_total_ms": p50_ms,
+                    "avg_total_ms": avg_ms,
+                    "reason": "p50_latency_ge_5000ms",
+                }
+            )
+
+        workers.append(
+            {
+                "worker": name,
+                "ok": worker_ok,
+                "reason": item.get("reason"),
+                "primary_role": item.get("primary_role"),
+                "eligible": bool(item.get("eligible")),
+                "quarantined": is_quarantined,
+                "degraded": is_degraded,
+                "degraded_reason": item.get("degraded_reason"),
+                "latency": lat,
+            }
+        )
+
+    routing_ok = bool(audit.get("ok")) and int(audit.get("violations") or 0) == 0
+    fleet_ok = worker_failures == 0 and quarantined == 0
+    core_ok = bool(health_data.get("ok"))
+
+    status = "ready" if core_ok and routing_ok and fleet_ok else "not_ready"
+    if slow_workers and status == "ready":
+        status = "ready_with_warnings"
+
+    return {
+        "ok": status in {"ready", "ready_with_warnings"},
+        "status": status,
+        "ts": _now(),
+        "core": {
+            "ok": core_ok,
+            "uptime_sec": health_data.get("uptime_sec"),
+        },
+        "routing": {
+            "ok": routing_ok,
+            "window_count": audit.get("window_count"),
+            "primaries": audit.get("primaries"),
+            "fallbacks": audit.get("fallbacks"),
+            "violations": audit.get("violations"),
+            "manual_overrides": audit.get("manual_overrides"),
+            "last_violation_ts": audit.get("last_violation_ts"),
+        },
+        "fleet": {
+            "worker_count": len(workers),
+            "worker_failures": worker_failures,
+            "quarantined": quarantined,
+            "degraded": degraded,
+            "slow_workers": slow_workers,
+            "workers": workers,
+        },
+        "operator": {
+            "readiness_source": "live",
+            "readiness_endpoint": "/operator/readiness",
+        },
+    }
 
 
 @app.get("/stats/recent-decisions")
