@@ -35,6 +35,53 @@ header() {
     printf '\n===== %s =====\n' "$1"
 }
 
+active_phase() {
+    python3 - "$ROADMAP_FILE" <<'PY'
+from pathlib import Path
+import re, sys
+text = Path(sys.argv[1]).read_text()
+section = re.search(r'# CURRENT ACTIVE PHASE\s+Current active lane:\s+\n\n(.+?)(?:\n\n|\Z)', text, re.S)
+if section:
+    line = section.group(1).strip()
+    line = re.sub(r'^\*\*|\*\*$', '', line).strip()
+    print(line)
+else:
+    print("See ROADMAP.md current active phase")
+PY
+}
+
+next_directive() {
+    local phase
+    phase="$(active_phase)"
+    cat <<EOF
+Read the referenced files silently. Do not reopen completed milestones unless a fresh regression is observed. Continue the current active lane from ROADMAP.md and STATE.md: ${phase}.
+EOF
+}
+
+checkpoint_index() {
+    local phase
+    phase="$(active_phase)"
+    cat <<EOF
+READ IN THIS ORDER NEXT CHAT:
+1. /home/ogre/spot-stack/HANDOFF.md
+2. /home/ogre/spot-stack/spot-core/STATE.md
+3. /home/ogre/spot-stack/ROADMAP.md
+4. /home/ogre/spot-stack/NETWORK_DNS_CHECKPOINT.md
+5. /home/ogre/spot-stack/Spot_Autonomy_Policy
+6. /home/ogre/spot-stack/HANDOFF-SPOT-INTEGRATION.md
+7. /home/ogre/spot-stack/HANDOFF-CODEX-INTEGRATION.md
+
+NEXT CHAT DIRECTIVE:
+- Read referenced files silently.
+- Do not restate checkpoint contents unless asked.
+- Do not reopen completed milestones unless a fresh regression is observed.
+- Continue the current active lane from ROADMAP.md and STATE.md.
+
+CURRENT ACTIVE PHASE:
+${phase}
+EOF
+}
+
 main() {
     cd "$REPO" || exit 1
 
@@ -93,26 +140,7 @@ main() {
     git log -1 --oneline
 
     header "CHECKPOINT INDEX"
-    cat <<'BLOCK'
-READ IN THIS ORDER NEXT CHAT:
-1. /home/ogre/spot-stack/HANDOFF.md
-2. /home/ogre/spot-stack/spot-core/STATE.md
-3. /home/ogre/spot-stack/ROADMAP.md
-4. /home/ogre/spot-stack/NETWORK_DNS_CHECKPOINT.md
-5. /home/ogre/spot-stack/Spot_Autonomy_Policy
-6. /home/ogre/spot-stack/HANDOFF-SPOT-INTEGRATION.md
-7. /home/ogre/spot-stack/HANDOFF-CODEX-INTEGRATION.md
-
-
-NEXT CHAT DIRECTIVE:
-- Read referenced files silently.
-- Do not restate checkpoint contents.
-- Do not reopen Milestone A unless a fresh regression is observed.
-- Begin PHASE 1 / Milestone B canonical next task: standardize operator entry points and unified terminal command surface.
-
-CURRENT ACTIVE PHASE:
-PHASE 1 — SPOT OPERATOR READY
-BLOCK
+    checkpoint_index
 
     backup_status
 
@@ -141,9 +169,7 @@ BLOCK
     docker compose ps || true
 
     header "NEW CHAT BLOCK"
-    cat <<'BLOCK'
-Read the referenced files silently. Do not reopen Milestone A unless a fresh regression is observed. Begin PHASE 1 / Milestone B canonical next task: standardize operator entry points and unified terminal command surface.
-BLOCK
+    next_directive
 }
 
 main "$@"
