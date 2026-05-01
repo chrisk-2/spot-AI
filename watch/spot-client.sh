@@ -17,6 +17,9 @@ Usage:
   spot-client.sh reject <id-or-file>
   spot-client.sh proposal-status <id-or-file>
   spot-client.sh generate-apply-plan <id-or-file>
+  spot-client.sh apply-plans [count]
+  spot-client.sh show-apply-plan <id-or-file>
+  spot-client.sh apply-plan-status <id-or-file>
   spot-client.sh generate-patch <id-or-file>   # legacy alias
   spot-client.sh remember <fact|decision|session|preference|roadmap> <text>
   spot-client.sh memory [count]
@@ -324,6 +327,39 @@ cmd_generate_patch(){
   cmd_generate_apply_plan "$@"
 }
 
+resolve_apply_plan_file(){
+  local id="${1:-}"
+  [[ -n "$id" ]] || { echo "ERROR: apply-plan id/file required" >&2; exit 2; }
+
+  local file="$id"
+  [[ -f "$file" ]] || file="${BASE_DIR}/apply-plans/${id%.md}.md"
+  [[ -f "$file" ]] || file="${BASE_DIR}/apply-plans/APPLY-${id#APPLY-}.md"
+
+  [[ -f "$file" ]] || { echo "ERROR: apply-plan not found: $id" >&2; exit 2; }
+  printf '%s' "$file"
+}
+
+cmd_apply_plans(){
+  local count="${1:-20}"
+  mkdir -p "${BASE_DIR}/apply-plans"
+  find "${BASE_DIR}/apply-plans" -maxdepth 1 -type f -name 'APPLY-*.md' -printf '%T@ %f\n' 2>/dev/null \
+    | sort -nr \
+    | head -n "$count" \
+    | awk '{print $2}'
+}
+
+cmd_show_apply_plan(){
+  local file
+  file="$(resolve_apply_plan_file "${1:-}")"
+  cat "$file"
+}
+
+cmd_apply_plan_status(){
+  local file
+  file="$(resolve_apply_plan_file "${1:-}")"
+  grep -E '^(linked_proposal:|approved_utc:|generated_utc:|task:|risk_class:|apply_status:|mutation_allowed:)' "$file"
+}
+
 memory_append(){
   local kind="$1"; shift
   local msg="$*"
@@ -477,5 +513,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"
