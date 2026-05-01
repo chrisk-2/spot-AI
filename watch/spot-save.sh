@@ -127,6 +127,7 @@ main() {
       "$REPO/watch/spot-client.sh" \
       "$REPO/watch/spot-ops.sh" \
       "$REPO/watch/apply-plans" \
+      "$REPO/watch/execution-handoffs" \
       "$0"
 
 [[ -f "$CORE_COMPOSE" ]] && git add "$CORE_COMPOSE"
