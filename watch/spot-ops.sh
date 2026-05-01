@@ -43,6 +43,7 @@ Operator commands:
   reject <id|file>         Mark a saved proposal rejected
   proposal-status <id|file> Show proposal lifecycle metadata
   generate-patch <id|file> Generate patch artifact from approved proposal
+  generate-apply-plan <id|file> Generate supervised apply-plan artifact from approved proposal
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -112,6 +113,7 @@ Examples:
   $(basename "$0") approve P-YYYYMMDD-HHMMSS-name
   $(basename "$0") proposal-status P-YYYYMMDD-HHMMSS-name
   $(basename "$0") generate-patch P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") generate-apply-plan P-YYYYMMDD-HHMMSS-name
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -1387,6 +1389,7 @@ main() {
     show-proposal)       bash "${BASE_DIR}/spot-client.sh" show-proposal "$@" ;;
     approve)             bash "${BASE_DIR}/spot-client.sh" approve "$@" ;;
     reject)              bash "${BASE_DIR}/spot-client.sh" reject "$@" ;;
+    generate-apply-plan) bash "${BASE_DIR}/spot-client.sh" generate-apply-plan "$@" ;;
     proposal-status)     bash "${BASE_DIR}/spot-client.sh" proposal-status "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;

@@ -124,6 +124,9 @@ main() {
       "$APP_FILE" \
       "$ROOT_COMPOSE" \
       "$CONFIG_FILE" \
+      "$REPO/watch/spot-client.sh" \
+      "$REPO/watch/spot-ops.sh" \
+      "$REPO/watch/apply-plans" \
       "$0"
 
 [[ -f "$CORE_COMPOSE" ]] && git add "$CORE_COMPOSE"
