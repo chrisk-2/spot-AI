@@ -35,6 +35,17 @@ usage() {
 Usage: $(basename "$0") <command> [args]
 
 Operator commands:
+  ask [args]               Ask Spot through the routed assistant client
+  propose [args]           Generate a proposal-only engineering plan
+  proposals [count]        List saved Spot proposals
+  show-proposal <id|file>  Show a saved Spot proposal
+  approve <id|file>        Mark a saved proposal approved
+  reject <id|file>         Mark a saved proposal rejected
+  proposal-status <id|file> Show proposal lifecycle metadata
+  generate-patch <id|file> Generate patch artifact from approved proposal
+  remember <type> <text>   Append durable memory entry
+  memory [count]           Show recent durable memory entries
+  recall <keyword>         Search durable memory entries
   status                   Show concise operator status summary
   status-json              Show raw JSON operator status
   validate                 Run scripted fleet validation
@@ -93,6 +104,17 @@ Read-only monitor threshold overrides:
   MONITOR_NET_ALERT_LOSS_PCT
 
 Examples:
+  $(basename "$0") ask "what is the current fleet status?"
+  $(basename "$0") propose "prepare a safe config patch plan"
+  $(basename "$0") propose "fix worker-02 latency" --save
+  $(basename "$0") proposals
+  $(basename "$0") show-proposal P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") approve P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") proposal-status P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") generate-patch P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") remember fact "worker-02 has dual GPUs"
+  $(basename "$0") memory
+  $(basename "$0") recall worker-02
   $(basename "$0") status
   $(basename "$0") validate
   $(basename "$0") validate-smoke
@@ -1359,6 +1381,17 @@ main() {
   shift || true
 
   case "$cmd" in
+    ask)                 bash "${BASE_DIR}/spot-client.sh" ask "$@" ;;
+    propose)             bash "${BASE_DIR}/spot-client.sh" propose "$@" ;;
+    proposals)           bash "${BASE_DIR}/spot-client.sh" proposals "$@" ;;
+    show-proposal)       bash "${BASE_DIR}/spot-client.sh" show-proposal "$@" ;;
+    approve)             bash "${BASE_DIR}/spot-client.sh" approve "$@" ;;
+    reject)              bash "${BASE_DIR}/spot-client.sh" reject "$@" ;;
+    proposal-status)     bash "${BASE_DIR}/spot-client.sh" proposal-status "$@" ;;
+    generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
+    remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
+    memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;
+    recall)              bash "${BASE_DIR}/spot-client.sh" recall "$@" ;;
     status)              cmd_status "$@" ;;
     status-json)         cmd_status_json "$@" ;;
     validate)            cmd_validate "$@" ;;
