@@ -40,13 +40,27 @@ active_phase() {
 from pathlib import Path
 import re, sys
 text = Path(sys.argv[1]).read_text()
-section = re.search(r'# CURRENT ACTIVE PHASE\s+Current active lane:\s+\n\n(.+?)(?:\n\n|\Z)', text, re.S)
-if section:
-    line = section.group(1).strip()
-    line = re.sub(r'^\*\*|\*\*$', '', line).strip()
-    print(line)
-else:
+match = re.search(r'# CURRENT ACTIVE PHASE(?P<body>.*?)(?:\n---\n|\Z)', text, re.S)
+if not match:
     print("See ROADMAP.md current active phase")
+    raise SystemExit(0)
+body = match.group('body')
+# Prefer the first bold PHASE line under CURRENT ACTIVE PHASE.
+for line in body.splitlines():
+    stripped = line.strip()
+    if stripped.startswith('**') and stripped.endswith('**') and 'PHASE' in stripped.upper():
+        print(stripped.strip('*').strip())
+        raise SystemExit(0)
+# Fallback: first non-empty line after "Current active lane:".
+lines = body.splitlines()
+for i, line in enumerate(lines):
+    if line.strip().lower().startswith('current active lane'):
+        for candidate in lines[i + 1:]:
+            candidate = candidate.strip()
+            if candidate:
+                print(candidate.strip('*').strip())
+                raise SystemExit(0)
+print("See ROADMAP.md current active phase")
 PY
 }
 
