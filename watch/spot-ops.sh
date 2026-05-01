@@ -48,6 +48,9 @@ Operator commands:
   show-apply-plan <id|file> Show a generated supervised apply-plan artifact
   apply-plan-status <id|file> Show apply-plan lifecycle metadata
   apply-plan-check <id|file> Verify apply-plan safety guardrails without mutation
+  apply-plan-verify <id|file> Verify reviewed or pending apply-plan safety guardrails
+  approve-apply-plan <id|file> Mark apply-plan review approved without enabling mutation
+  reject-apply-plan <id|file> Mark apply-plan review rejected
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -121,6 +124,8 @@ Examples:
   $(basename "$0") apply-plans
   $(basename "$0") apply-plan-status APPLY-P-YYYYMMDD-HHMMSS-name
   $(basename "$0") apply-plan-check APPLY-P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") apply-plan-verify APPLY-P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") approve-apply-plan APPLY-P-YYYYMMDD-HHMMSS-name
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -1402,6 +1407,9 @@ main() {
     show-apply-plan)     bash "${BASE_DIR}/spot-client.sh" show-apply-plan "$@" ;;
     apply-plan-status)   bash "${BASE_DIR}/spot-client.sh" apply-plan-status "$@" ;;
     apply-plan-check)    bash "${BASE_DIR}/spot-client.sh" apply-plan-check "$@" ;;
+    apply-plan-verify)   bash "${BASE_DIR}/spot-client.sh" apply-plan-verify "$@" ;;
+    approve-apply-plan)  bash "${BASE_DIR}/spot-client.sh" approve-apply-plan "$@" ;;
+    reject-apply-plan)   bash "${BASE_DIR}/spot-client.sh" reject-apply-plan "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;

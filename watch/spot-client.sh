@@ -21,6 +21,9 @@ Usage:
   spot-client.sh show-apply-plan <id-or-file>
   spot-client.sh apply-plan-status <id-or-file>
   spot-client.sh apply-plan-check <id-or-file>
+  spot-client.sh apply-plan-verify <id-or-file>
+  spot-client.sh approve-apply-plan <id-or-file>
+  spot-client.sh reject-apply-plan <id-or-file>
   spot-client.sh generate-patch <id-or-file>   # legacy alias
   spot-client.sh remember <fact|decision|session|preference|roadmap> <text>
   spot-client.sh memory [count]
@@ -440,6 +443,146 @@ print(f"RESULT: PASS fail=0 warn={len(warn)}")
 PYINNER
 }
 
+cmd_apply_plan_verify(){
+  local file
+  file="$(resolve_apply_plan_file "${1:-}")"
+
+  python3 - "$file" <<'PYINNER'
+from pathlib import Path
+import re, sys
+
+path = Path(sys.argv[1])
+text = path.read_text(errors="ignore")
+fail = []
+warn = []
+
+def line_value(name):
+    m = re.search(rf'^{re.escape(name)}:\s*(.+?)\s*$', text, re.M)
+    return m.group(1).strip() if m else ""
+
+def section(name):
+    m = re.search(rf'^{re.escape(name)}\s*\n(?P<body>.*?)(?=\n[A-Z_]+\s*\n|\Z)', text, re.M | re.S)
+    return m.group("body").strip() if m else ""
+
+status = line_value("apply_status")
+mutation_allowed = line_value("mutation_allowed")
+
+if mutation_allowed != "false":
+    fail.append("mutation_allowed must be false")
+
+if status not in {"pending_manual_review", "review_approved"}:
+    fail.append(f"apply_status must be pending_manual_review or review_approved, got: {status or '<missing>'}")
+
+if status == "review_approved" and not line_value("review_approved_utc"):
+    fail.append("review_approved_utc required when apply_status is review_approved")
+
+required_sections = [
+    "TARGET_FILES",
+    "PRECHANGE_BACKUP_REQUIREMENTS",
+    "PRECHECK_VALIDATION",
+    "PLANNED_MUTATIONS",
+    "POST_APPLY_VALIDATION",
+    "ROLLBACK_PLAN",
+    "HUMAN_REVIEW_GATE",
+    "NOTES",
+]
+
+for name in required_sections:
+    if not section(name):
+        fail.append(f"{name} section missing or empty")
+
+targets = section("TARGET_FILES")
+for raw in targets.splitlines():
+    item = raw.strip()
+    if not item.startswith("- "):
+        continue
+    target = item[2:].strip().strip("`")
+    if target.startswith("/") and not Path(target).exists():
+        fail.append(f"target file missing: {target}")
+
+validations = section("PRECHECK_VALIDATION")
+required_validations = [
+    "python3 -m json.tool /home/ogre/spot-stack/spot-core/config/cluster_config.json >/dev/null",
+    "spot validate",
+    'spot ask "show worker latency"',
+    'spot ask "what is the current fleet status"',
+    'spot ask "show current routing audit"',
+]
+for cmd in required_validations:
+    if cmd not in validations:
+        fail.append(f"required validation missing: {cmd}")
+
+if "Spot Core must create and verify a pre-change backup" not in text:
+    fail.append("backup-first requirement missing")
+
+if "Generated artifact is non-mutating" not in text:
+    warn.append("non-mutating note missing")
+
+for item in warn:
+    print(f"[WARN] {item}")
+
+for item in fail:
+    print(f"[FAIL] {item}")
+
+if fail:
+    print(f"RESULT: FAIL fail={len(fail)} warn={len(warn)}")
+    raise SystemExit(1)
+
+print(f"RESULT: PASS status={status} fail=0 warn={len(warn)}")
+PYINNER
+}
+
+set_apply_plan_status(){
+  local file="$1"
+  local status="$2"
+  local stamp_field="$3"
+
+  python3 - "$file" "$status" "$stamp_field" <<'PYINNER'
+from pathlib import Path
+from datetime import datetime, UTC
+import re, sys
+
+path = Path(sys.argv[1])
+status = sys.argv[2]
+stamp_field = sys.argv[3]
+text = path.read_text(errors="ignore")
+now = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+
+if not re.search(r'^mutation_allowed:\s*false\s*$', text, re.M):
+    raise SystemExit("ERROR: refusing lifecycle update because mutation_allowed is not false")
+
+if re.search(r'^apply_status:\s*.*$', text, re.M):
+    text = re.sub(r'^apply_status:\s*.*$', f'apply_status: {status}', text, count=1, flags=re.M)
+else:
+    text = text.replace('mutation_allowed: false', f'apply_status: {status}\nmutation_allowed: false', 1)
+
+if re.search(rf'^{re.escape(stamp_field)}:\s*.*$', text, re.M):
+    text = re.sub(rf'^{re.escape(stamp_field)}:\s*.*$', f'{stamp_field}: {now}', text, count=1, flags=re.M)
+else:
+    text = text.replace(f'apply_status: {status}', f'apply_status: {status}\n{stamp_field}: {now}', 1)
+
+path.write_text(text)
+print(path)
+PYINNER
+}
+
+cmd_approve_apply_plan(){
+  local file
+  file="$(resolve_apply_plan_file "${1:-}")"
+  cmd_apply_plan_check "$file" >/dev/null
+  set_apply_plan_status "$file" review_approved review_approved_utc
+  memory_append decision "review approved apply plan $(basename "$file" .md)"
+  echo "[apply-plan-review-approved] $file"
+}
+
+cmd_reject_apply_plan(){
+  local file
+  file="$(resolve_apply_plan_file "${1:-}")"
+  set_apply_plan_status "$file" review_rejected review_rejected_utc
+  memory_append decision "review rejected apply plan $(basename "$file" .md)"
+  echo "[apply-plan-review-rejected] $file"
+}
+
 memory_append(){
   local kind="$1"; shift
   local msg="$*"
@@ -593,5 +736,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"

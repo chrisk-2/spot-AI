@@ -5,7 +5,8 @@ approved_utc: 20260501-133818
 generated_utc: 20260501-192434
 task: revise routing so utility role remains primary on worker-02 but has worker-01 as fallback in /home/ogre/spot-stack/spot-core/config/cluster_config.json; do not change spot-client.sh
 risk_class: low
-apply_status: pending_manual_review
+apply_status: review_approved
+review_approved_utc: 20260501-193814
 mutation_allowed: false
 
 ---

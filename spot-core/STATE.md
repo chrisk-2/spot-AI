@@ -2,7 +2,7 @@
 
 ## 2026-05-01 Runtime-aligned checkpoint
 
-This file reflects the actual current runtime state of the Spot / Starfleet project after the D.1 through D.5b assistant-client and memory work.
+This file reflects the current runtime state of the Spot / Starfleet project after assistant-client, memory, supervised apply-plan, and watcher/heartbeat work.
 
 Canonical rules remain in:
 
@@ -11,42 +11,42 @@ Canonical rules remain in:
 - `/home/ogre/spot-stack/HANDOFF-CODEX-INTEGRATION.md`
 - `/home/ogre/spot-stack/HANDOFF-SPOT-INTEGRATION.md`
 
+Roadmap truth lives in:
+
+- `/home/ogre/spot-stack/ROADMAP.md`
+
 ---
 
 ## Current verified system health
 
-Latest operator verification from 2026-05-01:
+Latest verified state from 2026-05-01:
 
+- Spot Core `/health` is OK.
 - `bash /home/ogre/spot-stack/watch/fleet-validate.sh` returned `RESULT: PASS`.
-- validation summary: `pass=19 warn=0 fail=0`.
-- `spot-ops.sh quick-health` showed core health OK.
+- latest validation summary observed: `pass=19 warn=0 fail=0`.
 - all four workers are healthy, eligible, not quarantined, and not degraded.
-- endpoint quick-health summary showed `ok_count=5 fail_count=0`.
 - routing audit remains clean: `violations=0`, `fallbacks=0`, `manual_overrides=0`.
-
-MCP/operator verification:
-
-- `admin_operator_command status` works and returns all workers OK.
-- `admin_operator_command readiness` works through live `/operator/readiness`.
-- MCP `status` reported `Fleet: ALL SYSTEMS NOMINAL`.
+- worker backups are current and reported OK by `spot_save`.
+- Docker `spot-core` is up.
+- MCP and Cloudflare tunnel services are active.
 
 Important nuance:
 
 - Fleet validation is PASS.
-- `/operator/readiness` still reports `ready_with_warnings` because worker-02 utility latency remains above warning threshold.
+- `/operator/readiness` may still report `ready_with_warnings` when worker-02 utility latency exceeds readiness threshold.
 - This is expected and is not a validator failure.
 
-Current readiness warning:
+Current known warning/debt:
 
 - worker: `spot-worker-02`
-- condition: p50 latency above 5000ms
-- recent observed values: p50 about 7.6s, average about 10.7s, about 26.8 tok/sec
+- condition: utility lane latency remains high
+- recent observed values: p50 around 7.6-8.2s, average around 10.7-11.1s, around 26-27 tok/sec
 
 ---
 
 ## Phase 1 — Spot Operator Ready status
 
-Phase 1 is complete for the current scope.
+Status: **complete for current scope**.
 
 Completed/live:
 
@@ -56,7 +56,7 @@ Completed/live:
 - live `/health`, `/routing`, `/fleet/ping`, `/stats/latency`, `/stats/routing-audit`
 - backup-first enforcement remains in Spot Core mutation wrappers
 - read-only operator command risk classification is low risk
-- fleet validator currently passes cleanly
+- fleet validator passes cleanly
 
 Known remaining Phase 1 debt:
 
@@ -67,7 +67,7 @@ Known remaining Phase 1 debt:
 
 ## Phase 1.5 — Spot Assistant Client Surface status
 
-Phase 1.5 is substantially implemented in the terminal/client layer.
+Status: **mostly complete; active maturation continues**.
 
 Live client files:
 
@@ -84,7 +84,7 @@ Live assistant/operator commands:
 - `spot approve`
 - `spot reject`
 - `spot proposal-status`
-- `spot generate-patch`
+- `spot generate-patch` legacy alias
 - `spot remember`
 - `spot memory`
 - `spot recall`
@@ -101,7 +101,7 @@ Live assistant/operator commands:
 
 - proposal-only, no mutation
 - uses live Spot context from readiness, latency, and routing audit
-- injects durable memory and related historical proposal/patch context when relevant
+- injects durable memory and related historical proposal/apply-plan context when relevant
 - enforces canonical path guidance
 - warns on forbidden invented paths/services such as `spot-client.service`, `spot-ops.service`, `/etc/config/worker-02.yaml`, and `/home/ogre/spot-stack/bin/spot`
 - can save proposal markdown artifacts under `/home/ogre/spot-stack/watch/proposals`
@@ -113,32 +113,15 @@ Proposal lifecycle current behavior:
 - `spot reject <proposal>` marks a proposal rejected
 - `spot proposal-status <proposal>` prints lifecycle metadata
 
-Patch artifact current behavior:
-
-- `spot generate-patch <approved proposal>` requires approved proposal status
-- pending or rejected proposals are blocked from patch artifact generation
-- generated artifacts are markdown handoff files under `/home/ogre/spot-stack/watch/patches`
-- generated patch artifacts currently have `apply_status: pending_manual_apply`
-- this does not mutate target config files
-
-Current approved/generated examples observed in memory:
-
-- approved proposal `P-20260501-000539-fix-worker-02-latency`
-- patch artifact `PATCH-P-20260501-000539-fix-worker-02-latency`
-- approved proposal `P-20260501-133615-revise-routing-so-utility-role-remains-primary-o`
-- patch artifact `PATCH-P-20260501-133615-revise-routing-so-utility-role-remains-primary-o`
-
 ---
 
-## Persistent memory status
+## Phase 1.6 — Persistent Memory Foundation status
 
-D.5/D.5b memory layer is live.
+Status: **base layer live**.
 
 Current memory backend:
 
 - `/mnt/collective/spot/memory`
-
-This path is on Unimatrix shared storage and is the persistent memory source of truth for the current implementation.
 
 Observed memory files:
 
@@ -160,12 +143,109 @@ Memory commands:
 - `spot memory [count]` shows recent durable memory entries
 - `spot recall <keyword>` searches durable memory entries
 
-Memory is now used by:
+Memory informs context. Memory is not authorization.
 
-- `spot ask` context injection
-- `spot propose` context injection
-- proposal approval memory logging
-- patch artifact generation memory logging
+---
+
+## Phase 1.7 — Supervised Apply-Plan Engine status
+
+Status: **current active lane**.
+
+Purpose:
+
+- bridge proposal-only planning to future controlled mutation
+- create specific reviewable apply-plan artifacts
+- preserve backup-first, validation-first, rollback-first policy
+- keep mutation disabled until a future Spot Core controlled execution wrapper exists
+
+Live commands:
+
+- `spot generate-apply-plan <approved-proposal>`
+- `spot apply-plans [count]`
+- `spot show-apply-plan <apply-plan>`
+- `spot apply-plan-status <apply-plan>`
+- `spot apply-plan-check <apply-plan>`
+- `spot apply-plan-verify <apply-plan>`
+- `spot approve-apply-plan <apply-plan>`
+- `spot reject-apply-plan <apply-plan>`
+- `spot generate-patch <approved-proposal>` legacy alias to supervised apply-plan generation
+
+Current behavior:
+
+- apply-plan generation is blocked unless the linked proposal is approved
+- apply-plan artifacts are written under `/home/ogre/spot-stack/watch/apply-plans`
+- generated artifacts include target files, risk class, pre-change backup requirements, precheck validation, planned mutations, post-apply validation, rollback plan, human review gate, and non-mutating notes
+- proposal-provided validation augments the default required validation set instead of replacing it
+- `apply-plan-check` validates pending review artifacts only
+- `apply-plan-verify` accepts `pending_manual_review` and `review_approved`
+- `approve-apply-plan` marks `apply_status: review_approved` and adds `review_approved_utc`
+- `reject-apply-plan` marks `apply_status: review_rejected` and adds `review_rejected_utc`
+- lifecycle changes keep `mutation_allowed: false`
+
+Verified apply-plan example:
+
+- proposal: `P-20260501-133615-revise-routing-so-utility-role-remains-primary-o`
+- apply-plan: `APPLY-P-20260501-133615-revise-routing-so-utility-role-remains-primary-o`
+- status: `review_approved`
+- verification: `spot apply-plan-verify ...` returned `RESULT: PASS status=review_approved fail=0 warn=0`
+- mutation flag: `mutation_allowed: false`
+
+Current non-goals:
+
+- no unrestricted auto-apply
+- no direct config mutation from client scripts
+- no bypassing backup-first enforcement
+- no high-risk network/firewall/DNS/DHCP/VLAN/routing mutation outside narrow approved endpoints
+
+Remaining Phase 1.7 work before Phase 2:
+
+1. document/apply policy classification on apply-plan artifacts if not already explicit enough
+2. add backup binding/checkpoint reference design for future execution
+3. define controlled handoff from `review_approved` apply-plan to future Spot Core execution wrapper
+4. update docs and checkpoints after meaningful slices only
+
+---
+
+## Active watcher / heartbeat status
+
+Spot has an active heartbeat/watch stack.
+
+Active timers observed:
+
+- user timer: `fleet-watch.timer` every 2 minutes
+- user timer: `fleet-remediate.timer` every 5 minutes
+- system timer: `spot-monitor-alert-state.timer` every 1 minute
+- system timer: `spot-monitor-snapshot.timer` every 5 minutes
+
+Services/scripts:
+
+- `/home/ogre/spot-stack/watch/fleet-watch.sh`
+- `/home/ogre/spot-stack/watch/fleet-remediate.sh`
+- `/home/ogre/spot-stack/watch/fleet-monitor-snapshot.sh`
+
+Monitor state/log paths:
+
+- `/home/ogre/spot-stack/watch/logs/fleet-watch.log`
+- `/home/ogre/spot-stack/watch/logs/fleet-remediate.log`
+- `/home/ogre/spot-stack/watch/state/remediation-state.json`
+- `/home/ogre/spot-stack/watch/state/history/monitor-summary.jsonl`
+- `/home/ogre/spot-stack/watch/state/history/monitor-alert-latest.json`
+- `/home/ogre/spot-stack/watch/state/history/monitor-alert-transitions.jsonl`
+- `/home/ogre/spot-stack/watch/state/history/snapshots/`
+
+Snapshot repair completed:
+
+- `spot-monitor-snapshot.service` was failing because `/home/ogre/spot-stack/watch/state/history/snapshots` lacked directory execute permission.
+- Fix applied: `chmod 755 /home/ogre/spot-stack/watch/state/history/snapshots`.
+- `sudo systemctl start spot-monitor-snapshot.service` then completed with status `0/SUCCESS`.
+- fresh snapshot observed: `/home/ogre/spot-stack/watch/state/history/snapshots/2026-05-01-1777664884.json`.
+- fresh monitor summary showed health/routing/workers/endpoints/DNS/network all OK.
+
+Interpretation:
+
+- monitoring and alert-state plumbing exists and is active
+- remediation timer exists and records remediation-state backups
+- full Phase 2 autonomous incident/remediation loop is not active yet
 
 ---
 
@@ -219,24 +299,26 @@ Autonomy policy remains locked:
 - Clients propose; Spot Core applies through enforced wrappers.
 - High-risk firewall/DNS/DHCP/VLAN/routing/OPNsense changes remain gated and require narrow approved endpoints.
 
-Current assistant client layer is proposal-first and does not bypass Spot Core mutation policy.
+Current assistant/apply-plan layer is proposal-first and review-first. It does not bypass Spot Core mutation policy.
 
 ---
 
 ## Current active lane
 
-The project is past Milestone B operator standardization and past the first assistant-client MVP.
-
 Current active lane:
 
-**Phase 1.5 / D.4a — supervised apply-plan engine and controlled execution maturation.**
+**Phase 1.7 — supervised apply-plan engine and controlled execution preparation.**
+
+The next major roadmap phase after Phase 1.7 is Phase 2 — Build Spot Controlled Autonomy.
+
+There is currently no documented Phase 1.8.
 
 Immediate next work should focus on:
 
-1. keeping docs aligned with runtime state
-2. tightening proposal quality and historical awareness
-3. building supervised apply-plan artifacts that remain backup-first and non-mutating until explicitly approved
-4. preparing a future controlled apply workflow that routes all mutation through Spot Core enforcement
+1. finishing Phase 1.7 artifact semantics and execution handoff design
+2. keeping watcher/heartbeat state healthy
+3. preparing Phase 2 incident/remediation flow from existing monitor timers
+4. ensuring future mutation remains backup-first, verified, logged, and routed through Spot Core enforcement
 
 Do not implement unrestricted auto-apply.
 Do not bypass backup-first enforcement.
@@ -254,12 +336,14 @@ bash -n /home/ogre/spot-stack/watch/spot-ops.sh
 bash -n /home/ogre/spot-stack/watch/spot-client.sh
 bash /home/ogre/spot-stack/watch/fleet-validate.sh
 bash /home/ogre/spot-stack/watch/spot-ops.sh quick-health
+spot apply-plan-verify APPLY-P-20260501-133615-revise-routing-so-utility-role-remains-primary-o
 spot ask "what is the current fleet status"
 spot memory 20
+systemctl status spot-monitor-snapshot.service --no-pager --full
 ```
 
 ---
 
 ## Historical note
 
-Older STATE.md content before this checkpoint stopped around Milestone B / early Phase 1.5 and did not reflect the completed D.1-D.5b assistant and memory work. This checkpoint supersedes that stale state while preserving the locked rules in HANDOFF.md and Spot Autonomy Policy.
+Older STATE.md content before this checkpoint stopped around Milestone B / early Phase 1.5 and did not reflect the completed D.1-D.5b assistant and memory work or the Phase 1.7 apply-plan lifecycle. This checkpoint supersedes that stale state while preserving the locked rules in HANDOFF.md and Spot Autonomy Policy.

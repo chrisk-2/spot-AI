@@ -62,7 +62,7 @@ Completed/live:
 - live telemetry shortcuts for fleet status, routing audit, and latency questions
 - automatic role selection for common task types
 - route metadata visibility
-- durable memory context injection for relevant questions
+- durable memory context injection
 - `spot propose` proposal-first engineering/planning client
 - canonical path and validation-command guardrails in proposal mode
 - proposal guardrail scanner for forbidden invented paths/services
@@ -74,24 +74,14 @@ Completed/live:
   - `spot approve`
   - `spot reject`
   - `spot proposal-status`
-- supervised patch artifact generation:
-  - `spot generate-patch <approved proposal>`
-- generated patch artifacts remain non-mutating and have `apply_status: pending_manual_apply`
-
-Contract remains:
-
-Codex proposes. Spot Core applies.
-Spot Core holds the keys. Everything else asks permission.
 
 Goal met:
 
 Spot can now be used as a terminal engineering assistant with proposal memory and approval gates.
 
-Remaining Phase 1.5 maturation:
+Remaining maturation:
 
-- improve proposal quality and reduce generic/vague output
-- continue strengthening historical proposal awareness
-- build controlled apply-plan artifacts that are specific enough for future execution
+- continue strengthening proposal quality and historical awareness
 - keep all mutation routed through Spot Core backup-first enforcement
 
 ---
@@ -100,23 +90,15 @@ Remaining Phase 1.5 maturation:
 
 Status: **base layer live**.
 
-Persistent memory is now part of Spot’s assistant surface.
-
 Completed/live:
 
 - `spot remember`
 - `spot memory`
 - `spot recall`
-- Unimatrix-backed memory backend at `/mnt/collective/spot/memory`
-- JSONL memory categories:
-  - facts
-  - decisions
-  - preferences
-  - sessions
-  - roadmaps
+- Unimatrix-backed JSONL memory backend
 - memory injection into `spot ask`
 - memory injection into `spot propose`
-- proposal approval and patch artifact generation record durable memory entries
+- proposal/apply lifecycle durable memory logging
 
 Design rule:
 
@@ -127,7 +109,7 @@ Remaining memory work:
 - correction/edit/audit workflow for bad memory entries
 - better deduplication and indexing
 - eventual UI display/search
-- long-term vector/index layer after the append-only JSONL layer proves stable
+- long-term vector/index layer after append-only JSONL proves stable
 
 ---
 
@@ -137,15 +119,29 @@ Status: **current active lane**.
 
 This is the bridge between proposal-only planning and future controlled mutation.
 
-Build:
+Completed/live runtime layer:
+
+- `spot generate-apply-plan <approved-proposal>`
+- `spot apply-plans [count]`
+- `spot show-apply-plan <apply-plan>`
+- `spot apply-plan-status <apply-plan>`
+- `spot apply-plan-check <apply-plan>`
+- `spot apply-plan-verify <apply-plan>`
+- `spot approve-apply-plan <apply-plan>`
+- `spot reject-apply-plan <apply-plan>`
+- `spot generate-patch` retained as legacy alias to supervised apply-plan generation
+
+Current semantics:
 
 - approved proposal -> specific apply-plan artifact
-- apply-plan status lifecycle
+- apply-plan lifecycle states: pending review / review approved / review rejected
 - backup requirements listed before any mutation
 - validation and rollback requirements listed before any mutation
 - policy classification tied to Spot Autonomy Policy
 - blocked generation for unapproved/rejected proposals
-- no direct config mutation unless routed through Spot Core enforcement wrappers
+- apply-plan verification gates exist
+- no direct config mutation unless routed through future Spot Core enforcement wrappers
+- all current apply-plan artifacts remain `mutation_allowed: false`
 
 Non-goals for this phase:
 
@@ -153,12 +149,20 @@ Non-goals for this phase:
 - no bypassing backup-first enforcement
 - no high-risk network/firewall/DNS/DHCP/VLAN/routing mutation outside narrow approved endpoints
 
+Remaining Phase 1.7 exit work:
+
+- backup binding/checkpoint reference design for future execution
+- controlled handoff from `review_approved` artifact to future Spot Core execution wrapper
+- final apply artifact semantics/documentation tightening
+- checkpoint after meaningful slices only
+
 Exit criteria:
 
-- an approved proposal can produce a specific, reviewable apply-plan artifact
-- the artifact clearly states target files, risk class, backup requirement, validation, rollback, and apply status
-- attempting to generate apply plans from unapproved proposals is blocked
-- validator and quick-health remain green afterward
+- approved proposals produce specific, reviewable apply-plan artifacts
+- artifact lifecycle states are inspectable and verifiable
+- backup/validation/rollback are explicit in every artifact
+- reviewed artifacts can be verified without mutation
+- Spot Core and validator remain green afterward
 
 ---
 
@@ -166,20 +170,28 @@ Exit criteria:
 
 Status: **not active yet**.
 
-Spot begins detecting and responding to issues inside approved guardrails.
+Important note:
 
-Build:
+The monitoring/heartbeat substrate already exists and is active:
 
-- incident engine
-- remediation classes
-- safe self-fix logic
+- `fleet-watch.timer`
+- `fleet-remediate.timer`
+- `spot-monitor-alert-state.timer`
+- `spot-monitor-snapshot.timer`
+
+The monitor snapshot layer has been repaired and is producing fresh summaries/snapshots again.
+
+Therefore Phase 2 is not “build monitoring from zero.”
+
+Phase 2 is:
+
+- formal incident engine from existing watcher alerts
+- remediation class policy
+- safe self-fix logic inside approved boundaries
 - autonomous action logs
 - controlled execution wrapper integration
 - rollback verification
-
-Policy lock:
-
-Detect -> Analyze -> Classify -> Backup -> Plan -> Verify -> Execute -> Test/Rollback.
+- detect -> analyze -> classify -> backup -> plan -> verify -> execute -> test/rollback chain
 
 No backup, no change.
 
@@ -247,15 +259,15 @@ Current active lane:
 
 **PHASE 1.7 — SUPERVISED APPLY-PLAN ENGINE**
 
-The project is past Milestone B operator standardization and past the first usable assistant-client/memory layer.
+The project is past Milestone B operator standardization, past the first usable assistant-client layer, past the persistent memory foundation, and is now in controlled execution preparation.
 
 Immediate next objective:
 
-Build the next supervised apply-plan layer without enabling unrestricted mutation.
+Finish the final supervised apply-plan semantics and execution handoff design without enabling unrestricted mutation.
 
 Keep these constraints active:
 
 - Spot Core holds the keys
-- clients propose
-- approved artifacts can be generated
+- clients propose and review
+- approved artifacts can be generated and verified
 - actual mutation must remain backup-first, verified, logged, and routed through Spot Core enforcement
