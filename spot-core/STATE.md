@@ -168,6 +168,11 @@ Live commands:
 - `spot apply-plan-verify <apply-plan>`
 - `spot approve-apply-plan <apply-plan>`
 - `spot reject-apply-plan <apply-plan>`
+- `spot prepare-execution-handoff <apply-plan>`
+- `spot execution-handoffs [count]`
+- `spot show-execution-handoff <execution-handoff>`
+- `spot execution-handoff-status <execution-handoff>`
+- `spot execution-handoff-verify <execution-handoff>`
 - `spot generate-patch <approved-proposal>` legacy alias to supervised apply-plan generation
 
 Current behavior:
@@ -180,6 +185,9 @@ Current behavior:
 - `apply-plan-verify` accepts `pending_manual_review` and `review_approved`
 - `approve-apply-plan` marks `apply_status: review_approved` and adds `review_approved_utc`
 - `reject-apply-plan` marks `apply_status: review_rejected` and adds `review_rejected_utc`
+- reviewed apply-plans can generate non-mutating execution handoff artifacts
+- execution handoffs can be listed, shown, summarized, and verified
+- execution handoffs explicitly keep `execution_allowed: false`
 - lifecycle changes keep `mutation_allowed: false`
 
 Verified apply-plan example:

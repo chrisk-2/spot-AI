@@ -52,6 +52,9 @@ Operator commands:
   approve-apply-plan <id|file> Mark apply-plan review approved without enabling mutation
   reject-apply-plan <id|file> Mark apply-plan review rejected
   prepare-execution-handoff <id|file> Prepare non-mutating execution handoff artifact
+  execution-handoffs [count] List non-mutating execution handoff artifacts
+  show-execution-handoff <id|file> Show non-mutating execution handoff artifact
+  execution-handoff-status <id|file> Show execution handoff metadata
   execution-handoff-verify <id|file> Verify non-mutating execution handoff artifact
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
@@ -129,6 +132,8 @@ Examples:
   $(basename "$0") apply-plan-verify APPLY-P-YYYYMMDD-HHMMSS-name
   $(basename "$0") approve-apply-plan APPLY-P-YYYYMMDD-HHMMSS-name
   $(basename "$0") prepare-execution-handoff APPLY-P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") execution-handoffs
+  $(basename "$0") execution-handoff-status HANDOFF-APPLY-P-YYYYMMDD-HHMMSS-name
   $(basename "$0") execution-handoff-verify HANDOFF-APPLY-P-YYYYMMDD-HHMMSS-name
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
@@ -1415,6 +1420,9 @@ main() {
     approve-apply-plan)  bash "${BASE_DIR}/spot-client.sh" approve-apply-plan "$@" ;;
     reject-apply-plan)   bash "${BASE_DIR}/spot-client.sh" reject-apply-plan "$@" ;;
     prepare-execution-handoff) bash "${BASE_DIR}/spot-client.sh" prepare-execution-handoff "$@" ;;
+    execution-handoffs)        bash "${BASE_DIR}/spot-client.sh" execution-handoffs "$@" ;;
+    show-execution-handoff) bash "${BASE_DIR}/spot-client.sh" show-execution-handoff "$@" ;;
+    execution-handoff-status) bash "${BASE_DIR}/spot-client.sh" execution-handoff-status "$@" ;;
     execution-handoff-verify) bash "${BASE_DIR}/spot-client.sh" execution-handoff-verify "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
