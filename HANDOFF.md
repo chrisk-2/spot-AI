@@ -219,3 +219,61 @@ Put phased subsystem integration plans in dedicated HANDOFF-* docs.
 ---
 
 ## END HANDOFF
+
+## 2026-05-02 — PHASE 1.7 Utility Latency Diagnostic Handoff
+
+Current active lane: PHASE 1.7 — SUPERVISED APPLY-PLAN ENGINE.
+
+Last known clean checkpoint before utility prompt patch attempt:
+- Commit: c0de7dd checkpoint: 2026-05-02-03:56:21
+- Diagnostic proposal/apply-plan/handoff created and verified:
+  - P-20260502-035124-prepare-a-low-risk-diagnostic-only-plan-to-reduc
+  - APPLY-P-20260502-035124-prepare-a-low-risk-diagnostic-only-plan-to-reduc
+  - HANDOFF-APPLY-P-20260502-035124-prepare-a-low-risk-diagnostic-only-plan-to-reduc
+- Handoff is non-mutating:
+  - execution_allowed: false
+  - mutation_allowed: false
+  - risk_class: low
+  - backup_required: true
+  - backup_bound: false
+
+Storage/backup baseline:
+- /mnt/collective restored as CIFS mount to //unimatrix6/docker and persisted in /etc/fstab.
+- Worker backup freshness reader now resolves timestamped worker-config metadata and ignores non-timestamp dirs such as probe.
+- spot_save now reports worker backups OK:
+  - spot-worker-01: OK last_backup=20260502T001701Z
+  - spot-worker-02: OK last_backup=20260502T001701Z
+  - spot-worker-03: OK last_backup=20260502T001701Z
+  - spot-worker-04: OK last_backup=20260502T001701Z
+
+Confirmed utility latency root cause:
+- Raw worker-02 Ollama is fast: about 0.5s–1.5s for phi3.5 "reply with ok".
+- Spot utility path is slow: observed 15s–45s for `spot ask --role utility "reply with ok"`.
+- Root cause found in /home/ogre/spot-stack/watch/spot-client.sh:
+  - `cmd_ask` always wraps ask prompts with `with_memory_prompt "$prompt"`.
+  - `with_memory_prompt` injects Durable Memory Context into every `spot ask`.
+  - This causes phi3.5 on worker-02 to produce long policy/memory responses instead of minimal answers.
+- /home/ogre/spot-stack/spot-core/spotcore/app.py is not the injector; it forwards `req.prompt` to Ollama.
+
+Current regression:
+- Attempted patch to add `--memory` opt-in to `spot ask` failed:
+  - error: `cmd_ask one-line anchor not found; inspect manually`
+- Because the patch did not apply, old memory-injection behavior remains.
+- Latest validation failed:
+  - utility route timed out after 30002ms
+  - [FAIL] utility route returned HTTP 503
+  - RESULT: FAIL
+- Do not continue feature work until utility ask prompt injection is fixed and fleet validation returns PASS.
+
+Next recommended fix:
+- Manually inspect and patch `cmd_ask` in watch/spot-client.sh.
+- Desired behavior:
+  - default `spot ask` sends the raw user prompt with no durable memory injection.
+  - new `spot ask --memory` enables `with_memory_prompt`.
+  - `spot propose` keeps durable memory injection unchanged.
+- After patch:
+  - `bash -n watch/spot-client.sh`
+  - `time spot ask --role utility "reply with ok"`
+  - `time spot ask --memory --role utility "reply with ok"`
+  - `bash watch/fleet-validate.sh`
+  - only save after validation is PASS.

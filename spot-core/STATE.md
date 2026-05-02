@@ -355,3 +355,30 @@ systemctl status spot-monitor-snapshot.service --no-pager --full
 ## Historical note
 
 Older STATE.md content before this checkpoint stopped around Milestone B / early Phase 1.5 and did not reflect the completed D.1-D.5b assistant and memory work or the Phase 1.7 apply-plan lifecycle. This checkpoint supersedes that stale state while preserving the locked rules in HANDOFF.md and Spot Autonomy Policy.
+
+## 2026-05-02 — Utility Ask Prompt Injection Regression
+
+Status: active regression, do not resume feature work until resolved.
+
+Baseline:
+- Storage mount and worker backup freshness are fixed.
+- Worker backup status is OK for all four workers.
+- Routing ownership remains clean.
+- Raw worker-02 Ollama is fast.
+
+Regression:
+- `spot ask --role utility "reply with ok"` is slow because `watch/spot-client.sh` injects Durable Memory Context into all ask prompts through `with_memory_prompt`.
+- Raw worker-02 Ollama is not the bottleneck.
+- `spot-core/spotcore/app.py` forwards prompts and is not the durable-memory injector.
+- Attempted automated patch failed because the exact one-line `cmd_ask` anchor did not match.
+- Latest fleet validation failed on utility route timeout/HTTP 503.
+
+Required next step:
+- Patch `watch/spot-client.sh` manually so durable memory is opt-in for `ask`, likely via `--memory`.
+- Keep `propose` memory behavior unchanged.
+- Validate with:
+  - `bash -n /home/ogre/spot-stack/watch/spot-client.sh`
+  - `time spot ask --role utility "reply with ok"`
+  - `time spot ask --memory --role utility "reply with ok"`
+  - `bash /home/ogre/spot-stack/watch/fleet-validate.sh`
+- Save only after validation returns PASS.
