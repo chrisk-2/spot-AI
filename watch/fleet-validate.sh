@@ -52,7 +52,7 @@ log() { printf '%s\n' "$*"; }
 info() { printf '[INFO] %s\n' "$*"; }
 pass() { PASS_COUNT=$((PASS_COUNT + 1)); echo "[PASS] $*"; }
 fail() { FAIL_COUNT=$((FAIL_COUNT + 1)); echo "[FAIL] $*"; }
-warn() { WARN_COUNT=$((WARN_COUNT + 1)); [[ "$VERBOSE" -eq 1 ]] && echo "[WARN] $*" || true; }
+warn() { WARN_COUNT=$((WARN_COUNT + 1)); echo "[WARN] $*"; }
 debug() { [[ "$VERBOSE" -eq 1 ]] && printf '[DBG] %s\n' "$*" || true; }
 ts() { date -u +'%Y-%m-%dT%H:%M:%SZ'; }
 
@@ -219,6 +219,10 @@ check_worker_backup_freshness() {
   local workers="spot-worker-01 spot-worker-02 spot-worker-03 spot-worker-04" worker meta raw epoch age_sec age_hours
   for worker in $workers; do
     meta="/mnt/collective/backups/${worker}/worker-config/latest/metadata.json"
+    if [[ ! -f "$meta" ]]; then
+      snap="$(find "/mnt/collective/backups/${worker}/worker-config" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | grep -E '^[0-9]{8}T[0-9]{6}Z$' | sort | tail -n 1 || true)"
+      [[ -n "$snap" ]] && meta="/mnt/collective/backups/${worker}/worker-config/${snap}/metadata.json"
+    fi
     [[ -f "$meta" ]] || { warn "backup freshness: ${worker} metadata missing"; continue; }
     raw="$(jq -r '.timestamp_utc // empty' "$meta" 2>/dev/null || true)"
     [[ -n "$raw" ]] || { warn "backup freshness: ${worker} no timestamp_utc"; continue; }
