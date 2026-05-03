@@ -17,30 +17,94 @@ Roadmap truth lives in:
 
 ---
 
+## 2026-05-02 — PHASE 1.7 Utility Ask Prompt-Injection Regression Resolved
+
+Status: **resolved and validated**.
+
+Scope of work completed:
+
+- Restored `/home/ogre/spot-stack/watch/spot-client.sh` from verified pre-change backup after a failed full-file write attempt truncated the file.
+- Patched `cmd_ask` so durable memory is opt-in for `spot ask`.
+- `spot ask` now sends the raw user prompt by default.
+- `spot ask --memory` explicitly enables `with_memory_prompt`.
+- `spot propose` durable-memory behavior remains unchanged.
+- No storage/backup baseline work was reopened.
+
+Important diagnostic finding:
+
+- The shell client prompt-injection bug was real for operator `spot ask`, but fleet validation does not use `spot ask` for role route checks.
+- `/home/ogre/spot-stack/watch/fleet-validate.sh` posts directly to Spot Core `/exec` with role-specific validator prompts.
+- Therefore the validation failure was not caused by the shell client after the `--memory` patch.
+
+Actual validator failure cause:
+
+- Direct `/exec` utility route selected the correct owner, `spot-worker-02`, with model `phi3.5:latest`.
+- Recent Spot Core decisions showed `ReadTimeout` on `spot-worker-02` for `phi3.5:latest`.
+- Worker-02 Ollama was active, but logs showed hung/slow generation including a `POST /api/generate` returning HTTP 500 after about 4 minutes and another generation taking about 17.4 seconds.
+- Root cause class: worker-02 Ollama/phi3.5 runtime runner degradation, not routing ownership and not shell prompt injection.
+
+Remediation performed:
+
+- Restarted only `ollama.service` on `spot-worker-02` through Spot MCP admin restart wrapper.
+- Restart was low-risk runtime remediation and did not change configuration.
+- Service restart was verified: `ollama.service` active after restart, PID changed from `1440` to `177520`.
+
+Post-remediation validation:
+
+- MCP operator command `validate` returned `RESULT: PASS`.
+- Validation summary observed:
+  - `pass=14`
+  - `warn=5`
+  - `fail=0`
+- Role route checks passed:
+  - `general -> spot-worker-01`
+  - `coding -> spot-worker-03`
+  - `heavy -> spot-worker-04`
+  - `utility -> spot-worker-02`
+- Routing audit append and JSONL validation passed.
+- `/stats/routing-audit` reflected expected primaries.
+- Fleet status JSON and routing audit summary JSON passed.
+- Admin validate/read-file MCP checks passed.
+
+Remaining warnings:
+
+- `secret regression skipped: git unavailable` inside containerized validation context.
+- backup freshness metadata warnings for all four workers in the container validation context.
+- These warnings are not part of the resolved utility prompt-injection/runtime regression lane.
+
+Current interpretation:
+
+- PHASE 1.7 may resume from supervised apply-plan artifact semantics / execution handoff design.
+- Do not re-open completed storage/backup work unless a fresh validator failure directly requires it.
+- Worker-02 remains a known future improvement target for GPU/service isolation, but the active blocker is cleared.
+
+---
+
 ## Current verified system health
 
-Latest verified state from 2026-05-01:
+Latest verified state from 2026-05-02:
 
 - Spot Core `/health` is OK.
-- `bash /home/ogre/spot-stack/watch/fleet-validate.sh` returned `RESULT: PASS`.
-- latest validation summary observed: `pass=19 warn=0 fail=0`.
-- all four workers are healthy, eligible, not quarantined, and not degraded.
-- routing audit remains clean: `violations=0`, `fallbacks=0`, `manual_overrides=0`.
-- worker backups are current and reported OK by `spot_save`.
+- MCP operator `validate` returned `RESULT: PASS` after worker-02 Ollama runtime remediation.
+- latest validation summary observed: `pass=14 warn=5 fail=0`.
+- role routing ownership remains correct.
+- utility route validates again through direct `/exec`.
+- routing audit appends and remains structurally valid.
 - Docker `spot-core` is up.
-- MCP and Cloudflare tunnel services are active.
+- MCP control surface is active.
 
 Important nuance:
 
 - Fleet validation is PASS.
-- `/operator/readiness` may still report `ready_with_warnings` when worker-02 utility latency exceeds readiness threshold.
+- `/operator/readiness` may still report warning-level utility latency if historical latency windows include pre-restart slow samples.
 - This is expected and is not a validator failure.
 
 Current known warning/debt:
 
 - worker: `spot-worker-02`
-- condition: utility lane latency remains high
-- recent observed values: p50 around 7.6-8.2s, average around 10.7-11.1s, around 26-27 tok/sec
+- condition: utility lane can degrade when the single modeled Ollama lane / phi3.5 runner wedges.
+- mitigation used successfully: restart `ollama.service` on `spot-worker-02`.
+- future durable fix: true GPU/service isolation and/or utility model/runtime tuning.
 
 ---
 
@@ -60,7 +124,7 @@ Completed/live:
 
 Known remaining Phase 1 debt:
 
-- worker-02 utility latency remains warning-level
+- worker-02 utility latency can remain warning-level while historical latency samples age out
 - worker-02 and worker-03 multi-GPU hosts still need true GPU-pinned Ollama service separation before config lane labels can be fully trusted
 
 ---
@@ -77,6 +141,7 @@ Live client files:
 Live assistant/operator commands:
 
 - `spot ask`
+- `spot ask --memory`
 - `spot propose`
 - `spot propose --save`
 - `spot proposals`
@@ -95,7 +160,8 @@ Live assistant/operator commands:
 - auto-classifies roles for common general/coding/heavy/utility prompts
 - short-circuits live telemetry prompts such as fleet status, routing audit, and latency to live Spot endpoints instead of asking an LLM to guess
 - prints route metadata for model/worker visibility
-- injects durable memory context when relevant
+- sends the raw user prompt by default
+- injects durable memory context only when `--memory` is explicitly provided
 
 `spot propose` current behavior:
 
@@ -355,30 +421,3 @@ systemctl status spot-monitor-snapshot.service --no-pager --full
 ## Historical note
 
 Older STATE.md content before this checkpoint stopped around Milestone B / early Phase 1.5 and did not reflect the completed D.1-D.5b assistant and memory work or the Phase 1.7 apply-plan lifecycle. This checkpoint supersedes that stale state while preserving the locked rules in HANDOFF.md and Spot Autonomy Policy.
-
-## 2026-05-02 — Utility Ask Prompt Injection Regression
-
-Status: active regression, do not resume feature work until resolved.
-
-Baseline:
-- Storage mount and worker backup freshness are fixed.
-- Worker backup status is OK for all four workers.
-- Routing ownership remains clean.
-- Raw worker-02 Ollama is fast.
-
-Regression:
-- `spot ask --role utility "reply with ok"` is slow because `watch/spot-client.sh` injects Durable Memory Context into all ask prompts through `with_memory_prompt`.
-- Raw worker-02 Ollama is not the bottleneck.
-- `spot-core/spotcore/app.py` forwards prompts and is not the durable-memory injector.
-- Attempted automated patch failed because the exact one-line `cmd_ask` anchor did not match.
-- Latest fleet validation failed on utility route timeout/HTTP 503.
-
-Required next step:
-- Patch `watch/spot-client.sh` manually so durable memory is opt-in for `ask`, likely via `--memory`.
-- Keep `propose` memory behavior unchanged.
-- Validate with:
-  - `bash -n /home/ogre/spot-stack/watch/spot-client.sh`
-  - `time spot ask --role utility "reply with ok"`
-  - `time spot ask --memory --role utility "reply with ok"`
-  - `bash /home/ogre/spot-stack/watch/fleet-validate.sh`
-- Save only after validation returns PASS.

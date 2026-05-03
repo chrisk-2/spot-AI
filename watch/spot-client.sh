@@ -9,7 +9,7 @@ SPOT_MEMORY_DIR="${SPOT_MEMORY_DIR:-/mnt/collective/spot/memory}"
 
 usage(){ cat <<'EOF'
 Usage:
-  spot-client.sh ask [--role ROLE] [--model MODEL] [--json] <prompt>
+  spot-client.sh ask [--role ROLE] [--model MODEL] [--json] [--memory] <prompt>
   spot-client.sh propose [--role ROLE] [--json] [--save] <task>
   spot-client.sh proposals [count]
   spot-client.sh show-proposal <id-or-file>
@@ -992,9 +992,50 @@ if patch_hits:
 INNER
 }
 
-cmd_ask(){ need_cmd jq; need_cmd curl; local role="auto" model="" json_out=false args=(); while [[ $# -gt 0 ]]; do case "$1" in --role) role="${2:-}"; shift 2;; --model) model="${2:-}"; shift 2;; --json) json_out=true; shift;; -h|--help) usage; exit 0;; --) shift; args+=("$@"); break;; *) args+=("$1"); shift;; esac; done; local prompt="$(join_prompt "${args[@]}")"; [[ -n "$prompt" ]] || { echo "ERROR: prompt required" >&2; exit 2; }; local intent="$(telemetry_intent "$prompt")"; [[ "$intent" != none && "$role" == auto && -z "$model" ]] && { handle_telemetry_ask "$intent" "$json_out"; return 0; }; [[ "$role" == auto ]] && role="$(classify_role "$prompt")"; local llm_prompt result; llm_prompt="$(with_memory_prompt "$prompt")"; result="$(call_exec "$role" "$model" "$llm_prompt")"; [[ "$json_out" == true ]] && printf '%s
-' "$result"|jq . || { printf '%s
-' "$result"|jq -r '.response'; print_route "$result"; }; }
+cmd_ask(){
+  need_cmd jq
+  need_cmd curl
+
+  local role="auto" model="" json_out=false use_memory=false args=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --role) role="${2:-}"; shift 2;;
+      --model) model="${2:-}"; shift 2;;
+      --json) json_out=true; shift;;
+      --memory) use_memory=true; shift;;
+      -h|--help) usage; exit 0;;
+      --) shift; args+=("$@"); break;;
+      *) args+=("$1"); shift;;
+    esac
+  done
+
+  local prompt="$(join_prompt "${args[@]}")"
+  [[ -n "$prompt" ]] || { echo "ERROR: prompt required" >&2; exit 2; }
+
+  local intent="$(telemetry_intent "$prompt")"
+  [[ "$intent" != none && "$role" == auto && -z "$model" ]] && {
+    handle_telemetry_ask "$intent" "$json_out"
+    return 0
+  }
+
+  [[ "$role" == auto ]] && role="$(classify_role "$prompt")"
+
+  local llm_prompt result
+  if [[ "$use_memory" == true ]]; then
+    llm_prompt="$(with_memory_prompt "$prompt")"
+  else
+    llm_prompt="$prompt"
+  fi
+
+  result="$(call_exec "$role" "$model" "$llm_prompt")"
+  [[ "$json_out" == true ]] && printf '%s
+' "$result"|jq . || {
+    printf '%s
+' "$result"|jq -r '.response'
+    print_route "$result"
+  }
+}
 
 proposal_guardrail_check(){ local body="$1" bad=0; while IFS= read -r forbidden; do [[ -z "$forbidden" ]] && continue; if printf '%s
 ' "$body" | grep -Fq "$forbidden"; then echo "[proposal-warning] forbidden invented operation/path detected: $forbidden" >&2; bad=1; fi; done <<'EOF'
