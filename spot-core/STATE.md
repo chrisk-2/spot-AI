@@ -1,423 +1,113 @@
-# SPOT FLEET STATE
+# SPOT CORE STATE — 2026-05-03
 
-## 2026-05-01 Runtime-aligned checkpoint
+## CURRENT STATUS
+Spot Core stable.
+Fleet validation passing.
+Primary routing ownership intact.
 
-This file reflects the current runtime state of the Spot / Starfleet project after assistant-client, memory, supervised apply-plan, and watcher/heartbeat work.
-
-Canonical rules remain in:
-
-- `/home/ogre/spot-stack/HANDOFF.md`
-- `/home/ogre/spot-stack/Spot_Autonomy_Policy`
-- `/home/ogre/spot-stack/HANDOFF-CODEX-INTEGRATION.md`
-- `/home/ogre/spot-stack/HANDOFF-SPOT-INTEGRATION.md`
-
-Roadmap truth lives in:
-
-- `/home/ogre/spot-stack/ROADMAP.md`
+Validation baseline:
+- pass=19
+- warn=0
+- fail=0
+- RESULT: PASS
 
 ---
 
-## 2026-05-02 — PHASE 1.7 Utility Ask Prompt-Injection Regression Resolved
+## COMPLETED THIS SESSION
 
-Status: **resolved and validated**.
+### 1. spot-worker-05 commissioned to pre-GPU ready state
+New worker node prepared and online:
 
-Scope of work completed:
+- hostname: spot-worker-05
+- ip: 192.168.10.15
+- chassis: Equus Nobilis
+- board: ASUS PRIME Z390-A
+- cpu: i7-8700
+- storage: NVMe
+- os: Ubuntu 24.04
+- ollama installed/running
+- docker installed/running
+- /mnt/collective mounted
+- /mnt/unimatrix6 mounted
+- local FastAPI health endpoint active on :8755
 
-- Restored `/home/ogre/spot-stack/watch/spot-client.sh` from verified pre-change backup after a failed full-file write attempt truncated the file.
-- Patched `cmd_ask` so durable memory is opt-in for `spot ask`.
-- `spot ask` now sends the raw user prompt by default.
-- `spot ask --memory` explicitly enables `with_memory_prompt`.
-- `spot propose` durable-memory behavior remains unchanged.
-- No storage/backup baseline work was reopened.
+Pending hardware:
+- Quadro P6000 install
+- RAM upgrade to 64GB target
+- NVIDIA production driver
 
-Important diagnostic finding:
-
-- The shell client prompt-injection bug was real for operator `spot ask`, but fleet validation does not use `spot ask` for role route checks.
-- `/home/ogre/spot-stack/watch/fleet-validate.sh` posts directly to Spot Core `/exec` with role-specific validator prompts.
-- Therefore the validation failure was not caused by the shell client after the `--memory` patch.
-
-Actual validator failure cause:
-
-- Direct `/exec` utility route selected the correct owner, `spot-worker-02`, with model `phi3.5:latest`.
-- Recent Spot Core decisions showed `ReadTimeout` on `spot-worker-02` for `phi3.5:latest`.
-- Worker-02 Ollama was active, but logs showed hung/slow generation including a `POST /api/generate` returning HTTP 500 after about 4 minutes and another generation taking about 17.4 seconds.
-- Root cause class: worker-02 Ollama/phi3.5 runtime runner degradation, not routing ownership and not shell prompt injection.
-
-Remediation performed:
-
-- Restarted only `ollama.service` on `spot-worker-02` through Spot MCP admin restart wrapper.
-- Restart was low-risk runtime remediation and did not change configuration.
-- Service restart was verified: `ollama.service` active after restart, PID changed from `1440` to `177520`.
-
-Post-remediation validation:
-
-- MCP operator command `validate` returned `RESULT: PASS`.
-- Validation summary observed:
-  - `pass=14`
-  - `warn=5`
-  - `fail=0`
-- Role route checks passed:
-  - `general -> spot-worker-01`
-  - `coding -> spot-worker-03`
-  - `heavy -> spot-worker-04`
-  - `utility -> spot-worker-02`
-- Routing audit append and JSONL validation passed.
-- `/stats/routing-audit` reflected expected primaries.
-- Fleet status JSON and routing audit summary JSON passed.
-- Admin validate/read-file MCP checks passed.
-
-Remaining warnings:
-
-- `secret regression skipped: git unavailable` inside containerized validation context.
-- backup freshness metadata warnings for all four workers in the container validation context.
-- These warnings are not part of the resolved utility prompt-injection/runtime regression lane.
-
-Current interpretation:
-
-- PHASE 1.7 may resume from supervised apply-plan artifact semantics / execution handoff design.
-- Do not re-open completed storage/backup work unless a fresh validator failure directly requires it.
-- Worker-02 remains a known future improvement target for GPU/service isolation, but the active blocker is cleared.
+Role planned:
+- heavy-secondary
+- research
+- staging
 
 ---
 
-## Current verified system health
+### 2. PHASE 1.7 utility regression resolved
+Resolved utility lane operator + validator instability:
 
-Latest verified state from 2026-05-02:
+- spot ask no longer injects Durable Memory by default
+- spot ask --memory explicitly enables memory context
+- spot propose behavior preserved
+- worker-02 utility lane phi3.5 Ollama degradation identified
+- targeted ollama.service restart on worker-02 restored utility validation responsiveness
 
-- Spot Core `/health` is OK.
-- MCP operator `validate` returned `RESULT: PASS` after worker-02 Ollama runtime remediation.
-- latest validation summary observed: `pass=14 warn=5 fail=0`.
-- role routing ownership remains correct.
-- utility route validates again through direct `/exec`.
-- routing audit appends and remains structurally valid.
-- Docker `spot-core` is up.
-- MCP control surface is active.
-
-Important nuance:
-
-- Fleet validation is PASS.
-- `/operator/readiness` may still report warning-level utility latency if historical latency windows include pre-restart slow samples.
-- This is expected and is not a validator failure.
-
-Current known warning/debt:
-
-- worker: `spot-worker-02`
-- condition: utility lane can degrade when the single modeled Ollama lane / phi3.5 runner wedges.
-- mitigation used successfully: restart `ollama.service` on `spot-worker-02`.
-- future durable fix: true GPU/service isolation and/or utility model/runtime tuning.
+Post-remediation:
+spot validate => PASS
 
 ---
 
-## Phase 1 — Spot Operator Ready status
+### 3. PHASE 1.7 artifact semantics contract patch applied
+watch/spot-client.sh full-file rewrite completed successfully.
 
-Status: **complete for current scope**.
+Apply-plan artifacts now emit:
 
-Completed/live:
+- policy_class: supervised_apply_plan
+- autonomy_level: 1
+- execution_wrapper_required: true
+- executor: spot-core-controlled-wrapper
+- approval_gate: human_review_required
+- rollback_required: true
+- rollback_authority: recorded_prechange_backup_only
 
-- standardized operator command surface via `spot-ops.sh`
-- MCP operator command surface for safe read/validation commands
-- live `/operator/readiness` endpoint
-- live `/health`, `/routing`, `/fleet/ping`, `/stats/latency`, `/stats/routing-audit`
-- backup-first enforcement remains in Spot Core mutation wrappers
-- read-only operator command risk classification is low risk
-- fleet validator passes cleanly
+Execution-handoff artifacts now emit:
 
-Known remaining Phase 1 debt:
+- policy_class: controlled_execution_handoff
+- autonomy_level: 1
+- execution_wrapper_required: true
+- executor: spot-core-controlled-wrapper
+- approval_gate: wrapper_execution_approval_required
+- rollback_required: true
+- rollback_authority: recorded_prechange_backup_only
 
-- worker-02 utility latency can remain warning-level while historical latency samples age out
-- worker-02 and worker-03 multi-GPU hosts still need true GPU-pinned Ollama service separation before config lane labels can be fully trusted
+Status readers now surface these fields.
 
----
+Validation after patch:
+spot validate => PASS
 
-## Phase 1.5 — Spot Assistant Client Surface status
-
-Status: **mostly complete; active maturation continues**.
-
-Live client files:
-
-- `/home/ogre/spot-stack/watch/spot-client.sh`
-- `/home/ogre/spot-stack/watch/spot-ops.sh`
-
-Live assistant/operator commands:
-
-- `spot ask`
-- `spot ask --memory`
-- `spot propose`
-- `spot propose --save`
-- `spot proposals`
-- `spot show-proposal`
-- `spot approve`
-- `spot reject`
-- `spot proposal-status`
-- `spot generate-patch` legacy alias
-- `spot remember`
-- `spot memory`
-- `spot recall`
-
-`spot ask` current behavior:
-
-- routes normal prompts through Spot Core `/exec`
-- auto-classifies roles for common general/coding/heavy/utility prompts
-- short-circuits live telemetry prompts such as fleet status, routing audit, and latency to live Spot endpoints instead of asking an LLM to guess
-- prints route metadata for model/worker visibility
-- sends the raw user prompt by default
-- injects durable memory context only when `--memory` is explicitly provided
-
-`spot propose` current behavior:
-
-- proposal-only, no mutation
-- uses live Spot context from readiness, latency, and routing audit
-- injects durable memory and related historical proposal/apply-plan context when relevant
-- enforces canonical path guidance
-- warns on forbidden invented paths/services such as `spot-client.service`, `spot-ops.service`, `/etc/config/worker-02.yaml`, and `/home/ogre/spot-stack/bin/spot`
-- can save proposal markdown artifacts under `/home/ogre/spot-stack/watch/proposals`
-
-Proposal lifecycle current behavior:
-
-- saved proposals begin as `pending_review`
-- `spot approve <proposal>` marks a proposal approved and records durable memory entries
-- `spot reject <proposal>` marks a proposal rejected
-- `spot proposal-status <proposal>` prints lifecycle metadata
+Manual pre-contract backup created:
+- /mnt/collective/backups/spot-core/manual/
 
 ---
 
-## Phase 1.6 — Persistent Memory Foundation status
+## ACTIVE PHASE
+PHASE 1.7 — SUPERVISED APPLY-PLAN ENGINE
 
-Status: **base layer live**.
+Current remaining open item:
+- strengthen artifact verifiers so apply-plan and execution-handoff validation REQUIRE the new contract metadata fields, not merely emit them
 
-Current memory backend:
-
-- `/mnt/collective/spot/memory`
-
-Observed memory files:
-
-- `facts.jsonl`
-- `decisions.jsonl`
-- `preferences.jsonl`
-- `sessions.jsonl`
-- `roadmaps.jsonl`
-
-NFS ownership note:
-
-- `/mnt/collective/spot/memory` is mapped to ownership like `1024:users` by the storage export.
-- `chown` may return `Operation not permitted`.
-- This is not currently a blocker because files are writable through the exported permissions.
-
-Memory commands:
-
-- `spot remember <fact|decision|session|preference|roadmap> <text>` appends durable memory entries
-- `spot memory [count]` shows recent durable memory entries
-- `spot recall <keyword>` searches durable memory entries
-
-Memory informs context. Memory is not authorization.
+No autonomous mutation capability enabled.
+Mutation remains blocked.
+execution_allowed remains false.
+backup_bound remains false.
 
 ---
 
-## Phase 1.7 — Supervised Apply-Plan Engine status
+## FLEET SNAPSHOT
 
-Status: **current active lane**.
+worker-01 = general
+worker-02 = utility
+worker-03 = coding
+worker-04 = heavy-primary
+worker-05 = heavy-secondary commissioning/pre-GPU
 
-Purpose:
-
-- bridge proposal-only planning to future controlled mutation
-- create specific reviewable apply-plan artifacts
-- preserve backup-first, validation-first, rollback-first policy
-- keep mutation disabled until a future Spot Core controlled execution wrapper exists
-
-Live commands:
-
-- `spot generate-apply-plan <approved-proposal>`
-- `spot apply-plans [count]`
-- `spot show-apply-plan <apply-plan>`
-- `spot apply-plan-status <apply-plan>`
-- `spot apply-plan-check <apply-plan>`
-- `spot apply-plan-verify <apply-plan>`
-- `spot approve-apply-plan <apply-plan>`
-- `spot reject-apply-plan <apply-plan>`
-- `spot prepare-execution-handoff <apply-plan>`
-- `spot execution-handoffs [count]`
-- `spot show-execution-handoff <execution-handoff>`
-- `spot execution-handoff-status <execution-handoff>`
-- `spot execution-handoff-verify <execution-handoff>`
-- `spot generate-patch <approved-proposal>` legacy alias to supervised apply-plan generation
-
-Current behavior:
-
-- apply-plan generation is blocked unless the linked proposal is approved
-- apply-plan artifacts are written under `/home/ogre/spot-stack/watch/apply-plans`
-- generated artifacts include target files, risk class, pre-change backup requirements, precheck validation, planned mutations, post-apply validation, rollback plan, human review gate, and non-mutating notes
-- proposal-provided validation augments the default required validation set instead of replacing it
-- `apply-plan-check` validates pending review artifacts only
-- `apply-plan-verify` accepts `pending_manual_review` and `review_approved`
-- `approve-apply-plan` marks `apply_status: review_approved` and adds `review_approved_utc`
-- `reject-apply-plan` marks `apply_status: review_rejected` and adds `review_rejected_utc`
-- reviewed apply-plans can generate non-mutating execution handoff artifacts
-- execution handoffs can be listed, shown, summarized, and verified
-- execution handoffs explicitly keep `execution_allowed: false`
-- lifecycle changes keep `mutation_allowed: false`
-
-Verified apply-plan example:
-
-- proposal: `P-20260501-133615-revise-routing-so-utility-role-remains-primary-o`
-- apply-plan: `APPLY-P-20260501-133615-revise-routing-so-utility-role-remains-primary-o`
-- status: `review_approved`
-- verification: `spot apply-plan-verify ...` returned `RESULT: PASS status=review_approved fail=0 warn=0`
-- mutation flag: `mutation_allowed: false`
-
-Current non-goals:
-
-- no unrestricted auto-apply
-- no direct config mutation from client scripts
-- no bypassing backup-first enforcement
-- no high-risk network/firewall/DNS/DHCP/VLAN/routing mutation outside narrow approved endpoints
-
-Remaining Phase 1.7 work before Phase 2:
-
-1. document/apply policy classification on apply-plan artifacts if not already explicit enough
-2. add backup binding/checkpoint reference design for future execution
-3. define controlled handoff from `review_approved` apply-plan to future Spot Core execution wrapper
-4. update docs and checkpoints after meaningful slices only
-
----
-
-## Active watcher / heartbeat status
-
-Spot has an active heartbeat/watch stack.
-
-Active timers observed:
-
-- user timer: `fleet-watch.timer` every 2 minutes
-- user timer: `fleet-remediate.timer` every 5 minutes
-- system timer: `spot-monitor-alert-state.timer` every 1 minute
-- system timer: `spot-monitor-snapshot.timer` every 5 minutes
-
-Services/scripts:
-
-- `/home/ogre/spot-stack/watch/fleet-watch.sh`
-- `/home/ogre/spot-stack/watch/fleet-remediate.sh`
-- `/home/ogre/spot-stack/watch/fleet-monitor-snapshot.sh`
-
-Monitor state/log paths:
-
-- `/home/ogre/spot-stack/watch/logs/fleet-watch.log`
-- `/home/ogre/spot-stack/watch/logs/fleet-remediate.log`
-- `/home/ogre/spot-stack/watch/state/remediation-state.json`
-- `/home/ogre/spot-stack/watch/state/history/monitor-summary.jsonl`
-- `/home/ogre/spot-stack/watch/state/history/monitor-alert-latest.json`
-- `/home/ogre/spot-stack/watch/state/history/monitor-alert-transitions.jsonl`
-- `/home/ogre/spot-stack/watch/state/history/snapshots/`
-
-Snapshot repair completed:
-
-- `spot-monitor-snapshot.service` was failing because `/home/ogre/spot-stack/watch/state/history/snapshots` lacked directory execute permission.
-- Fix applied: `chmod 755 /home/ogre/spot-stack/watch/state/history/snapshots`.
-- `sudo systemctl start spot-monitor-snapshot.service` then completed with status `0/SUCCESS`.
-- fresh snapshot observed: `/home/ogre/spot-stack/watch/state/history/snapshots/2026-05-01-1777664884.json`.
-- fresh monitor summary showed health/routing/workers/endpoints/DNS/network all OK.
-
-Interpretation:
-
-- monitoring and alert-state plumbing exists and is active
-- remediation timer exists and records remediation-state backups
-- full Phase 2 autonomous incident/remediation loop is not active yet
-
----
-
-## Current physical GPU map
-
-Current hardware before pending upgrades:
-
-- worker-01: RTX 3060 12GB
-- worker-02: Quadro M4000 8GB + GTX 1060 6GB
-- worker-03: GTX 1070 8GB + RTX 3060 12GB
-- worker-04: Titan Xp 12GB
-
-Pending/future hardware plan:
-
-- Quadro P6000 24GB is expected later.
-- Planned placement: P6000 to worker-04 as heavy primary.
-- Displaced Titan Xp 12GB should move to worker-02, preferably replacing GTX 1060 6GB.
-- If Titan Xp does not physically fit beside M4000, replace M4000 instead and leave GTX 1060 for embeddings/watcher-only use.
-- If a second P6000 is acquired, reassess before changing topology.
-
----
-
-## Current modeled routing debt
-
-Current confirmed debt:
-
-- worker-02 has two physical GPUs but currently functions as one modeled Ollama lane for utility/watcher behavior.
-- worker-03 has two physical GPUs and two logical GPU routes, but still one worker-level Ollama base URL.
-- Spot can label logical lanes, but cannot guarantee physical GPU selection unless Ollama services are pinned per GPU.
-
-Priority:
-
-1. worker-02 GPU/service isolation is higher priority because it has active utility latency warnings.
-2. worker-03 can be deferred because it is currently healthy and acceptable under current load.
-
-Preferred future model:
-
-- use separate pinned Ollama services per GPU when needed
-- likely pattern: logical worker/service split such as `spot-worker-02a` and `spot-worker-02b` on distinct ports with `CUDA_VISIBLE_DEVICES` or equivalent pinning
-- do not blindly split config lanes until actual GPU order and worker service pinning are verified after hardware changes
-
----
-
-## Policy posture
-
-Autonomy policy remains locked:
-
-- No backup, no change.
-- Detect → Analyze → Classify → Backup → Plan → Verify → Execute → Test/Rollback.
-- Spot Core holds mutation authority.
-- Clients propose; Spot Core applies through enforced wrappers.
-- High-risk firewall/DNS/DHCP/VLAN/routing/OPNsense changes remain gated and require narrow approved endpoints.
-
-Current assistant/apply-plan layer is proposal-first and review-first. It does not bypass Spot Core mutation policy.
-
----
-
-## Current active lane
-
-Current active lane:
-
-**Phase 1.7 — supervised apply-plan engine and controlled execution preparation.**
-
-The next major roadmap phase after Phase 1.7 is Phase 2 — Build Spot Controlled Autonomy.
-
-There is currently no documented Phase 1.8.
-
-Immediate next work should focus on:
-
-1. finishing Phase 1.7 artifact semantics and execution handoff design
-2. keeping watcher/heartbeat state healthy
-3. preparing Phase 2 incident/remediation flow from existing monitor timers
-4. ensuring future mutation remains backup-first, verified, logged, and routed through Spot Core enforcement
-
-Do not implement unrestricted auto-apply.
-Do not bypass backup-first enforcement.
-Do not treat memory as authorization.
-
----
-
-## Next safe verification commands
-
-Use these before future state changes:
-
-```bash
-python3 -m py_compile /home/ogre/spot-stack/spot-core/spotcore/app.py
-bash -n /home/ogre/spot-stack/watch/spot-ops.sh
-bash -n /home/ogre/spot-stack/watch/spot-client.sh
-bash /home/ogre/spot-stack/watch/fleet-validate.sh
-bash /home/ogre/spot-stack/watch/spot-ops.sh quick-health
-spot apply-plan-verify APPLY-P-20260501-133615-revise-routing-so-utility-role-remains-primary-o
-spot ask "what is the current fleet status"
-spot memory 20
-systemctl status spot-monitor-snapshot.service --no-pager --full
-```
-
----
-
-## Historical note
-
-Older STATE.md content before this checkpoint stopped around Milestone B / early Phase 1.5 and did not reflect the completed D.1-D.5b assistant and memory work or the Phase 1.7 apply-plan lifecycle. This checkpoint supersedes that stale state while preserving the locked rules in HANDOFF.md and Spot Autonomy Policy.

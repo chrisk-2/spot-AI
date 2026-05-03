@@ -281,6 +281,13 @@ mutation_allowed: false
 backup_required: true
 backup_bound: false
 backup_artifact: pending
+policy_class: supervised_apply_plan
+autonomy_level: 1
+execution_wrapper_required: true
+executor: spot-core-controlled-wrapper
+approval_gate: human_review_required
+rollback_required: true
+rollback_authority: recorded_prechange_backup_only
 
 ---
 
@@ -369,7 +376,7 @@ cmd_show_apply_plan(){
 cmd_apply_plan_status(){
   local file
   file="$(resolve_apply_plan_file "${1:-}")"
-  grep -E '^(linked_proposal:|approved_utc:|generated_utc:|task:|risk_class:|apply_status:|mutation_allowed:|backup_required:|backup_bound:|backup_artifact:)' "$file"
+  grep -E '^(linked_proposal:|approved_utc:|generated_utc:|task:|risk_class:|apply_status:|mutation_allowed:|backup_required:|backup_bound:|backup_artifact:|policy_class:|autonomy_level:|execution_wrapper_required:|executor:|approval_gate:|rollback_required:|rollback_authority:)' "$file"
 }
 
 cmd_apply_plan_check(){
@@ -661,6 +668,13 @@ mutation_allowed: false
 backup_required: {backup_required}
 backup_bound: {backup_bound}
 backup_artifact: {backup_artifact}
+policy_class: controlled_execution_handoff
+autonomy_level: 1
+execution_wrapper_required: true
+executor: spot-core-controlled-wrapper
+approval_gate: wrapper_execution_approval_required
+rollback_required: true
+rollback_authority: recorded_prechange_backup_only
 
 ---
 
@@ -861,7 +875,7 @@ cmd_show_execution_handoff(){
 cmd_execution_handoff_status(){
   local file
   file="$(resolve_execution_handoff_file "${1:-}")"
-  grep -E '^(linked_apply_plan:|linked_proposal:|generated_utc:|apply_status:|risk_class:|execution_allowed:|mutation_allowed:|backup_required:|backup_bound:|backup_artifact:)' "$file"
+  grep -E '^(linked_apply_plan:|linked_proposal:|generated_utc:|apply_status:|risk_class:|execution_allowed:|mutation_allowed:|backup_required:|backup_bound:|backup_artifact:|policy_class:|autonomy_level:|execution_wrapper_required:|executor:|approval_gate:|rollback_required:|rollback_authority:)' "$file"
 }
 
 memory_append(){
