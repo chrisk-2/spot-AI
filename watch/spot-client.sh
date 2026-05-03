@@ -494,6 +494,20 @@ if line_value("backup_bound") != "false":
 if line_value("backup_artifact") != "pending":
     fail.append("backup_artifact must be pending before controlled execution")
 
+expected_contract = {
+    "policy_class": "supervised_apply_plan",
+    "autonomy_level": "1",
+    "execution_wrapper_required": "true",
+    "executor": "spot-core-controlled-wrapper",
+    "approval_gate": "human_review_required",
+    "rollback_required": "true",
+    "rollback_authority": "recorded_prechange_backup_only",
+}
+
+for k, v in expected_contract.items():
+    if line_value(k) != v:
+        fail.append(f"{k} must be {v}")
+
 if status not in {"pending_manual_review", "review_approved"}:
     fail.append(f"apply_status must be pending_manual_review or review_approved, got: {status or '<missing>'}")
 
@@ -574,6 +588,21 @@ now = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
 
 if not re.search(r'^mutation_allowed:\s*false\s*$', text, re.M):
     raise SystemExit("ERROR: refusing lifecycle update because mutation_allowed is not false")
+
+m = re.search(r'^apply_status:\s*(.+?)\s*$', text, re.M)
+current_status = m.group(1).strip() if m else "pending_manual_review"
+
+allowed = {
+    ("pending_manual_review", "review_approved"),
+    ("pending_manual_review", "review_rejected"),
+    ("review_approved", "handoff_prepared"),
+}
+
+if (current_status, status) not in allowed:
+    raise SystemExit(f"ERROR: illegal apply-plan lifecycle transition {current_status} -> {status}")
+
+if re.search(rf'^{re.escape(stamp_field)}:\s*.*$', text, re.M):
+    raise SystemExit(f"ERROR: refusing lifecycle update because {stamp_field} already exists")
 
 if re.search(r'^apply_status:\s*.*$', text, re.M):
     text = re.sub(r'^apply_status:\s*.*$', f'apply_status: {status}', text, count=1, flags=re.M)
@@ -732,6 +761,7 @@ PYINNER
   local id handoff_file
   id="$(basename "$file" .md)"
   handoff_file="${BASE_DIR}/execution-handoffs/HANDOFF-${id}.md"
+  set_apply_plan_status "$file" handoff_prepared handoff_prepared_utc
   memory_append roadmap "prepared non-mutating execution handoff HANDOFF-${id}"
   memory_append session "execution handoff prepared from reviewed apply plan ${id}"
   echo "[execution-handoff-prepared] $handoff_file"
@@ -776,6 +806,13 @@ expected = {
     "mutation_allowed": "false",
     "backup_required": "true",
     "backup_bound": "false",
+    "policy_class": "controlled_execution_handoff",
+    "autonomy_level": "1",
+    "execution_wrapper_required": "true",
+    "executor": "spot-core-controlled-wrapper",
+    "approval_gate": "wrapper_execution_approval_required",
+    "rollback_required": "true",
+    "rollback_authority": "recorded_prechange_backup_only",
     "backup_artifact": "pending",
 }
 

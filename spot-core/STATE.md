@@ -111,3 +111,54 @@ worker-03 = coding
 worker-04 = heavy-primary
 worker-05 = heavy-secondary commissioning/pre-GPU
 
+
+---
+
+## 2026-05-03 WORKER-05 GPU BRING-UP CHECKLIST
+
+spot-worker-05 is pre-commissioned and ready for GPU installation.
+
+Current ready state:
+- hostname: spot-worker-05
+- IP: 192.168.10.15
+- OS: Ubuntu 24.04
+- CPU: i7-8700
+- board: ASUS PRIME Z390-A
+- current RAM: 16GB DDR4 2400, 4x4GB
+- RAM target: 64GB DDR4 UDIMM non-ECC
+- storage: NVMe
+- /mnt/collective mounted
+- /mnt/unimatrix6 mounted
+- Docker active
+- Ollama active
+- health API active on port 8755
+
+GPU plan:
+- install Quadro P6000 24GB into worker-05
+- remove GT730 placeholder if needed
+- install NVIDIA production driver after physical install
+- verify with nvidia-smi
+- run worker health check
+- run Ollama model test
+- only then register into Spot routing
+
+Post-GPU commands on worker-05:
+  ~/worker05_post_gpu.sh
+  sudo reboot
+  nvidia-smi
+  ~/worker05_health.sh
+  curl -s http://127.0.0.1:8755/health | jq
+
+Expected health after GPU:
+- gpu_info should show Quadro P6000
+- collective_mounted true
+- unimatrix6_mounted true
+- ollama active
+- docker active
+
+Do not add worker-05 to production routing until:
+- NVIDIA driver is stable
+- thermals are acceptable
+- Ollama can run a test model
+- health endpoint reports GPU
+- RAM upgrade plan is confirmed or installed

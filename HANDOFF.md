@@ -96,3 +96,25 @@ No autonomous mutation.
 
 No execution without explicit supervised wrapper.
 
+
+---
+
+## WORKER-05 NEXT PHYSICAL STEP
+
+Tomorrow when the Quadro P6000 arrives:
+
+1. Power down worker-05.
+2. Install P6000.
+3. Remove GT730 if slot/airflow requires.
+4. Confirm PCIe power is proper.
+5. Boot worker-05.
+6. Run:
+   ~/worker05_post_gpu.sh
+   sudo reboot
+   nvidia-smi
+   ~/worker05_health.sh
+   curl -s http://127.0.0.1:8755/health | jq
+
+Worker-05 should remain commissioning/pre-routing until GPU, NVIDIA driver, thermals, Ollama, mounts, and health API all pass.
+
+Do not tune worker-02 until after TITAN Xp GPU swap.
