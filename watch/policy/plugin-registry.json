@@ -1,0 +1,93 @@
+{
+  "schema": "spot.plugin_registry.v1",
+  "registry_status": "locked_non_executing",
+  "source_policy": "Spot_Autonomy_Policy_and_Safety_Model",
+  "linked_action_policy": "watch/policy/action-policy.json",
+  "mutation_plugins_enabled": false,
+  "plugin_execution_enabled": false,
+  "primary_rule": "no_backup_no_change",
+  "global_guards": {
+    "backup_required_before_mutation": true,
+    "backup_binding_required": true,
+    "precheck_required": true,
+    "postcheck_required": true,
+    "rollback_contract_required": true,
+    "append_only_action_log_required": true,
+    "freeform_shell_forbidden": true,
+    "network_mutation_forbidden": true,
+    "backup_delete_allowed": false,
+    "backup_overwrite_allowed": false
+  },
+  "plugins": {
+    "read_only_status_probe": {
+      "status": "disabled",
+      "action_class": "read_only_diagnostic",
+      "risk_class": "low",
+      "mutation_allowed": false,
+      "execution_allowed": false,
+      "requires_backup": false,
+      "requires_approval": false,
+      "description": "Future read-only status probe plugin placeholder."
+    },
+    "safe_service_restart": {
+      "status": "disabled",
+      "action_class": "safe_service_restart",
+      "risk_class": "low",
+      "mutation_allowed": false,
+      "execution_allowed": false,
+      "requires_backup": "required_for_stateful_or_config_services",
+      "requires_approval": true,
+      "description": "Future allowlisted service restart plugin placeholder."
+    },
+    "controlled_config_write": {
+      "status": "disabled",
+      "action_class": "controlled_config_write",
+      "risk_class": "medium",
+      "mutation_allowed": false,
+      "execution_allowed": false,
+      "requires_backup": true,
+      "requires_approval": true,
+      "description": "Future known-good config write plugin placeholder."
+    },
+    "restore_from_backup": {
+      "status": "disabled",
+      "action_class": "restore_from_backup",
+      "risk_class": "medium",
+      "mutation_allowed": false,
+      "execution_allowed": false,
+      "requires_backup": true,
+      "requires_approval": true,
+      "description": "Future recorded-artifact restore plugin placeholder."
+    },
+    "network_change": {
+      "status": "forbidden",
+      "action_class": "network_change",
+      "risk_class": "high",
+      "mutation_allowed": false,
+      "execution_allowed": false,
+      "requires_backup": true,
+      "requires_approval": true,
+      "description": "Network/firewall/DNS/DHCP/VLAN/routing mutation remains forbidden."
+    },
+    "freeform_shell_mutation": {
+      "status": "forbidden",
+      "action_class": "freeform_shell_mutation",
+      "risk_class": "high",
+      "mutation_allowed": false,
+      "execution_allowed": false,
+      "requires_backup": true,
+      "requires_approval": "not_supported",
+      "description": "Arbitrary shell mutation remains forbidden."
+    },
+    "backup_delete_or_overwrite": {
+      "status": "forbidden",
+      "action_class": "backup_delete_or_overwrite",
+      "risk_class": "high",
+      "mutation_allowed": false,
+      "execution_allowed": false,
+      "requires_backup": false,
+      "requires_approval": "not_supported",
+      "description": "Backup deletion, overwrite, or rename remains forbidden."
+    }
+  }
+}

@@ -41,6 +41,8 @@ Usage:
   spot-client.sh execution-run-close <id-or-file>
   spot-client.sh action-policy [--json]
   spot-client.sh action-policy-verify
+  spot-client.sh plugin-registry [--json]
+  spot-client.sh plugin-registry-verify
   spot-client.sh create-action-request <action_class> <target> <summary>
   spot-client.sh action-requests [count]
   spot-client.sh show-action-request <id-or-file>
@@ -1788,6 +1790,147 @@ cmd_close_action_handoff(){
   echo "RESULT: CLOSED handoff=$(basename "$file" .json)"
 }
 
+cmd_plugin_registry(){
+  local registry_file="${BASE_DIR}/policy/plugin-registry.json"
+  [[ -f "$registry_file" ]] || { echo "ERROR: plugin registry missing: $registry_file" >&2; exit 2; }
+
+  if [[ "${1:-}" == "--json" ]]; then
+    python3 -m json.tool "$registry_file"
+    return 0
+  fi
+
+  python3 - "$registry_file" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text())
+
+print(f"Plugin registry: {data['schema']}")
+print(f"Status: {data['registry_status']}")
+print(f"Primary rule: {data['primary_rule']}")
+print(f"Mutation plugins enabled: {str(data['mutation_plugins_enabled']).lower()}")
+print(f"Plugin execution enabled: {str(data['plugin_execution_enabled']).lower()}")
+print()
+print("Global guards:")
+for k, v in data["global_guards"].items():
+    print(f"- {k}: {v}")
+print()
+print("Plugins:")
+for name, spec in data["plugins"].items():
+    print(
+        f"- {name}: "
+        f"status={spec['status']} "
+        f"class={spec['action_class']} "
+        f"risk={spec['risk_class']} "
+        f"exec={str(spec['execution_allowed']).lower()} "
+        f"mutation={str(spec['mutation_allowed']).lower()}"
+    )
+PYINNER
+}
+
+cmd_plugin_registry_verify(){
+  local registry_file="${BASE_DIR}/policy/plugin-registry.json"
+  local policy_file="${BASE_DIR}/policy/action-policy.json"
+
+  [[ -f "$registry_file" ]] || { echo "ERROR: plugin registry missing: $registry_file" >&2; exit 2; }
+  [[ -f "$policy_file" ]] || { echo "ERROR: action policy missing: $policy_file" >&2; exit 2; }
+
+  python3 - "$registry_file" "$policy_file" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+registry = json.loads(Path(sys.argv[1]).read_text())
+policy = json.loads(Path(sys.argv[2]).read_text())
+fail = []
+warn = []
+
+def expect(path, actual, expected):
+    if actual != expected:
+        fail.append(f"{path} must be {expected!r}, got {actual!r}")
+
+expect("schema", registry.get("schema"), "spot.plugin_registry.v1")
+expect("registry_status", registry.get("registry_status"), "locked_non_executing")
+expect("primary_rule", registry.get("primary_rule"), "no_backup_no_change")
+expect("mutation_plugins_enabled", registry.get("mutation_plugins_enabled"), False)
+expect("plugin_execution_enabled", registry.get("plugin_execution_enabled"), False)
+
+if policy.get("mutation_plugins_enabled") is not False:
+    fail.append("linked action policy mutation_plugins_enabled must be false")
+
+guards = registry.get("global_guards", {})
+required_guards = {
+    "backup_required_before_mutation": True,
+    "backup_binding_required": True,
+    "precheck_required": True,
+    "postcheck_required": True,
+    "rollback_contract_required": True,
+    "append_only_action_log_required": True,
+    "freeform_shell_forbidden": True,
+    "network_mutation_forbidden": True,
+    "backup_delete_allowed": False,
+    "backup_overwrite_allowed": False,
+}
+for key, expected in required_guards.items():
+    expect(f"global_guards.{key}", guards.get(key), expected)
+
+plugins = registry.get("plugins", {})
+if not plugins:
+    fail.append("plugins map must not be empty")
+
+policy_classes = policy.get("action_classes", {})
+
+for name, spec in plugins.items():
+    status = spec.get("status")
+    action_class = spec.get("action_class")
+
+    if action_class not in policy_classes:
+        fail.append(f"{name}.action_class not found in action policy: {action_class}")
+        continue
+
+    policy_spec = policy_classes[action_class]
+
+    if spec.get("risk_class") != policy_spec.get("risk_class"):
+        fail.append(f"{name}.risk_class must match action policy class {action_class}")
+
+    if spec.get("mutation_allowed") is not False:
+        fail.append(f"{name}.mutation_allowed must be false")
+
+    if spec.get("execution_allowed") is not False:
+        fail.append(f"{name}.execution_allowed must be false")
+
+    if status not in {"disabled", "forbidden"}:
+        fail.append(f"{name}.status must be disabled or forbidden, got {status!r}")
+
+    if policy_spec.get("status") in {"forbidden", "restricted_disabled"} and status != "forbidden":
+        fail.append(f"{name}.status must be forbidden because action policy class {action_class} is {policy_spec.get('status')}")
+
+for required in [
+    "read_only_status_probe",
+    "safe_service_restart",
+    "controlled_config_write",
+    "restore_from_backup",
+    "network_change",
+    "freeform_shell_mutation",
+    "backup_delete_or_overwrite",
+]:
+    if required not in plugins:
+        fail.append(f"required plugin placeholder missing: {required}")
+
+for item in warn:
+    print(f"[WARN] {item}")
+for item in fail:
+    print(f"[FAIL] {item}")
+
+if fail:
+    print(f"RESULT: FAIL fail={len(fail)} warn={len(warn)}")
+    raise SystemExit(1)
+
+print(f"RESULT: PASS fail=0 warn={len(warn)}")
+PYINNER
+}
+
 cmd_action_policy_verify(){
   local policy_file="${BASE_DIR}/policy/action-policy.json"
   [[ -f "$policy_file" ]] || { echo "ERROR: action policy missing: $policy_file" >&2; exit 2; }
@@ -2116,5 +2259,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"
