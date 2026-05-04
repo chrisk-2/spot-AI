@@ -1,4 +1,4 @@
-# STARFLEET HANDOFF — 2026-05-03
+# STARFLEET HANDOFF — 2026-05-04
 
 Read spot-core/STATE.md first.
 
@@ -11,13 +11,41 @@ Fleet validate currently PASS.
 
 No active regression recovery in progress.
 
+PHASE 1.7 supervised apply-plan engine is complete and baseline locked.
+
 watch/spot-client.sh intact and patched.
+spot-apply supervised dry-run wrapper verified.
 
 spot-worker-05 commissioned and online pre-GPU.
 
 ---
 
 ## COMPLETED SINCE LAST HANDOFF
+
+### PHASE 1.7 supervised execution dry-run proof completed
+
+Verified:
+- execution handoff verification passes
+- supervised dry-run wrapper executes successfully
+- execution-run artifact generated and passes verify
+- backup-bound artifact created under supervised-apply backup root
+- SHA256 backup integrity verified
+- mutation remains disabled
+- fleet validate remains PASS after proof
+
+Canonical proof artifact:
+- RUN-HANDOFF-APPLY-phase17-lifecycle-test-041538-20260504-030310
+
+Canonical proof commit:
+- 4e17214 phase17: prove supervised execution dry-run lifecycle
+
+Important runtime patch:
+- watch/spot-client.sh now invokes watch/spot-apply.sh through bash rather than direct executable-bit assumption
+
+Project rule now technically enforced at dry-run level:
+- no backup, no change
+
+---
 
 ### worker-05 buildout
 spot-worker-05 created from Nobilis rack platform.
@@ -50,41 +78,20 @@ spot validate PASS.
 
 ---
 
-### PHASE 1.7 contract metadata patch
-watch/spot-client.sh rewritten successfully.
-
-Generated apply-plan and execution-handoff artifacts now include explicit machine-readable:
-
-- policy_class
-- autonomy_level
-- execution_wrapper_required
-- executor
-- approval_gate
-- rollback_required
-- rollback_authority
-
-Fleet validation PASS after patch.
-
----
-
 ## ACTIVE ENGINEERING LANE
 
-Continue PHASE 1.7 only.
+Do not reopen completed Phase 1.7 slices unless fresh regression appears.
 
-Next unfinished work:
+Next unfinished work is no longer Phase 1.7 proof.
 
-make artifact verification routines fail if those new contract fields are absent or malformed.
+Next lane:
+- transition roadmap to post-1.7 baseline
+- begin controlled autonomy wrapper evolution from proven dry-run execution shell
+- keep mutation disabled until explicit policy-approved Phase 2 implementation
 
-Specifically:
-- apply-plan verify
-- execution-handoff verify
-- status/grep consistency checks
-
-Do not reopen:
-- storage mount work
-- worker-05 commissioning basics
-- utility timeout regression
-unless new failure appears.
+Optional immediate cleanup:
+- add visible progress markers during spot-apply prechecks
+- classify or remove stray top-level untracked apply-plans directory if accidental
 
 ---
 
@@ -94,14 +101,13 @@ No backup, no change.
 
 No autonomous mutation.
 
-No execution without explicit supervised wrapper.
-
+No execution outside supervised wrapper.
 
 ---
 
 ## WORKER-05 NEXT PHYSICAL STEP
 
-Tomorrow when the Quadro P6000 arrives:
+When the Quadro P6000 arrives:
 
 1. Power down worker-05.
 2. Install P6000.
@@ -117,4 +123,4 @@ Tomorrow when the Quadro P6000 arrives:
 
 Worker-05 should remain commissioning/pre-routing until GPU, NVIDIA driver, thermals, Ollama, mounts, and health API all pass.
 
-Do not tune worker-02 until after TITAN Xp GPU swap.
+Do not tune worker-02 until after TITAN Xp GPU swap unless a new hard failure appears.

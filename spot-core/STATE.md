@@ -1,4 +1,4 @@
-# SPOT CORE STATE — 2026-05-03
+# SPOT CORE STATE — 2026-05-04
 
 ## CURRENT STATUS
 Spot Core stable.
@@ -11,11 +11,76 @@ Validation baseline:
 - fail=0
 - RESULT: PASS
 
+Current commit:
+- 4e17214 phase17: prove supervised execution dry-run lifecycle
+
+---
+
+## CURRENT ACTIVE LANE
+
+PHASE 1.7 — SUPERVISED APPLY-PLAN ENGINE
+
+Status: COMPLETE / BASELINE LOCKED
+
+Phase 1.7 is now functionally complete for the supervised dry-run scope. It proves the handoff-to-wrapper path without enabling mutation.
+
+Verified proof run:
+- RUN-HANDOFF-APPLY-phase17-lifecycle-test-041538-20260504-030310
+
+Verified gates:
+- execution handoff verification passes
+- supervised dry-run wrapper runs through bash from spot-client.sh
+- execution-run artifact generated
+- precheck log generated
+- backup artifact created under /mnt/collective/backups/spot-core/supervised-apply/
+- handoff, apply plan, proposal, and target file copied into backup artifact
+- SHA256SUMS generated and verified
+- run_status: prepared_backup_bound_dry_run
+- execution_allowed: false
+- mutation_allowed: false
+- mutation_performed: false
+- backup_bound: true
+- backup_verified: true
+- spot validate passes after lifecycle proof
+
+Policy posture:
+- no backup, no change enforced for dry-run wrapper
+- mutation plugin dispatch remains disabled
+- high-risk network actions remain gated
+- memory and proposal history remain context only, not authorization
+- rollback authority remains recorded_prechange_backup_only
+
 ---
 
 ## COMPLETED THIS SESSION
 
-### 1. spot-worker-05 commissioned to pre-GPU ready state
+### 1. PHASE 1.7 supervised dry-run execution wrapper proven
+
+Completed:
+- watch/spot-apply.sh supervised dry-run wrapper
+- spot-client.sh handoff execution command wiring
+- execution-runs listing/show/verify commands
+- lifecycle test proposal fixture
+- lifecycle test apply-plan fixture
+- lifecycle test handoff risk normalized to low
+- verified backup-bound dry-run artifact creation
+- verified SHA256 backup integrity
+- verified mutation remains disabled
+
+Important fix:
+- spot-client.sh now invokes spot-apply.sh through bash instead of relying on executable filesystem metadata. Git mode is 100755, but live filesystem behavior made direct -x checks unreliable.
+
+Commit:
+- 4e17214 phase17: prove supervised execution dry-run lifecycle
+
+Result:
+- watch/spot-client.sh execution-run-verify RUN-HANDOFF-APPLY-phase17-lifecycle-test-041538-20260504-030310 => PASS
+- spot validate => PASS, pass=19 warn=0 fail=0
+
+---
+
+### 2. spot-worker-05 commissioned to pre-GPU ready state
+
 New worker node prepared and online:
 
 - hostname: spot-worker-05
@@ -43,7 +108,8 @@ Role planned:
 
 ---
 
-### 2. PHASE 1.7 utility regression resolved
+### 3. PHASE 1.7 utility regression resolved
+
 Resolved utility lane operator + validator instability:
 
 - spot ask no longer injects Durable Memory by default
@@ -57,64 +123,41 @@ spot validate => PASS
 
 ---
 
-### 3. PHASE 1.7 artifact semantics contract patch applied
-watch/spot-client.sh full-file rewrite completed successfully.
-
-Apply-plan artifacts now emit:
-
-- policy_class: supervised_apply_plan
-- autonomy_level: 1
-- execution_wrapper_required: true
-- executor: spot-core-controlled-wrapper
-- approval_gate: human_review_required
-- rollback_required: true
-- rollback_authority: recorded_prechange_backup_only
-
-Execution-handoff artifacts now emit:
-
-- policy_class: controlled_execution_handoff
-- autonomy_level: 1
-- execution_wrapper_required: true
-- executor: spot-core-controlled-wrapper
-- approval_gate: wrapper_execution_approval_required
-- rollback_required: true
-- rollback_authority: recorded_prechange_backup_only
-
-Status readers now surface these fields.
-
-Validation after patch:
-spot validate => PASS
-
-Manual pre-contract backup created:
-- /mnt/collective/backups/spot-core/manual/
-
----
-
-## ACTIVE PHASE
-PHASE 1.7 — SUPERVISED APPLY-PLAN ENGINE
-
-Current remaining open item:
-- strengthen artifact verifiers so apply-plan and execution-handoff validation REQUIRE the new contract metadata fields, not merely emit them
-
-No autonomous mutation capability enabled.
-Mutation remains blocked.
-execution_allowed remains false.
-backup_bound remains false.
-
----
-
 ## FLEET SNAPSHOT
 
 worker-01 = general
-worker-02 = utility
+worker-02 = utility, healthy but latency warning-level
 worker-03 = coding
 worker-04 = heavy-primary
 worker-05 = heavy-secondary commissioning/pre-GPU
 
+Latest observed latency snapshot from checkpoint:
+- worker-01 p50 around 1127 ms
+- worker-02 p50 around 14941 ms
+- worker-03 p50 around 1731 ms
+- worker-04 p50 around 1354 ms
+
+worker-02 remains the known latency laggard. Do not tune worker-02 until after the planned GPU reshuffle unless a new failure appears.
 
 ---
 
-## 2026-05-03 WORKER-05 GPU BRING-UP CHECKLIST
+## NEXT ENGINEERING LANE
+
+Do not reopen Phase 1.7 unless a fresh regression appears.
+
+Next safe direction:
+- move to the next roadmap lane after Phase 1.7 baseline lock
+- begin controlled-autonomy design from the proven supervised dry-run wrapper
+- keep mutation plugins disabled until explicit Phase 2 design and policy review
+
+Immediate useful cleanup before Phase 2:
+- commit support document updates
+- optional UX improvement: add visible progress markers in spot-apply.sh prechecks
+- remove or classify stray untracked top-level apply-plans/ if it is accidental
+
+---
+
+## WORKER-05 GPU BRING-UP CHECKLIST
 
 spot-worker-05 is pre-commissioned and ready for GPU installation.
 
