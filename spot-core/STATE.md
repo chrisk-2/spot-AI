@@ -1,125 +1,252 @@
 # SPOT CORE STATE — 2026-05-04
 
 ## CURRENT STATUS
+
 Spot Core stable.
 Fleet validation passing.
 Primary routing ownership intact.
+Git tree clean at last checkpoint.
+
+Current commit:
+- 77de4b6 phase29: add action handoff review lifecycle and audit
 
 Validation baseline:
+- spot validate: PASS
 - pass=19
 - warn=0
 - fail=0
-- RESULT: PASS
 
-Current commit:
-- 4e17214 phase17: prove supervised execution dry-run lifecycle
+Runtime health:
+- spot-core OK
+- worker backups OK for spot-worker-01 through spot-worker-04
+
+Known condition:
+- spot-worker-02 remains healthy but slow on the utility lane.
+- Do not tune worker-02 until after the planned GPU reshuffle unless a new hard failure appears.
 
 ---
 
 ## CURRENT ACTIVE LANE
 
-PHASE 1.7 — SUPERVISED APPLY-PLAN ENGINE
+PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: COMPLETE / BASELINE LOCKED
+Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.9
 
-Phase 1.7 is now functionally complete for the supervised dry-run scope. It proves the handoff-to-wrapper path without enabling mutation.
+Phase 2 is building controlled autonomy rails without enabling autonomous mutation.
 
-Verified proof run:
-- RUN-HANDOFF-APPLY-phase17-lifecycle-test-041538-20260504-030310
-
-Verified gates:
-- execution handoff verification passes
-- supervised dry-run wrapper runs through bash from spot-client.sh
-- execution-run artifact generated
-- precheck log generated
-- backup artifact created under /mnt/collective/backups/spot-core/supervised-apply/
-- handoff, apply plan, proposal, and target file copied into backup artifact
-- SHA256SUMS generated and verified
-- run_status: prepared_backup_bound_dry_run
-- execution_allowed: false
-- mutation_allowed: false
-- mutation_performed: false
-- backup_bound: true
-- backup_verified: true
-- spot validate passes after lifecycle proof
-
-Policy posture:
-- no backup, no change enforced for dry-run wrapper
-- mutation plugin dispatch remains disabled
-- high-risk network actions remain gated
-- memory and proposal history remain context only, not authorization
-- rollback authority remains recorded_prechange_backup_only
+Current safety posture:
+- mutation_plugins_enabled: false
+- execution_allowed remains false in generated control artifacts
+- mutation_allowed remains false in generated control artifacts
+- mutation_performed remains false in generated control artifacts
+- backup delete/overwrite remains forbidden
+- freeform shell mutation remains forbidden
+- high-risk network change remains restricted/disabled
+- no backup, no change remains absolute
 
 ---
 
-## COMPLETED THIS SESSION
+## COMPLETED PHASE 2 SLICES
 
-### 1. PHASE 1.7 supervised dry-run execution wrapper proven
+### Phase 2.1 — Execution-run lifecycle
 
 Completed:
-- watch/spot-apply.sh supervised dry-run wrapper
-- spot-client.sh handoff execution command wiring
-- execution-runs listing/show/verify commands
-- lifecycle test proposal fixture
-- lifecycle test apply-plan fixture
-- lifecycle test handoff risk normalized to low
-- verified backup-bound dry-run artifact creation
-- verified SHA256 backup integrity
-- verified mutation remains disabled
+- execution-run lifecycle transitions
+- manual review approve/reject/close flow
+- verifier accepts lifecycle-safe run statuses
 
-Important fix:
-- spot-client.sh now invokes spot-apply.sh through bash instead of relying on executable filesystem metadata. Git mode is 100755, but live filesystem behavior made direct -x checks unreliable.
-
-Commit:
-- 4e17214 phase17: prove supervised execution dry-run lifecycle
-
-Result:
-- watch/spot-client.sh execution-run-verify RUN-HANDOFF-APPLY-phase17-lifecycle-test-041538-20260504-030310 => PASS
-- spot validate => PASS, pass=19 warn=0 fail=0
+States:
+- prepared_backup_bound_dry_run
+- manual_review_approved
+- manual_review_rejected
+- closed_no_execution
 
 ---
 
-### 2. spot-worker-05 commissioned to pre-GPU ready state
+### Phase 2.2 — Execution-run read-only visibility
 
-New worker node prepared and online:
+Completed:
+- execution-run-status
+- execution-run-audit
+- execution-run-summary
 
-- hostname: spot-worker-05
-- ip: 192.168.10.15
-- chassis: Equus Nobilis
-- board: ASUS PRIME Z390-A
-- cpu: i7-8700
-- storage: NVMe
-- os: Ubuntu 24.04
-- ollama installed/running
-- docker installed/running
-- /mnt/collective mounted
-- /mnt/unimatrix6 mounted
-- local FastAPI health endpoint active on :8755
-
-Pending hardware:
-- Quadro P6000 install
-- RAM upgrade to 64GB target
-- NVIDIA production driver
-
-Role planned:
-- heavy-secondary
-- research
-- staging
+Purpose:
+- inspect run state without dumping full artifacts
+- confirm backup, precheck, lifecycle, and mutation-disabled posture
 
 ---
 
-### 3. PHASE 1.7 utility regression resolved
+### Phase 2.3 — Action policy manifest
 
-Resolved utility lane operator + validator instability:
+Completed:
+- watch/policy/action-policy.json
+- action-policy display command
 
-- spot ask no longer injects Durable Memory by default
-- spot ask --memory explicitly enables memory context
-- spot propose behavior preserved
-- worker-02 utility lane phi3.5 Ollama degradation identified
-- targeted ollama.service restart on worker-02 restored utility validation responsiveness
+Policy encodes:
+- no_backup_no_change
+- mutation_plugins_enabled=false
+- read_only_diagnostic allowed
+- supervised_dry_run allowed
+- safe_service_restart planned_disabled
+- controlled_config_write planned_disabled
+- restore_from_backup planned_disabled
+- network_change restricted_disabled
+- backup_delete_or_overwrite forbidden
+- freeform_shell_mutation forbidden
 
-Post-remediation:
-spot validate => PASS
+---
+
+### Phase 2.4 — Action policy verifier
+
+Completed:
+- action-policy-verify
+
+Verifier fails if policy drifts unsafe:
+- mutation plugins enabled
+- backup delete/overwrite allowed
+- primary rule changed
+- network changes ungated
+- forbidden classes become mutable
+
+---
+
+### Phase 2.5 — Non-executing action request artifacts
+
+Completed:
+- create-action-request
+- action-requests
+- show-action-request
+- action-request-verify
+
+Artifact type:
+- watch/action-requests/ACTION-*.json
+
+Request artifacts remain non-executing:
+- request_status=draft_non_executing initially
+- execution_allowed=false
+- mutation_allowed=false
+- mutation_performed=false
+
+---
+
+### Phase 2.6 — Action request lifecycle
+
+Completed:
+- action-request-status
+- approve-action-request
+- reject-action-request
+- close-action-request
+
+States:
+- draft_non_executing
+- review_approved_non_executing
+- review_rejected
+- closed_no_execution
+
+Canonical closed sample:
+- ACTION-20260504-153133-read_only_diagnostic-spot-core
+
+---
+
+### Phase 2.7 — Action request audit/summary
+
+Completed:
+- action-request-audit
+- action-request-summary
+
+Purpose:
+- operator-grade visibility for request objects
+- lifecycle event visibility
+- mutation-disabled posture confirmation
+
+---
+
+### Phase 2.8 — Non-executing action handoff bridge
+
+Completed:
+- prepare-action-handoff
+- action-handoffs
+- show-action-handoff
+- action-handoff-status
+- action-handoff-verify
+
+Artifact type:
+- watch/action-handoffs/ACTION-HANDOFF-*.json
+
+Bridge behavior:
+- approved action request produces a non-executing handoff candidate
+- handoff_status=prepared_non_executing initially
+- next_allowed_action=manual_review_only
+
+Canonical handoff sample:
+- ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core
+
+---
+
+### Phase 2.9 — Action handoff lifecycle/audit
+
+Completed:
+- action-handoff-audit
+- action-handoff-summary
+- approve-action-handoff
+- reject-action-handoff
+- close-action-handoff
+
+States:
+- prepared_non_executing
+- review_approved_non_executing
+- review_rejected
+- closed_no_execution
+
+Canonical handoff sample is now closed_no_execution with lifecycle_history.
+
+---
+
+## CURRENT CONTROL STACK
+
+Current non-executing control chain:
+
+1. Action policy manifest
+2. Action policy verifier
+3. Action request artifact
+4. Action request verifier
+5. Action request lifecycle
+6. Action request audit/summary
+7. Action handoff candidate
+8. Action handoff verifier
+9. Action handoff lifecycle
+10. Action handoff audit/summary
+
+This is a control and audit stack only.
+It does not dispatch plugins.
+It does not mutate live systems.
+It does not bind backups for mutation.
+It does not enable autonomous execution.
+
+---
+
+## NEXT ENGINEERING LANE
+
+Next candidate:
+
+PHASE 2.10 — CONTROLLED EXECUTOR SKELETON / PLUGIN REGISTRY MANIFEST
+
+Recommended scope:
+- define plugin registry manifest
+- all plugins disabled by default
+- registry verifier
+- no execution path yet
+- no service restarts yet
+- no config writes yet
+- no network mutation
+
+Do not enable mutation plugins until a future reviewed slice explicitly implements:
+- backup binding
+- precheck validation
+- postcheck validation
+- rollback contract
+- append-only action logs
+- explicit plugin allowlist
 
 ---
 
@@ -131,35 +258,17 @@ worker-03 = coding
 worker-04 = heavy-primary
 worker-05 = heavy-secondary commissioning/pre-GPU
 
-Latest observed latency snapshot from checkpoint:
-- worker-01 p50 around 1127 ms
-- worker-02 p50 around 14941 ms
-- worker-03 p50 around 1731 ms
-- worker-04 p50 around 1354 ms
-
-worker-02 remains the known latency laggard. Do not tune worker-02 until after the planned GPU reshuffle unless a new failure appears.
-
----
-
-## NEXT ENGINEERING LANE
-
-Do not reopen Phase 1.7 unless a fresh regression appears.
-
-Next safe direction:
-- move to the next roadmap lane after Phase 1.7 baseline lock
-- begin controlled-autonomy design from the proven supervised dry-run wrapper
-- keep mutation plugins disabled until explicit Phase 2 design and policy review
-
-Immediate useful cleanup before Phase 2:
-- commit support document updates
-- optional UX improvement: add visible progress markers in spot-apply.sh prechecks
-- remove or classify stray untracked top-level apply-plans/ if it is accidental
+Latest observed checkpoint trend:
+- worker-01 healthy and fast
+- worker-02 healthy but slow, p50 around 12s at latest checkpoint
+- worker-03 healthy and fast
+- worker-04 healthy and fast
 
 ---
 
 ## WORKER-05 GPU BRING-UP CHECKLIST
 
-spot-worker-05 is pre-commissioned and ready for GPU installation.
+spot-worker-05 remains pre-commissioned and ready for GPU installation.
 
 Current ready state:
 - hostname: spot-worker-05
@@ -167,7 +276,6 @@ Current ready state:
 - OS: Ubuntu 24.04
 - CPU: i7-8700
 - board: ASUS PRIME Z390-A
-- current RAM: 16GB DDR4 2400, 4x4GB
 - RAM target: 64GB DDR4 UDIMM non-ECC
 - storage: NVMe
 - /mnt/collective mounted
@@ -192,16 +300,4 @@ Post-GPU commands on worker-05:
   ~/worker05_health.sh
   curl -s http://127.0.0.1:8755/health | jq
 
-Expected health after GPU:
-- gpu_info should show Quadro P6000
-- collective_mounted true
-- unimatrix6_mounted true
-- ollama active
-- docker active
-
-Do not add worker-05 to production routing until:
-- NVIDIA driver is stable
-- thermals are acceptable
-- Ollama can run a test model
-- health endpoint reports GPU
-- RAM upgrade plan is confirmed or installed
+Do not add worker-05 to production routing until GPU, NVIDIA driver, thermals, Ollama, mounts, and health API all pass.
