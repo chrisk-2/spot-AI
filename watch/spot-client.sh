@@ -52,6 +52,8 @@ Usage:
   spot-client.sh plugin-request-audit <id-or-file>
   spot-client.sh plugin-request-summary [count]
   spot-client.sh plugin-request-verify <id-or-file>
+  spot-client.sh worker05-status
+  spot-client.sh worker05-verify
   spot-client.sh approve-plugin-request <id-or-file>
   spot-client.sh reject-plugin-request <id-or-file>
   spot-client.sh close-plugin-request <id-or-file>
@@ -2427,6 +2429,154 @@ cmd_close_plugin_request(){
   echo "RESULT: CLOSED plugin_request=$(basename "$file" .json)"
 }
 
+cmd_worker05_status(){
+  local inv="${BASE_DIR}/inventory/worker-05.json"
+  [[ -f "$inv" ]] || { echo "ERROR: worker-05 inventory missing: $inv" >&2; exit 2; }
+
+  python3 - "$inv" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text())
+
+print("WORKER05_STATUS")
+for key in [
+    "worker_id",
+    "hostname",
+    "ip",
+    "routing_enabled",
+    "production_role",
+    "commission_status",
+    "gpu_validated",
+    "remote_health_validated",
+    "remote_ollama_validated",
+    "passwordless_ssh_from_core",
+    "collective_mounted",
+    "unimatrix6_mounted",
+]:
+    if key in data:
+        value = data[key]
+        if isinstance(value, bool):
+            value = str(value).lower()
+        print(f"{key}: {value}")
+
+gpu = data.get("gpu", {})
+if gpu:
+    print(f"gpu_model: {gpu.get('model')}")
+    print(f"gpu_vram_mib: {gpu.get('vram_mib')}")
+    print(f"gpu_driver: {gpu.get('driver')}")
+    print(f"gpu_cuda: {gpu.get('cuda')}")
+PYINNER
+}
+
+cmd_worker05_verify(){
+  local inv="${BASE_DIR}/inventory/worker-05.json"
+  [[ -f "$inv" ]] || { echo "ERROR: worker-05 inventory missing: $inv" >&2; exit 2; }
+
+  python3 - "$inv" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text())
+fail = []
+warn = []
+
+def expect(path, actual, expected):
+    if actual != expected:
+        fail.append(f"{path} must be {expected!r}, got {actual!r}")
+
+expect("worker_id", data.get("worker_id"), "spot-worker-05")
+expect("hostname", data.get("hostname"), "spot-worker-05")
+expect("ip", data.get("ip"), "192.168.10.15")
+expect("routing_enabled", data.get("routing_enabled"), False)
+expect("production_role", data.get("production_role"), "none")
+expect("commission_status", data.get("commission_status"), "gpu_validated_pre_routing")
+expect("gpu_validated", data.get("gpu_validated"), True)
+expect("remote_health_validated", data.get("remote_health_validated"), True)
+expect("remote_ollama_validated", data.get("remote_ollama_validated"), True)
+expect("passwordless_ssh_from_core", data.get("passwordless_ssh_from_core"), True)
+expect("collective_mounted", data.get("collective_mounted"), True)
+expect("unimatrix6_mounted", data.get("unimatrix6_mounted"), True)
+
+gpu = data.get("gpu", {})
+expect("gpu.model", gpu.get("model"), "Quadro P6000")
+expect("gpu.vram_mib", gpu.get("vram_mib"), 23040)
+expect("gpu.driver", gpu.get("driver"), "535.288.01")
+
+for item in warn:
+    print(f"[WARN] {item}")
+for item in fail:
+    print(f"[FAIL] {item}")
+
+if fail:
+    print(f"RESULT: FAIL fail={len(fail)} warn={len(warn)}")
+    raise SystemExit(1)
+
+print(f"RESULT: PASS worker=spot-worker-05 routing_enabled=false production_role=none fail=0 warn={len(warn)}")
+PYINNER
+
+  ssh -o BatchMode=yes -o ConnectTimeout=8 spot-worker-05 '
+    set -e
+    hostname
+    curl -s --max-time 8 http://127.0.0.1:8755/health
+    echo
+    curl -s --max-time 20 http://127.0.0.1:11434/api/tags
+    echo
+    nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
+  ' >/tmp/spot-worker05-live-check.txt
+
+  python3 - /tmp/spot-worker05-live-check.txt <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+text = Path(sys.argv[1]).read_text().splitlines()
+fail = []
+
+if not text or text[0].strip() != "spot-worker-05":
+    fail.append("ssh hostname check failed")
+
+json_lines = []
+for line in text[1:]:
+    line = line.strip()
+    if line.startswith("{") and line.endswith("}"):
+        json_lines.append(line)
+
+if len(json_lines) < 2:
+    fail.append("expected health JSON and Ollama tags JSON")
+else:
+    health = json.loads(json_lines[0])
+    tags = json.loads(json_lines[1])
+
+    if health.get("worker_id") != "spot-worker-05":
+        fail.append("health worker_id mismatch")
+    if health.get("collective_mounted") is not True:
+        fail.append("health collective_mounted not true")
+    if health.get("unimatrix6_mounted") is not True:
+        fail.append("health unimatrix6_mounted not true")
+    if "Quadro P6000" not in str(health.get("gpu_info")):
+        fail.append("health gpu_info does not mention Quadro P6000")
+
+    models = [m.get("name") or m.get("model") for m in tags.get("models", [])]
+    if "llama3.1:8b" not in models:
+        fail.append("remote/local Ollama tags missing llama3.1:8b")
+
+if not any("Quadro P6000" in line and "535.288.01" in line for line in text):
+    fail.append("nvidia-smi line missing Quadro P6000 / 535.288.01")
+
+for item in fail:
+    print(f"[FAIL] {item}")
+
+if fail:
+    print(f"RESULT: FAIL live_checks fail={len(fail)}")
+    raise SystemExit(1)
+
+print("RESULT: PASS live_checks worker=spot-worker-05 ssh=true health=true ollama=true gpu=true")
+PYINNER
+}
+
 cmd_plugin_registry_verify(){
   local registry_file="${BASE_DIR}/policy/plugin-registry.json"
   local policy_file="${BASE_DIR}/policy/action-policy.json"
@@ -2857,5 +3007,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-summary) cmd_plugin_registry_summary "$@";; plugin-registry-audit) cmd_plugin_registry_audit "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-plugin-request) cmd_create_plugin_request "$@";; plugin-requests) cmd_plugin_requests "$@";; show-plugin-request) cmd_show_plugin_request "$@";; plugin-request-status) cmd_plugin_request_status "$@";; plugin-request-audit) cmd_plugin_request_audit "$@";; plugin-request-summary) cmd_plugin_request_summary "$@";; plugin-request-verify) cmd_plugin_request_verify "$@";; approve-plugin-request) cmd_approve_plugin_request "$@";; reject-plugin-request) cmd_reject_plugin_request "$@";; close-plugin-request) cmd_close_plugin_request "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-summary) cmd_plugin_registry_summary "$@";; plugin-registry-audit) cmd_plugin_registry_audit "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-plugin-request) cmd_create_plugin_request "$@";; plugin-requests) cmd_plugin_requests "$@";; show-plugin-request) cmd_show_plugin_request "$@";; plugin-request-status) cmd_plugin_request_status "$@";; plugin-request-audit) cmd_plugin_request_audit "$@";; plugin-request-summary) cmd_plugin_request_summary "$@";; plugin-request-verify) cmd_plugin_request_verify "$@";; worker05-status) cmd_worker05_status "$@";; worker05-verify) cmd_worker05_verify "$@";; approve-plugin-request) cmd_approve_plugin_request "$@";; reject-plugin-request) cmd_reject_plugin_request "$@";; close-plugin-request) cmd_close_plugin_request "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"
