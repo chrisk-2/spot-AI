@@ -6,7 +6,7 @@
   "target": "spot-core",
   "summary": "inspect current execution-run audit state",
   "risk_class": "low",
-  "request_status": "review_approved_non_executing",
+  "request_status": "closed_no_execution",
   "policy_status": "locked",
   "primary_rule": "no_backup_no_change",
   "autonomy_level": 1,
@@ -43,6 +43,12 @@
       "utc": "20260504-153541",
       "from": "draft_non_executing",
       "to": "review_approved_non_executing"
+    },
+    {
+      "utc": "20260504-153947",
+      "from": "review_approved_non_executing",
+      "to": "closed_no_execution"
     }
-  ]
+  ],
+  "closed_utc": "20260504-153947"
 }
