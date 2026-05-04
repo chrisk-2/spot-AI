@@ -45,6 +45,11 @@ Usage:
   spot-client.sh plugin-registry-summary
   spot-client.sh plugin-registry-audit
   spot-client.sh plugin-registry-verify
+  spot-client.sh create-plugin-request <action-handoff-id-or-file> <plugin_name>
+  spot-client.sh plugin-requests [count]
+  spot-client.sh show-plugin-request <id-or-file>
+  spot-client.sh plugin-request-status <id-or-file>
+  spot-client.sh plugin-request-verify <id-or-file>
   spot-client.sh create-action-request <action_class> <target> <summary>
   spot-client.sh action-requests [count]
   spot-client.sh show-action-request <id-or-file>
@@ -1935,6 +1940,308 @@ for name, spec in plugins.items():
 PYINNER
 }
 
+resolve_plugin_request_file(){
+  local id="${1:-}"
+  [[ -n "$id" ]] || { echo "ERROR: plugin request id/file required" >&2; exit 2; }
+
+  local dir="${BASE_DIR}/plugin-requests"
+  local file="$id"
+  [[ -f "$file" ]] || file="${dir}/${id%.json}.json"
+  [[ -f "$file" ]] || file="${dir}/PLUGIN-REQUEST-${id#PLUGIN-REQUEST-}.json"
+
+  [[ -f "$file" ]] || { echo "ERROR: plugin request not found: $id" >&2; exit 2; }
+  printf '%s' "$file"
+}
+
+cmd_create_plugin_request(){
+  local handoff_file plugin_name registry_file policy_file
+  handoff_file="$(resolve_action_handoff_file "${1:-}")"
+  plugin_name="${2:-}"
+
+  [[ -n "$plugin_name" ]] || { echo "ERROR: plugin_name required" >&2; exit 2; }
+
+  registry_file="${BASE_DIR}/policy/plugin-registry.json"
+  policy_file="${BASE_DIR}/policy/action-policy.json"
+
+  [[ -f "$registry_file" ]] || { echo "ERROR: plugin registry missing: $registry_file" >&2; exit 2; }
+  [[ -f "$policy_file" ]] || { echo "ERROR: action policy missing: $policy_file" >&2; exit 2; }
+
+  cmd_action_handoff_verify "$handoff_file" >/dev/null
+  cmd_plugin_registry_verify >/dev/null
+  cmd_action_policy_verify >/dev/null
+
+  mkdir -p "${BASE_DIR}/plugin-requests"
+
+  python3 - "$handoff_file" "$registry_file" "$policy_file" "${BASE_DIR}/plugin-requests" "$plugin_name" <<'PYINNER'
+import json
+import re
+import sys
+from pathlib import Path
+from datetime import datetime, UTC
+
+handoff_file, registry_file, policy_file, out_dir, plugin_name = sys.argv[1:]
+handoff = json.loads(Path(handoff_file).read_text())
+registry = json.loads(Path(registry_file).read_text())
+policy = json.loads(Path(policy_file).read_text())
+
+fail = []
+plugins = registry.get("plugins", {})
+plugin = plugins.get(plugin_name)
+
+if plugin is None:
+    fail.append(f"plugin not found in registry: {plugin_name}")
+else:
+    if plugin.get("status") not in {"disabled"}:
+        fail.append(f"plugin must be disabled for non-executing request, got {plugin.get('status')!r}")
+    if plugin.get("execution_allowed") is not False:
+        fail.append("plugin.execution_allowed must be false")
+    if plugin.get("mutation_allowed") is not False:
+        fail.append("plugin.mutation_allowed must be false")
+
+if registry.get("plugin_execution_enabled") is not False:
+    fail.append("registry.plugin_execution_enabled must be false")
+if registry.get("mutation_plugins_enabled") is not False:
+    fail.append("registry.mutation_plugins_enabled must be false")
+if policy.get("mutation_plugins_enabled") is not False:
+    fail.append("action policy mutation_plugins_enabled must be false")
+
+if handoff.get("handoff_status") not in {"review_approved_non_executing", "closed_no_execution"}:
+    fail.append(f"handoff_status must be review_approved_non_executing or closed_no_execution, got {handoff.get('handoff_status')!r}")
+if handoff.get("execution_allowed") is not False:
+    fail.append("handoff.execution_allowed must be false")
+if handoff.get("mutation_allowed") is not False:
+    fail.append("handoff.mutation_allowed must be false")
+if handoff.get("mutation_performed") is not False:
+    fail.append("handoff.mutation_performed must be false")
+
+if plugin is not None:
+    if plugin.get("action_class") != handoff.get("action_class"):
+        fail.append(f"plugin action_class {plugin.get('action_class')!r} does not match handoff action_class {handoff.get('action_class')!r}")
+    if plugin.get("risk_class") != handoff.get("risk_class"):
+        fail.append("plugin risk_class does not match handoff risk_class")
+
+if fail:
+    for item in fail:
+        print(f"[FAIL] {item}", file=sys.stderr)
+    raise SystemExit(1)
+
+now = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+safe = re.sub(r"[^a-zA-Z0-9_.-]+", "-", f"{plugin_name}-{handoff['handoff_id']}")[:120].strip("-")
+request_id = f"PLUGIN-REQUEST-{now}-{safe}"
+out = Path(out_dir) / f"{request_id}.json"
+
+request = {
+    "schema": "spot.plugin_request.v1",
+    "plugin_request_id": request_id,
+    "created_utc": now,
+    "linked_action_handoff": handoff.get("handoff_id"),
+    "linked_action_request": handoff.get("linked_action_request"),
+    "plugin_name": plugin_name,
+    "plugin_status_at_request": plugin.get("status"),
+    "action_class": handoff.get("action_class"),
+    "target": handoff.get("target"),
+    "summary": handoff.get("summary"),
+    "risk_class": handoff.get("risk_class"),
+    "request_status": "draft_non_executing",
+    "handoff_status_at_request": handoff.get("handoff_status"),
+    "registry_status": registry.get("registry_status"),
+    "policy_status": policy.get("policy_status"),
+    "primary_rule": registry.get("primary_rule"),
+    "mutation_plugins_enabled": registry.get("mutation_plugins_enabled"),
+    "plugin_execution_enabled": registry.get("plugin_execution_enabled"),
+    "plugin_execution_allowed": False,
+    "execution_allowed": False,
+    "mutation_allowed": False,
+    "mutation_performed": False,
+    "backup_required": handoff.get("backup_required"),
+    "backup_bound": False,
+    "backup_artifact": "pending",
+    "approval_required": handoff.get("approval_required"),
+    "rollback_required": handoff.get("rollback_required"),
+    "rollback_authority": "recorded_prechange_backup_only",
+    "next_allowed_action": "manual_review_only",
+    "source_policy": registry.get("source_policy"),
+    "execution_chain_required": registry.get("global_guards"),
+    "notes": [
+        "This artifact is a non-executing plugin request.",
+        "This artifact does not authorize plugin execution.",
+        "This artifact does not perform mutation.",
+        "Plugin execution remains disabled by registry.",
+        "Future execution requires separate backup binding, validation, rollback, and explicit reviewed enablement."
+    ]
+}
+
+out.write_text(json.dumps(request, indent=2) + "\n")
+print(out)
+PYINNER
+}
+
+cmd_plugin_requests(){
+  local count="${1:-20}"
+  local dir="${BASE_DIR}/plugin-requests"
+  mkdir -p "$dir"
+  find "$dir" -maxdepth 1 -type f -name 'PLUGIN-REQUEST-*.json' -printf '%T@ %f\n' 2>/dev/null \
+    | sort -nr \
+    | head -n "$count" \
+    | awk '{print $2}'
+}
+
+cmd_show_plugin_request(){
+  local file
+  file="$(resolve_plugin_request_file "${1:-}")"
+  python3 -m json.tool "$file"
+}
+
+cmd_plugin_request_status(){
+  local file
+  file="$(resolve_plugin_request_file "${1:-}")"
+
+  python3 - "$file" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text())
+keys = [
+    "plugin_request_id",
+    "created_utc",
+    "linked_action_handoff",
+    "linked_action_request",
+    "plugin_name",
+    "plugin_status_at_request",
+    "action_class",
+    "target",
+    "risk_class",
+    "request_status",
+    "handoff_status_at_request",
+    "registry_status",
+    "plugin_execution_enabled",
+    "plugin_execution_allowed",
+    "execution_allowed",
+    "mutation_allowed",
+    "mutation_performed",
+    "backup_required",
+    "backup_bound",
+    "backup_artifact",
+    "approval_required",
+    "rollback_required",
+    "next_allowed_action"
+]
+for key in keys:
+    if key in data:
+        print(f"{key}: {data[key]}")
+PYINNER
+}
+
+cmd_plugin_request_verify(){
+  local file registry_file policy_file handoff_dir
+  file="$(resolve_plugin_request_file "${1:-}")"
+  registry_file="${BASE_DIR}/policy/plugin-registry.json"
+  policy_file="${BASE_DIR}/policy/action-policy.json"
+  handoff_dir="${BASE_DIR}/action-handoffs"
+
+  [[ -f "$registry_file" ]] || { echo "ERROR: plugin registry missing: $registry_file" >&2; exit 2; }
+  [[ -f "$policy_file" ]] || { echo "ERROR: action policy missing: $policy_file" >&2; exit 2; }
+
+  python3 - "$file" "$registry_file" "$policy_file" "$handoff_dir" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+request = json.loads(Path(sys.argv[1]).read_text())
+registry = json.loads(Path(sys.argv[2]).read_text())
+policy = json.loads(Path(sys.argv[3]).read_text())
+handoff_dir = Path(sys.argv[4])
+fail = []
+warn = []
+
+def expect(path, actual, expected):
+    if actual != expected:
+        fail.append(f"{path} must be {expected!r}, got {actual!r}")
+
+expect("schema", request.get("schema"), "spot.plugin_request.v1")
+expect("request_status", request.get("request_status"), "draft_non_executing")
+expect("primary_rule", request.get("primary_rule"), "no_backup_no_change")
+expect("registry_status", request.get("registry_status"), "locked_non_executing")
+expect("mutation_plugins_enabled", request.get("mutation_plugins_enabled"), False)
+expect("plugin_execution_enabled", request.get("plugin_execution_enabled"), False)
+expect("plugin_execution_allowed", request.get("plugin_execution_allowed"), False)
+expect("execution_allowed", request.get("execution_allowed"), False)
+expect("mutation_allowed", request.get("mutation_allowed"), False)
+expect("mutation_performed", request.get("mutation_performed"), False)
+expect("backup_bound", request.get("backup_bound"), False)
+expect("backup_artifact", request.get("backup_artifact"), "pending")
+expect("rollback_authority", request.get("rollback_authority"), "recorded_prechange_backup_only")
+expect("next_allowed_action", request.get("next_allowed_action"), "manual_review_only")
+
+if registry.get("plugin_execution_enabled") is not False:
+    fail.append("source registry plugin_execution_enabled must be false")
+if registry.get("mutation_plugins_enabled") is not False:
+    fail.append("source registry mutation_plugins_enabled must be false")
+if policy.get("mutation_plugins_enabled") is not False:
+    fail.append("linked action policy mutation_plugins_enabled must be false")
+
+plugin_name = request.get("plugin_name")
+plugin = registry.get("plugins", {}).get(plugin_name)
+if not plugin:
+    fail.append(f"plugin missing from registry: {plugin_name}")
+else:
+    if plugin.get("status") != "disabled":
+        fail.append(f"plugin must remain disabled for request: {plugin_name}")
+    if plugin.get("execution_allowed") is not False:
+        fail.append(f"{plugin_name}.execution_allowed must be false")
+    if plugin.get("mutation_allowed") is not False:
+        fail.append(f"{plugin_name}.mutation_allowed must be false")
+    if plugin.get("action_class") != request.get("action_class"):
+        fail.append("plugin action_class mismatch")
+    if plugin.get("risk_class") != request.get("risk_class"):
+        fail.append("plugin risk_class mismatch")
+
+handoff_id = request.get("linked_action_handoff")
+if not handoff_id:
+    fail.append("linked_action_handoff missing")
+else:
+    hp = handoff_dir / f"{handoff_id}.json"
+    if not hp.exists():
+        fail.append(f"linked action handoff missing: {hp}")
+    else:
+        handoff = json.loads(hp.read_text())
+        if handoff.get("action_class") != request.get("action_class"):
+            fail.append("handoff action_class mismatch")
+        if handoff.get("target") != request.get("target"):
+            fail.append("handoff target mismatch")
+        if handoff.get("execution_allowed") is not False:
+            fail.append("linked handoff execution_allowed must be false")
+        if handoff.get("mutation_allowed") is not False:
+            fail.append("linked handoff mutation_allowed must be false")
+        if handoff.get("mutation_performed") is not False:
+            fail.append("linked handoff mutation_performed must be false")
+        if handoff.get("handoff_status") != request.get("handoff_status_at_request"):
+            warn.append(f"linked handoff current status is {handoff.get('handoff_status')!r}; request captured {request.get('handoff_status_at_request')!r}")
+
+notes = "\n".join(request.get("notes", []))
+for phrase in [
+    "non-executing plugin request",
+    "does not authorize plugin execution",
+    "does not perform mutation",
+    "Plugin execution remains disabled",
+]:
+    if phrase not in notes:
+        fail.append(f"required safety note missing: {phrase}")
+
+for item in warn:
+    print(f"[WARN] {item}")
+for item in fail:
+    print(f"[FAIL] {item}")
+
+if fail:
+    print(f"RESULT: FAIL fail={len(fail)} warn={len(warn)}")
+    raise SystemExit(1)
+
+print(f"RESULT: PASS plugin_request={request.get('plugin_request_id')} fail=0 warn={len(warn)}")
+PYINNER
+}
+
 cmd_plugin_registry_verify(){
   local registry_file="${BASE_DIR}/policy/plugin-registry.json"
   local policy_file="${BASE_DIR}/policy/action-policy.json"
@@ -2365,5 +2672,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-summary) cmd_plugin_registry_summary "$@";; plugin-registry-audit) cmd_plugin_registry_audit "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-summary) cmd_plugin_registry_summary "$@";; plugin-registry-audit) cmd_plugin_registry_audit "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-plugin-request) cmd_create_plugin_request "$@";; plugin-requests) cmd_plugin_requests "$@";; show-plugin-request) cmd_show_plugin_request "$@";; plugin-request-status) cmd_plugin_request_status "$@";; plugin-request-verify) cmd_plugin_request_verify "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"
