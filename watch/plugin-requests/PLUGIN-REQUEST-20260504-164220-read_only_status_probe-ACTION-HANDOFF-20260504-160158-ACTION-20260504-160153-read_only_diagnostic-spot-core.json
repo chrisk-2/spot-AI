@@ -10,7 +10,7 @@
   "target": "spot-core",
   "summary": "prepare non-executing handoff bridge test",
   "risk_class": "low",
-  "request_status": "draft_non_executing",
+  "request_status": "closed_no_execution",
   "handoff_status_at_request": "closed_no_execution",
   "registry_status": "locked_non_executing",
   "policy_status": "locked",
@@ -47,5 +47,19 @@
     "This artifact does not perform mutation.",
     "Plugin execution remains disabled by registry.",
     "Future execution requires separate backup binding, validation, rollback, and explicit reviewed enablement."
-  ]
+  ],
+  "review_approved_utc": "20260504-164555",
+  "lifecycle_history": [
+    {
+      "utc": "20260504-164555",
+      "from": "draft_non_executing",
+      "to": "review_approved_non_executing"
+    },
+    {
+      "utc": "20260504-164555",
+      "from": "review_approved_non_executing",
+      "to": "closed_no_execution"
+    }
+  ],
+  "closed_utc": "20260504-164555"
 }
