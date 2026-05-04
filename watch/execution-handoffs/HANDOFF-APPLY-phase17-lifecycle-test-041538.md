@@ -4,7 +4,7 @@ linked_apply_plan: APPLY-phase17-lifecycle-test-041538
 linked_proposal: TEST-PROPOSAL
 generated_utc: 20260503-041538
 apply_status: review_approved
-risk_class: clean_risk
+risk_class: low
 execution_allowed: false
 mutation_allowed: false
 backup_required: true
