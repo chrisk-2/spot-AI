@@ -51,6 +51,11 @@ Usage:
   spot-client.sh approve-action-request <id-or-file>
   spot-client.sh reject-action-request <id-or-file>
   spot-client.sh close-action-request <id-or-file>
+  spot-client.sh prepare-action-handoff <action-request-id-or-file>
+  spot-client.sh action-handoffs [count]
+  spot-client.sh show-action-handoff <id-or-file>
+  spot-client.sh action-handoff-status <id-or-file>
+  spot-client.sh action-handoff-verify <id-or-file>
   spot-client.sh generate-patch <id-or-file>   # legacy alias
   spot-client.sh remember <fact|decision|session|preference|roadmap> <text>
   spot-client.sh memory [count]
@@ -1367,6 +1372,251 @@ PYINNER
       done
 }
 
+resolve_action_handoff_file(){
+  local id="${1:-}"
+  [[ -n "$id" ]] || { echo "ERROR: action handoff id/file required" >&2; exit 2; }
+
+  local dir="${BASE_DIR}/action-handoffs"
+  local file="$id"
+  [[ -f "$file" ]] || file="${dir}/${id%.json}.json"
+  [[ -f "$file" ]] || file="${dir}/ACTION-HANDOFF-${id#ACTION-HANDOFF-}.json"
+
+  [[ -f "$file" ]] || { echo "ERROR: action handoff not found: $id" >&2; exit 2; }
+  printf '%s' "$file"
+}
+
+cmd_prepare_action_handoff(){
+  local request_file policy_file
+  request_file="$(resolve_action_request_file "${1:-}")"
+  policy_file="${BASE_DIR}/policy/action-policy.json"
+  [[ -f "$policy_file" ]] || { echo "ERROR: action policy missing: $policy_file" >&2; exit 2; }
+
+  cmd_action_request_verify "$request_file" >/dev/null
+  cmd_action_policy_verify >/dev/null
+
+  mkdir -p "${BASE_DIR}/action-handoffs"
+
+  python3 - "$request_file" "$policy_file" "${BASE_DIR}/action-handoffs" <<'PYINNER'
+import json
+import re
+import sys
+from pathlib import Path
+from datetime import datetime, UTC
+
+request_file, policy_file, out_dir = sys.argv[1:]
+request = json.loads(Path(request_file).read_text())
+policy = json.loads(Path(policy_file).read_text())
+
+fail = []
+
+if request.get("request_status") != "review_approved_non_executing":
+    fail.append(f"request_status must be review_approved_non_executing, got {request.get('request_status')!r}")
+if request.get("execution_allowed") is not False:
+    fail.append("execution_allowed must be false")
+if request.get("mutation_allowed") is not False:
+    fail.append("mutation_allowed must be false")
+if request.get("mutation_performed") is not False:
+    fail.append("mutation_performed must be false")
+if policy.get("mutation_plugins_enabled") is not False:
+    fail.append("mutation_plugins_enabled must be false")
+if request.get("action_class") not in policy.get("action_classes", {}):
+    fail.append("action_class missing from policy")
+else:
+    spec = policy["action_classes"][request["action_class"]]
+    if spec.get("status") in {"forbidden", "restricted_disabled"}:
+        fail.append(f"action_class is not handoff-eligible: {request['action_class']} status={spec.get('status')}")
+
+if fail:
+    for item in fail:
+        print(f"[FAIL] {item}", file=sys.stderr)
+    raise SystemExit(1)
+
+now = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+safe = re.sub(r"[^a-zA-Z0-9_.-]+", "-", request["request_id"])[:96].strip("-")
+handoff_id = f"ACTION-HANDOFF-{now}-{safe}"
+out = Path(out_dir) / f"{handoff_id}.json"
+
+handoff = {
+    "schema": "spot.action_handoff.v1",
+    "handoff_id": handoff_id,
+    "created_utc": now,
+    "linked_action_request": request["request_id"],
+    "action_class": request.get("action_class"),
+    "target": request.get("target"),
+    "summary": request.get("summary"),
+    "risk_class": request.get("risk_class"),
+    "handoff_status": "prepared_non_executing",
+    "request_status_at_handoff": request.get("request_status"),
+    "policy_status": policy.get("policy_status"),
+    "primary_rule": policy.get("primary_rule"),
+    "autonomy_level": policy.get("autonomy_level_current"),
+    "mutation_plugins_enabled": policy.get("mutation_plugins_enabled"),
+    "execution_allowed": False,
+    "mutation_allowed": False,
+    "mutation_performed": False,
+    "backup_required": request.get("backup_required"),
+    "backup_bound": False,
+    "backup_artifact": "pending",
+    "approval_required": request.get("approval_required"),
+    "rollback_required": request.get("rollback_required"),
+    "rollback_authority": "recorded_prechange_backup_only",
+    "source_policy": policy.get("source_policy"),
+    "execution_chain_required": policy.get("execution_chain_required"),
+    "next_allowed_action": "manual_review_only",
+    "notes": [
+        "This artifact is a non-executing handoff candidate.",
+        "This artifact does not authorize execution.",
+        "This artifact does not perform mutation.",
+        "Mutation plugin dispatch remains disabled.",
+        "Future execution requires separate policy-approved wrapper gating and backup binding."
+    ]
+}
+
+out.write_text(json.dumps(handoff, indent=2) + "\n")
+print(out)
+PYINNER
+}
+
+cmd_action_handoffs(){
+  local count="${1:-20}"
+  local dir="${BASE_DIR}/action-handoffs"
+  mkdir -p "$dir"
+  find "$dir" -maxdepth 1 -type f -name 'ACTION-HANDOFF-*.json' -printf '%T@ %f\n' 2>/dev/null \
+    | sort -nr \
+    | head -n "$count" \
+    | awk '{print $2}'
+}
+
+cmd_show_action_handoff(){
+  local file
+  file="$(resolve_action_handoff_file "${1:-}")"
+  python3 -m json.tool "$file"
+}
+
+cmd_action_handoff_status(){
+  local file
+  file="$(resolve_action_handoff_file "${1:-}")"
+  python3 - "$file" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text())
+keys = [
+    "handoff_id",
+    "created_utc",
+    "linked_action_request",
+    "action_class",
+    "target",
+    "risk_class",
+    "handoff_status",
+    "request_status_at_handoff",
+    "execution_allowed",
+    "mutation_allowed",
+    "mutation_performed",
+    "backup_required",
+    "backup_bound",
+    "backup_artifact",
+    "approval_required",
+    "rollback_required",
+    "next_allowed_action"
+]
+for key in keys:
+    if key in data:
+        print(f"{key}: {data[key]}")
+PYINNER
+}
+
+cmd_action_handoff_verify(){
+  local file policy_file req_file
+  file="$(resolve_action_handoff_file "${1:-}")"
+  policy_file="${BASE_DIR}/policy/action-policy.json"
+  [[ -f "$policy_file" ]] || { echo "ERROR: action policy missing: $policy_file" >&2; exit 2; }
+
+  python3 - "$file" "$policy_file" "${BASE_DIR}/action-requests" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+handoff = json.loads(Path(sys.argv[1]).read_text())
+policy = json.loads(Path(sys.argv[2]).read_text())
+request_dir = Path(sys.argv[3])
+fail = []
+warn = []
+
+def expect(path, actual, expected):
+    if actual != expected:
+        fail.append(f"{path} must be {expected!r}, got {actual!r}")
+
+expect("schema", handoff.get("schema"), "spot.action_handoff.v1")
+expect("handoff_status", handoff.get("handoff_status"), "prepared_non_executing")
+expect("request_status_at_handoff", handoff.get("request_status_at_handoff"), "review_approved_non_executing")
+expect("primary_rule", handoff.get("primary_rule"), "no_backup_no_change")
+expect("policy_status", handoff.get("policy_status"), "locked")
+expect("mutation_plugins_enabled", handoff.get("mutation_plugins_enabled"), False)
+expect("execution_allowed", handoff.get("execution_allowed"), False)
+expect("mutation_allowed", handoff.get("mutation_allowed"), False)
+expect("mutation_performed", handoff.get("mutation_performed"), False)
+expect("backup_bound", handoff.get("backup_bound"), False)
+expect("backup_artifact", handoff.get("backup_artifact"), "pending")
+expect("rollback_authority", handoff.get("rollback_authority"), "recorded_prechange_backup_only")
+expect("next_allowed_action", handoff.get("next_allowed_action"), "manual_review_only")
+
+if policy.get("mutation_plugins_enabled") is not False:
+    fail.append("source policy mutation_plugins_enabled must be false")
+
+action_class = handoff.get("action_class")
+spec = policy.get("action_classes", {}).get(action_class)
+if not spec:
+    fail.append(f"action_class missing from policy: {action_class}")
+else:
+    if spec.get("status") in {"forbidden", "restricted_disabled"}:
+        fail.append(f"action_class not handoff-eligible: {action_class} status={spec.get('status')}")
+    if handoff.get("risk_class") != spec.get("risk_class"):
+        fail.append("risk_class does not match policy")
+    if handoff.get("backup_required") != spec.get("backup_required"):
+        fail.append("backup_required does not match policy")
+    if handoff.get("approval_required") != spec.get("approval_required"):
+        fail.append("approval_required does not match policy")
+
+linked = handoff.get("linked_action_request")
+if not linked:
+    fail.append("linked_action_request missing")
+else:
+    req_path = request_dir / f"{linked}.json"
+    if not req_path.exists():
+        fail.append(f"linked action request missing: {req_path}")
+    else:
+        req = json.loads(req_path.read_text())
+        if req.get("request_status") != "review_approved_non_executing":
+            warn.append(f"linked request current status is {req.get('request_status')!r}; handoff captured {handoff.get('request_status_at_handoff')!r}")
+
+if handoff.get("execution_chain_required") != policy.get("execution_chain_required"):
+    fail.append("execution_chain_required mismatch")
+
+notes = "\n".join(handoff.get("notes", []))
+for phrase in [
+    "non-executing handoff candidate",
+    "does not authorize execution",
+    "does not perform mutation",
+    "Mutation plugin dispatch remains disabled",
+]:
+    if phrase not in notes:
+        fail.append(f"required safety note missing: {phrase}")
+
+for item in warn:
+    print(f"[WARN] {item}")
+for item in fail:
+    print(f"[FAIL] {item}")
+
+if fail:
+    print(f"RESULT: FAIL fail={len(fail)} warn={len(warn)}")
+    raise SystemExit(1)
+
+print(f"RESULT: PASS handoff={handoff.get('handoff_id')} fail=0 warn={len(warn)}")
+PYINNER
+}
+
 cmd_action_policy_verify(){
   local policy_file="${BASE_DIR}/policy/action-policy.json"
   [[ -f "$policy_file" ]] || { echo "ERROR: action policy missing: $policy_file" >&2; exit 2; }
@@ -1695,5 +1945,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"
