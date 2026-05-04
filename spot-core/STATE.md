@@ -8,7 +8,7 @@ Primary routing ownership intact.
 Git tree clean at last checkpoint.
 
 Current commit:
-- 77de4b6 phase29: add action handoff review lifecycle and audit
+- 983a7c8 phase213: add plugin request lifecycle and audit
 
 Validation baseline:
 - spot validate: PASS
@@ -30,175 +30,39 @@ Known condition:
 
 PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.9
+Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.13
 
 Phase 2 is building controlled autonomy rails without enabling autonomous mutation.
 
 Current safety posture:
 - mutation_plugins_enabled: false
+- plugin_execution_enabled: false
+- plugin_execution_allowed: false
 - execution_allowed remains false in generated control artifacts
 - mutation_allowed remains false in generated control artifacts
 - mutation_performed remains false in generated control artifacts
 - backup delete/overwrite remains forbidden
 - freeform shell mutation remains forbidden
-- high-risk network change remains restricted/disabled
+- high-risk network change remains restricted/disabled or forbidden depending layer
 - no backup, no change remains absolute
 
 ---
 
 ## COMPLETED PHASE 2 SLICES
 
-### Phase 2.1 — Execution-run lifecycle
-
-Completed:
-- execution-run lifecycle transitions
-- manual review approve/reject/close flow
-- verifier accepts lifecycle-safe run statuses
-
-States:
-- prepared_backup_bound_dry_run
-- manual_review_approved
-- manual_review_rejected
-- closed_no_execution
-
----
-
-### Phase 2.2 — Execution-run read-only visibility
-
-Completed:
-- execution-run-status
-- execution-run-audit
-- execution-run-summary
-
-Purpose:
-- inspect run state without dumping full artifacts
-- confirm backup, precheck, lifecycle, and mutation-disabled posture
-
----
-
-### Phase 2.3 — Action policy manifest
-
-Completed:
-- watch/policy/action-policy.json
-- action-policy display command
-
-Policy encodes:
-- no_backup_no_change
-- mutation_plugins_enabled=false
-- read_only_diagnostic allowed
-- supervised_dry_run allowed
-- safe_service_restart planned_disabled
-- controlled_config_write planned_disabled
-- restore_from_backup planned_disabled
-- network_change restricted_disabled
-- backup_delete_or_overwrite forbidden
-- freeform_shell_mutation forbidden
-
----
-
-### Phase 2.4 — Action policy verifier
-
-Completed:
-- action-policy-verify
-
-Verifier fails if policy drifts unsafe:
-- mutation plugins enabled
-- backup delete/overwrite allowed
-- primary rule changed
-- network changes ungated
-- forbidden classes become mutable
-
----
-
-### Phase 2.5 — Non-executing action request artifacts
-
-Completed:
-- create-action-request
-- action-requests
-- show-action-request
-- action-request-verify
-
-Artifact type:
-- watch/action-requests/ACTION-*.json
-
-Request artifacts remain non-executing:
-- request_status=draft_non_executing initially
-- execution_allowed=false
-- mutation_allowed=false
-- mutation_performed=false
-
----
-
-### Phase 2.6 — Action request lifecycle
-
-Completed:
-- action-request-status
-- approve-action-request
-- reject-action-request
-- close-action-request
-
-States:
-- draft_non_executing
-- review_approved_non_executing
-- review_rejected
-- closed_no_execution
-
-Canonical closed sample:
-- ACTION-20260504-153133-read_only_diagnostic-spot-core
-
----
-
-### Phase 2.7 — Action request audit/summary
-
-Completed:
-- action-request-audit
-- action-request-summary
-
-Purpose:
-- operator-grade visibility for request objects
-- lifecycle event visibility
-- mutation-disabled posture confirmation
-
----
-
-### Phase 2.8 — Non-executing action handoff bridge
-
-Completed:
-- prepare-action-handoff
-- action-handoffs
-- show-action-handoff
-- action-handoff-status
-- action-handoff-verify
-
-Artifact type:
-- watch/action-handoffs/ACTION-HANDOFF-*.json
-
-Bridge behavior:
-- approved action request produces a non-executing handoff candidate
-- handoff_status=prepared_non_executing initially
-- next_allowed_action=manual_review_only
-
-Canonical handoff sample:
-- ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core
-
----
-
-### Phase 2.9 — Action handoff lifecycle/audit
-
-Completed:
-- action-handoff-audit
-- action-handoff-summary
-- approve-action-handoff
-- reject-action-handoff
-- close-action-handoff
-
-States:
-- prepared_non_executing
-- review_approved_non_executing
-- review_rejected
-- closed_no_execution
-
-Canonical handoff sample is now closed_no_execution with lifecycle_history.
+- Phase 2.1 — Execution-run lifecycle
+- Phase 2.2 — Execution-run read-only visibility
+- Phase 2.3 — Action policy manifest
+- Phase 2.4 — Action policy verifier
+- Phase 2.5 — Non-executing action request artifacts
+- Phase 2.6 — Action request lifecycle
+- Phase 2.7 — Action request audit/summary
+- Phase 2.8 — Non-executing action handoff bridge
+- Phase 2.9 — Action handoff lifecycle/audit
+- Phase 2.10 — Disabled plugin registry manifest
+- Phase 2.11 — Plugin registry audit/summary
+- Phase 2.12 — Non-executing plugin request artifacts
+- Phase 2.13 — Plugin request lifecycle/audit
 
 ---
 
@@ -216,6 +80,13 @@ Current non-executing control chain:
 8. Action handoff verifier
 9. Action handoff lifecycle
 10. Action handoff audit/summary
+11. Plugin registry manifest
+12. Plugin registry verifier
+13. Plugin registry audit/summary
+14. Plugin request artifact
+15. Plugin request verifier
+16. Plugin request lifecycle
+17. Plugin request audit/summary
 
 This is a control and audit stack only.
 It does not dispatch plugins.
@@ -225,20 +96,46 @@ It does not enable autonomous execution.
 
 ---
 
+## IMPORTANT ARTIFACTS
+
+Policy manifest:
+- /home/ogre/spot-stack/watch/policy/action-policy.json
+
+Plugin registry:
+- /home/ogre/spot-stack/watch/policy/plugin-registry.json
+
+Sample closed action request:
+- /home/ogre/spot-stack/watch/action-requests/ACTION-20260504-153133-read_only_diagnostic-spot-core.json
+
+Sample closed action handoff:
+- /home/ogre/spot-stack/watch/action-handoffs/ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core.json
+
+Sample closed plugin request:
+- /home/ogre/spot-stack/watch/plugin-requests/PLUGIN-REQUEST-20260504-164220-read_only_status_probe-ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core.json
+
+Phase 1.7 canonical run:
+- RUN-HANDOFF-APPLY-phase17-lifecycle-test-041538-20260504-030310
+
+---
+
 ## NEXT ENGINEERING LANE
 
 Next candidate:
 
-PHASE 2.10 — CONTROLLED EXECUTOR SKELETON / PLUGIN REGISTRY MANIFEST
+PHASE 2.14 — EXECUTOR DRY-RUN PREFLIGHT CONTRACT
 
 Recommended scope:
-- define plugin registry manifest
-- all plugins disabled by default
-- registry verifier
-- no execution path yet
-- no service restarts yet
-- no config writes yet
+- define executor preflight contract artifact
+- require plugin request verification
+- require registry verification
+- require action policy verification
+- require dry-run only
+- require all execution/mutation flags false
+- produce preflight artifact only
+- no service restarts
+- no config writes
 - no network mutation
+- no backup binding for mutation yet
 
 Do not enable mutation plugins until a future reviewed slice explicitly implements:
 - backup binding
@@ -256,11 +153,11 @@ worker-01 = general
 worker-02 = utility, healthy but latency warning-level
 worker-03 = coding
 worker-04 = heavy-primary
-worker-05 = heavy-secondary commissioning/pre-GPU
+worker-05 = heavy-secondary commissioning/GPU-validated/pre-routing
 
 Latest observed checkpoint trend:
 - worker-01 healthy and fast
-- worker-02 healthy but slow, p50 around 12s at latest checkpoint
+- worker-02 healthy but slow, p50 around 10–12s in recent checkpoints
 - worker-03 healthy and fast
 - worker-04 healthy and fast
 
@@ -268,7 +165,7 @@ Latest observed checkpoint trend:
 
 ## WORKER-05 GPU BRING-UP CHECKLIST
 
-spot-worker-05 remains pre-commissioned and ready for GPU installation.
+spot-worker-05 has Quadro P6000 installed and GPU smoke validated. It remains pre-routing.
 
 Current ready state:
 - hostname: spot-worker-05
@@ -284,14 +181,13 @@ Current ready state:
 - Ollama active
 - health API active on port 8755
 
-GPU plan:
-- install Quadro P6000 24GB into worker-05
-- remove GT730 placeholder if needed
-- install NVIDIA production driver after physical install
-- verify with nvidia-smi
-- run worker health check
-- run Ollama model test
-- only then register into Spot routing
+GPU status:
+- Quadro P6000 installed
+- NVIDIA driver 535.288.01 active
+- nvidia-smi reports Quadro P6000 with 23040 MiB VRAM
+- Ollama llama3.1:8b GPU smoke test passed
+- health endpoint reports GPU info
+- still not registered into Spot production routing
 
 Post-GPU commands on worker-05:
   ~/worker05_post_gpu.sh
@@ -300,4 +196,4 @@ Post-GPU commands on worker-05:
   ~/worker05_health.sh
   curl -s http://127.0.0.1:8755/health | jq
 
-Do not add worker-05 to production routing until GPU, NVIDIA driver, thermals, Ollama, mounts, and health API all pass.
+Do not add worker-05 to production routing until a separate reviewed registration slice updates inventory, health checks, role assignment, and routing policy.
