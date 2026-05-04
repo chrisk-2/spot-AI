@@ -1,0 +1,122 @@
+{
+  "schema": "spot.action_policy.v1",
+  "policy_status": "locked",
+  "primary_rule": "no_backup_no_change",
+  "source_policy": "Spot_Autonomy_Policy_and_Safety_Model",
+  "autonomy_level_current": 1,
+  "mutation_plugins_enabled": false,
+  "execution_chain_required": [
+    "detect",
+    "analyze",
+    "classify",
+    "backup",
+    "plan",
+    "verify",
+    "execute",
+    "test_or_rollback"
+  ],
+  "global_guards": {
+    "backup_required_before_mutation": true,
+    "backup_root_required": "/mnt/collective/backups/",
+    "backup_delete_allowed": false,
+    "backup_overwrite_allowed": false,
+    "logs_append_only": true,
+    "rollback_requires_recorded_artifact": true,
+    "high_risk_requires_approval": true
+  },
+  "action_classes": {
+    "read_only_diagnostic": {
+      "status": "allowed",
+      "risk_class": "low",
+      "mutation_allowed": false,
+      "backup_required": false,
+      "approval_required": false,
+      "examples": [
+        "show status",
+        "show latency",
+        "show routing audit",
+        "inspect execution run"
+      ]
+    },
+    "supervised_dry_run": {
+      "status": "allowed",
+      "risk_class": "low",
+      "mutation_allowed": false,
+      "backup_required": true,
+      "approval_required": true,
+      "examples": [
+        "execution handoff dry-run",
+        "backup-bound run contract generation"
+      ]
+    },
+    "safe_service_restart": {
+      "status": "planned_disabled",
+      "risk_class": "low",
+      "mutation_allowed": false,
+      "backup_required": "required_for_stateful_or_config_services",
+      "approval_required": true,
+      "examples": [
+        "restart approved worker service",
+        "retry failed approved service"
+      ]
+    },
+    "controlled_config_write": {
+      "status": "planned_disabled",
+      "risk_class": "medium",
+      "mutation_allowed": false,
+      "backup_required": true,
+      "approval_required": true,
+      "examples": [
+        "known-good config replacement",
+        "controlled service config update"
+      ]
+    },
+    "restore_from_backup": {
+      "status": "planned_disabled",
+      "risk_class": "medium",
+      "mutation_allowed": false,
+      "backup_required": true,
+      "approval_required": true,
+      "examples": [
+        "restore file from recorded backup artifact"
+      ]
+    },
+    "network_change": {
+      "status": "restricted_disabled",
+      "risk_class": "high",
+      "mutation_allowed": false,
+      "backup_required": true,
+      "approval_required": true,
+      "examples": [
+        "firewall change",
+        "VLAN change",
+        "routing change",
+        "DHCP/DNS authority change",
+        "gateway/interface/access-control change"
+      ]
+    },
+    "backup_delete_or_overwrite": {
+      "status": "forbidden",
+      "risk_class": "high",
+      "mutation_allowed": false,
+      "backup_required": false,
+      "approval_required": "not_supported",
+      "examples": [
+        "delete backup",
+        "overwrite backup",
+        "rename backup history"
+      ]
+    },
+    "freeform_shell_mutation": {
+      "status": "forbidden",
+      "risk_class": "high",
+      "mutation_allowed": false,
+      "backup_required": true,
+      "approval_required": "not_supported",
+      "examples": [
+        "arbitrary shell mutation",
+        "unclassified command execution"
+      ]
+    }
+  }
+}
