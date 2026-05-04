@@ -41,6 +41,10 @@ Usage:
   spot-client.sh execution-run-close <id-or-file>
   spot-client.sh action-policy [--json]
   spot-client.sh action-policy-verify
+  spot-client.sh create-action-request <action_class> <target> <summary>
+  spot-client.sh action-requests [count]
+  spot-client.sh show-action-request <id-or-file>
+  spot-client.sh action-request-verify <id-or-file>
   spot-client.sh generate-patch <id-or-file>   # legacy alias
   spot-client.sh remember <fact|decision|session|preference|roadmap> <text>
   spot-client.sh memory [count]
@@ -982,6 +986,191 @@ cmd_execution_run_reject(){
   bash "$apply_wrapper" reject-run "$@"
 }
 
+resolve_action_request_file(){
+  local id="${1:-}"
+  [[ -n "$id" ]] || { echo "ERROR: action request id/file required" >&2; exit 2; }
+
+  local dir="${BASE_DIR}/action-requests"
+  local file="$id"
+  [[ -f "$file" ]] || file="${dir}/${id%.json}.json"
+  [[ -f "$file" ]] || file="${dir}/ACTION-${id#ACTION-}.json"
+
+  [[ -f "$file" ]] || { echo "ERROR: action request not found: $id" >&2; exit 2; }
+  printf '%s' "$file"
+}
+
+cmd_create_action_request(){
+  local action_class="${1:-}"
+  local target="${2:-}"
+  shift 2 || true
+  local summary="$*"
+
+  [[ -n "$action_class" ]] || { echo "ERROR: action_class required" >&2; exit 2; }
+  [[ -n "$target" ]] || { echo "ERROR: target required" >&2; exit 2; }
+  [[ -n "$summary" ]] || { echo "ERROR: summary required" >&2; exit 2; }
+
+  local policy_file="${BASE_DIR}/policy/action-policy.json"
+  [[ -f "$policy_file" ]] || { echo "ERROR: action policy missing: $policy_file" >&2; exit 2; }
+
+  mkdir -p "${BASE_DIR}/action-requests"
+
+  python3 - "$policy_file" "${BASE_DIR}/action-requests" "$action_class" "$target" "$summary" <<'PYINNER'
+import json
+import re
+import sys
+from pathlib import Path
+from datetime import datetime, UTC
+
+policy_file, out_dir, action_class, target, summary = sys.argv[1:]
+policy = json.loads(Path(policy_file).read_text())
+classes = policy.get("action_classes", {})
+
+if action_class not in classes:
+    raise SystemExit(f"ERROR: action class not defined in policy: {action_class}")
+
+spec = classes[action_class]
+if spec.get("status") in {"forbidden", "restricted_disabled"}:
+    raise SystemExit(f"ERROR: action class is not requestable: {action_class} status={spec.get('status')}")
+
+now = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+safe = re.sub(r"[^a-zA-Z0-9_.-]+", "-", f"{action_class}-{target}")[:80].strip("-") or action_class
+request_id = f"ACTION-{now}-{safe}"
+out = Path(out_dir) / f"{request_id}.json"
+
+request = {
+    "schema": "spot.action_request.v1",
+    "request_id": request_id,
+    "created_utc": now,
+    "action_class": action_class,
+    "target": target,
+    "summary": summary,
+    "risk_class": spec.get("risk_class"),
+    "request_status": "draft_non_executing",
+    "policy_status": policy.get("policy_status"),
+    "primary_rule": policy.get("primary_rule"),
+    "autonomy_level": policy.get("autonomy_level_current"),
+    "mutation_plugins_enabled": policy.get("mutation_plugins_enabled"),
+    "execution_allowed": False,
+    "mutation_allowed": False,
+    "mutation_performed": False,
+    "backup_required": spec.get("backup_required"),
+    "backup_bound": False,
+    "backup_artifact": "pending",
+    "approval_required": spec.get("approval_required"),
+    "rollback_required": action_class not in {"read_only_diagnostic"},
+    "rollback_authority": "recorded_prechange_backup_only",
+    "source_policy": policy.get("source_policy"),
+    "execution_chain_required": policy.get("execution_chain_required"),
+    "notes": [
+        "This artifact is a request only.",
+        "This artifact does not authorize execution.",
+        "This artifact does not perform mutation.",
+        "Future execution requires policy verification, backup binding, and explicit wrapper gating."
+    ]
+}
+
+out.write_text(json.dumps(request, indent=2) + "\n")
+print(out)
+PYINNER
+}
+
+cmd_action_requests(){
+  local count="${1:-20}"
+  local dir="${BASE_DIR}/action-requests"
+  mkdir -p "$dir"
+  find "$dir" -maxdepth 1 -type f -name 'ACTION-*.json' -printf '%T@ %f\n' 2>/dev/null \
+    | sort -nr \
+    | head -n "$count" \
+    | awk '{print $2}'
+}
+
+cmd_show_action_request(){
+  local file
+  file="$(resolve_action_request_file "${1:-}")"
+  python3 -m json.tool "$file"
+}
+
+cmd_action_request_verify(){
+  local file policy_file
+  file="$(resolve_action_request_file "${1:-}")"
+  policy_file="${BASE_DIR}/policy/action-policy.json"
+  [[ -f "$policy_file" ]] || { echo "ERROR: action policy missing: $policy_file" >&2; exit 2; }
+
+  python3 - "$file" "$policy_file" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+request = json.loads(Path(sys.argv[1]).read_text())
+policy = json.loads(Path(sys.argv[2]).read_text())
+fail = []
+warn = []
+
+def expect(path, actual, expected):
+    if actual != expected:
+        fail.append(f"{path} must be {expected!r}, got {actual!r}")
+
+expect("schema", request.get("schema"), "spot.action_request.v1")
+expect("request_status", request.get("request_status"), "draft_non_executing")
+expect("primary_rule", request.get("primary_rule"), "no_backup_no_change")
+expect("policy_status", request.get("policy_status"), "locked")
+expect("mutation_plugins_enabled", request.get("mutation_plugins_enabled"), False)
+expect("execution_allowed", request.get("execution_allowed"), False)
+expect("mutation_allowed", request.get("mutation_allowed"), False)
+expect("mutation_performed", request.get("mutation_performed"), False)
+expect("backup_bound", request.get("backup_bound"), False)
+expect("backup_artifact", request.get("backup_artifact"), "pending")
+expect("rollback_authority", request.get("rollback_authority"), "recorded_prechange_backup_only")
+
+action_class = request.get("action_class")
+classes = policy.get("action_classes", {})
+spec = classes.get(action_class)
+
+if not action_class:
+    fail.append("action_class missing")
+elif spec is None:
+    fail.append(f"action_class not present in policy: {action_class}")
+else:
+    if spec.get("status") in {"forbidden", "restricted_disabled"}:
+        fail.append(f"request uses non-requestable action_class: {action_class} status={spec.get('status')}")
+    if request.get("risk_class") != spec.get("risk_class"):
+        fail.append(f"risk_class must match policy class {action_class}: {spec.get('risk_class')}")
+    if request.get("backup_required") != spec.get("backup_required"):
+        fail.append(f"backup_required must match policy class {action_class}: {spec.get('backup_required')!r}")
+    if request.get("approval_required") != spec.get("approval_required"):
+        fail.append(f"approval_required must match policy class {action_class}: {spec.get('approval_required')!r}")
+
+if policy.get("mutation_plugins_enabled") is not False:
+    fail.append("source policy has mutation_plugins_enabled != false")
+
+if request.get("source_policy") != policy.get("source_policy"):
+    fail.append("source_policy mismatch")
+
+if request.get("execution_chain_required") != policy.get("execution_chain_required"):
+    fail.append("execution_chain_required mismatch")
+
+notes = "\n".join(request.get("notes", []))
+for phrase in [
+    "request only",
+    "does not authorize execution",
+    "does not perform mutation",
+]:
+    if phrase not in notes:
+        fail.append(f"required safety note missing: {phrase}")
+
+for item in warn:
+    print(f"[WARN] {item}")
+for item in fail:
+    print(f"[FAIL] {item}")
+
+if fail:
+    print(f"RESULT: FAIL fail={len(fail)} warn={len(warn)}")
+    raise SystemExit(1)
+
+print(f"RESULT: PASS request={request.get('request_id')} fail=0 warn={len(warn)}")
+PYINNER
+}
+
 cmd_action_policy_verify(){
   local policy_file="${BASE_DIR}/policy/action-policy.json"
   [[ -f "$policy_file" ]] || { echo "ERROR: action policy missing: $policy_file" >&2; exit 2; }
@@ -1310,5 +1499,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"

@@ -1,0 +1,40 @@
+{
+  "schema": "spot.action_request.v1",
+  "request_id": "ACTION-20260504-153133-read_only_diagnostic-spot-core",
+  "created_utc": "20260504-153133",
+  "action_class": "read_only_diagnostic",
+  "target": "spot-core",
+  "summary": "inspect current execution-run audit state",
+  "risk_class": "low",
+  "request_status": "draft_non_executing",
+  "policy_status": "locked",
+  "primary_rule": "no_backup_no_change",
+  "autonomy_level": 1,
+  "mutation_plugins_enabled": false,
+  "execution_allowed": false,
+  "mutation_allowed": false,
+  "mutation_performed": false,
+  "backup_required": false,
+  "backup_bound": false,
+  "backup_artifact": "pending",
+  "approval_required": false,
+  "rollback_required": false,
+  "rollback_authority": "recorded_prechange_backup_only",
+  "source_policy": "Spot_Autonomy_Policy_and_Safety_Model",
+  "execution_chain_required": [
+    "detect",
+    "analyze",
+    "classify",
+    "backup",
+    "plan",
+    "verify",
+    "execute",
+    "test_or_rollback"
+  ],
+  "notes": [
+    "This artifact is a request only.",
+    "This artifact does not authorize execution.",
+    "This artifact does not perform mutation.",
+    "Future execution requires policy verification, backup binding, and explicit wrapper gating."
+  ]
+}
