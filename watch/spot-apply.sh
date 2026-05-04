@@ -12,6 +12,9 @@ Usage:
   spot-apply.sh runs [count]
   spot-apply.sh show-run <run-id-or-file>
   spot-apply.sh verify-run <run-id-or-file>
+  spot-apply.sh status-run <run-id-or-file>
+  spot-apply.sh audit-run <run-id-or-file>
+  spot-apply.sh summary-runs [count]
   spot-apply.sh approve-run <run-id-or-file>
   spot-apply.sh reject-run <run-id-or-file>
   spot-apply.sh close-run <run-id-or-file>
@@ -284,6 +287,46 @@ cmd_close_run(){
   echo "RESULT: CLOSED run=$(basename "$file" .md)"
 }
 
+cmd_status_run(){
+  local file
+  file="$(resolve_run_file "${1:-}")"
+  grep -E '^(linked_execution_handoff:|linked_apply_plan:|linked_proposal:|created_utc:|risk_class:|run_status:|execution_allowed:|mutation_allowed:|mutation_performed:|backup_required:|backup_bound:|backup_artifact:|backup_verified:|policy_class:|autonomy_level:|execution_wrapper:|approval_gate:|rollback_required:|rollback_authority:|manual_review_approved_utc:|manual_review_rejected_utc:|closed_utc:|precheck_log:)' "$file"
+}
+
+cmd_audit_run(){
+  local file backup precheck
+  file="$(resolve_run_file "${1:-}")"
+  backup="$(line_value "$file" backup_artifact)"
+  precheck="$(line_value "$file" precheck_log)"
+
+  echo "RUN_AUDIT"
+  echo "run: $(basename "$file" .md)"
+  echo "status: $(line_value "$file" run_status)"
+  echo "risk_class: $(line_value "$file" risk_class)"
+  echo "execution_allowed: $(line_value "$file" execution_allowed)"
+  echo "mutation_allowed: $(line_value "$file" mutation_allowed)"
+  echo "mutation_performed: $(line_value "$file" mutation_performed)"
+  echo "backup_bound: $(line_value "$file" backup_bound)"
+  echo "backup_verified: $(line_value "$file" backup_verified)"
+  echo "backup_artifact: $backup"
+  echo "backup_exists: $([[ -d "$backup" ]] && echo true || echo false)"
+  echo "backup_sha256sums: $([[ -f "$backup/SHA256SUMS" ]] && echo true || echo false)"
+  echo "precheck_log: $precheck"
+  echo "precheck_log_exists: $([[ -f "$precheck" ]] && echo true || echo false)"
+  if [[ -f "$precheck" ]]; then
+    echo "precheck_failures: $(grep -c 'RESULT: FAIL' "$precheck" || true)"
+    echo "precheck_passes: $(grep -c 'RESULT: PASS' "$precheck" || true)"
+  fi
+}
+
+cmd_summary_runs(){
+  local count="${1:-10}"
+  mkdir -p "$RUN_DIR"
+  find "$RUN_DIR" -maxdepth 1 -type f -name 'RUN-*.md' -printf '%T@ %p\n' 2>/dev/null     | sort -nr     | head -n "$count"     | while read -r _ file; do
+        echo "$(basename "$file" .md) | status=$(line_value "$file" run_status) | risk=$(line_value "$file" risk_class) | backup_bound=$(line_value "$file" backup_bound) | mutation=$(line_value "$file" mutation_performed)"
+      done
+}
+
 cmd_verify_run(){
   local file backup precheck
   file="$(resolve_run_file "${1:-}")"
@@ -319,6 +362,9 @@ main(){
     runs) cmd_runs "$@";;
     show-run) cmd_show_run "$@";;
     verify-run) cmd_verify_run "$@";;
+    status-run) cmd_status_run "$@";;
+    audit-run) cmd_audit_run "$@";;
+    summary-runs) cmd_summary_runs "$@";;
     approve-run) cmd_approve_run "$@";;
     reject-run) cmd_reject_run "$@";;
     close-run) cmd_close_run "$@";;
