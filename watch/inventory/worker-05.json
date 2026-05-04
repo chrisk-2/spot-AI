@@ -1,0 +1,26 @@
+{
+  "worker_id": "spot-worker-05",
+  "hostname": "spot-worker-05",
+  "ip": "192.168.10.15",
+  "routing_enabled": false,
+  "production_role": "none",
+  "commission_status": "gpu_validated_pre_routing",
+  "gpu": {
+    "model": "Quadro P6000",
+    "vram_mib": 23040,
+    "driver": "535.288.01",
+    "cuda": "12.2"
+  },
+  "gpu_validated": true,
+  "remote_health_validated": true,
+  "remote_ollama_validated": true,
+  "passwordless_ssh_from_core": true,
+  "collective_mounted": true,
+  "unimatrix6_mounted": true,
+  "notes": [
+    "Worker-05 is commissioned as a validated standby node.",
+    "Worker-05 is not part of production Spot routing yet.",
+    "No production role assigned.",
+    "Cluster routing must be changed only in a separate reviewed slice."
+  ]
+}
