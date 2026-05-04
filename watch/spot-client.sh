@@ -45,6 +45,10 @@ Usage:
   spot-client.sh action-requests [count]
   spot-client.sh show-action-request <id-or-file>
   spot-client.sh action-request-verify <id-or-file>
+  spot-client.sh action-request-status <id-or-file>
+  spot-client.sh approve-action-request <id-or-file>
+  spot-client.sh reject-action-request <id-or-file>
+  spot-client.sh close-action-request <id-or-file>
   spot-client.sh generate-patch <id-or-file>   # legacy alias
   spot-client.sh remember <fact|decision|session|preference|roadmap> <text>
   spot-client.sh memory [count]
@@ -1111,7 +1115,13 @@ def expect(path, actual, expected):
         fail.append(f"{path} must be {expected!r}, got {actual!r}")
 
 expect("schema", request.get("schema"), "spot.action_request.v1")
-expect("request_status", request.get("request_status"), "draft_non_executing")
+if request.get("request_status") not in {
+    "draft_non_executing",
+    "review_approved_non_executing",
+    "review_rejected",
+    "closed_no_execution",
+}:
+    fail.append(f"request_status invalid: {request.get('request_status')!r}")
 expect("primary_rule", request.get("primary_rule"), "no_backup_no_change")
 expect("policy_status", request.get("policy_status"), "locked")
 expect("mutation_plugins_enabled", request.get("mutation_plugins_enabled"), False)
@@ -1169,6 +1179,119 @@ if fail:
 
 print(f"RESULT: PASS request={request.get('request_id')} fail=0 warn={len(warn)}")
 PYINNER
+}
+
+set_action_request_status(){
+  local file="$1" new_status="$2" stamp_key="$3"
+
+  python3 - "$file" "$new_status" "$stamp_key" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+from datetime import datetime, UTC
+
+path = Path(sys.argv[1])
+new_status = sys.argv[2]
+stamp_key = sys.argv[3]
+
+data = json.loads(path.read_text())
+old_status = data.get("request_status")
+
+allowed = {
+    ("draft_non_executing", "review_approved_non_executing"),
+    ("draft_non_executing", "review_rejected"),
+    ("review_approved_non_executing", "closed_no_execution"),
+    ("review_rejected", "closed_no_execution"),
+}
+
+if (old_status, new_status) not in allowed:
+    raise SystemExit(f"ERROR: illegal action-request lifecycle transition {old_status} -> {new_status}")
+
+if data.get("execution_allowed") is not False:
+    raise SystemExit("ERROR: refusing lifecycle update because execution_allowed is not false")
+if data.get("mutation_allowed") is not False:
+    raise SystemExit("ERROR: refusing lifecycle update because mutation_allowed is not false")
+if data.get("mutation_performed") is not False:
+    raise SystemExit("ERROR: refusing lifecycle update because mutation_performed is not false")
+if data.get(stamp_key):
+    raise SystemExit(f"ERROR: refusing lifecycle update because {stamp_key} already exists")
+
+data["request_status"] = new_status
+data[stamp_key] = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+data.setdefault("lifecycle_history", []).append({
+    "utc": data[stamp_key],
+    "from": old_status,
+    "to": new_status
+})
+
+path.write_text(json.dumps(data, indent=2) + "\n")
+print(path)
+PYINNER
+}
+
+cmd_action_request_status(){
+  local file
+  file="$(resolve_action_request_file "${1:-}")"
+  python3 - "$file" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text())
+
+keys = [
+    "request_id",
+    "created_utc",
+    "action_class",
+    "target",
+    "risk_class",
+    "request_status",
+    "execution_allowed",
+    "mutation_allowed",
+    "mutation_performed",
+    "backup_required",
+    "backup_bound",
+    "backup_artifact",
+    "approval_required",
+    "review_approved_utc",
+    "review_rejected_utc",
+    "closed_utc"
+]
+
+for key in keys:
+    if key in data:
+        print(f"{key}: {data[key]}")
+PYINNER
+}
+
+cmd_approve_action_request(){
+  local file
+  file="$(resolve_action_request_file "${1:-}")"
+
+  cmd_action_request_verify "$file" >/dev/null
+  set_action_request_status "$file" "review_approved_non_executing" "review_approved_utc" >/dev/null
+
+  echo "RESULT: APPROVED request=$(basename "$file" .json)"
+}
+
+cmd_reject_action_request(){
+  local file
+  file="$(resolve_action_request_file "${1:-}")"
+
+  cmd_action_request_verify "$file" >/dev/null
+  set_action_request_status "$file" "review_rejected" "review_rejected_utc" >/dev/null
+
+  echo "RESULT: REJECTED request=$(basename "$file" .json)"
+}
+
+cmd_close_action_request(){
+  local file
+  file="$(resolve_action_request_file "${1:-}")"
+
+  cmd_action_request_verify "$file" >/dev/null
+  set_action_request_status "$file" "closed_no_execution" "closed_utc" >/dev/null
+
+  echo "RESULT: CLOSED request=$(basename "$file" .json)"
 }
 
 cmd_action_policy_verify(){
@@ -1499,5 +1622,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"
