@@ -33,6 +33,9 @@ Usage:
   spot-client.sh execution-runs [count]
   spot-client.sh show-execution-run <id-or-file>
   spot-client.sh execution-run-verify <id-or-file>
+  spot-client.sh execution-run-approve <id-or-file>
+  spot-client.sh execution-run-reject <id-or-file>
+  spot-client.sh execution-run-close <id-or-file>
   spot-client.sh generate-patch <id-or-file>   # legacy alias
   spot-client.sh remember <fact|decision|session|preference|roadmap> <text>
   spot-client.sh memory [count]
@@ -944,6 +947,24 @@ cmd_execution_run_verify(){
   bash "$apply_wrapper" verify-run "$@"
 }
 
+cmd_execution_run_approve(){
+  local apply_wrapper="${BASE_DIR}/spot-apply.sh"
+  [[ -f "$apply_wrapper" ]] || { echo "ERROR: spot apply wrapper missing: $apply_wrapper" >&2; exit 2; }
+  bash "$apply_wrapper" approve-run "$@"
+}
+
+cmd_execution_run_reject(){
+  local apply_wrapper="${BASE_DIR}/spot-apply.sh"
+  [[ -f "$apply_wrapper" ]] || { echo "ERROR: spot apply wrapper missing: $apply_wrapper" >&2; exit 2; }
+  bash "$apply_wrapper" reject-run "$@"
+}
+
+cmd_execution_run_close(){
+  local apply_wrapper="${BASE_DIR}/spot-apply.sh"
+  [[ -f "$apply_wrapper" ]] || { echo "ERROR: spot apply wrapper missing: $apply_wrapper" >&2; exit 2; }
+  bash "$apply_wrapper" close-run "$@"
+}
+
 memory_append(){
   local kind="$1"; shift
   local msg="$*"
@@ -1138,5 +1159,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"

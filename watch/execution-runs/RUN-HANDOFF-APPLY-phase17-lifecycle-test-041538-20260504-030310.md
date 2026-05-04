@@ -5,7 +5,7 @@ linked_apply_plan: APPLY-phase17-lifecycle-test-041538
 linked_proposal: TEST-PROPOSAL
 created_utc: 20260504-030322
 risk_class: low
-run_status: prepared_backup_bound_dry_run
+run_status: closed_no_execution
 execution_allowed: false
 mutation_allowed: false
 mutation_performed: false
@@ -19,6 +19,8 @@ execution_wrapper: spot-apply.sh
 approval_gate: mutation_plugin_not_enabled
 rollback_required: true
 rollback_authority: recorded_prechange_backup_only
+manual_review_approved_utc: 20260504-144237
+closed_utc: 20260504-144237
 precheck_log: /home/ogre/spot-stack/watch/execution-runs/RUN-HANDOFF-APPLY-phase17-lifecycle-test-041538-20260504-030310.precheck.log
 
 ---

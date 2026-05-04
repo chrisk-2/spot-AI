@@ -12,6 +12,9 @@ Usage:
   spot-apply.sh runs [count]
   spot-apply.sh show-run <run-id-or-file>
   spot-apply.sh verify-run <run-id-or-file>
+  spot-apply.sh approve-run <run-id-or-file>
+  spot-apply.sh reject-run <run-id-or-file>
+  spot-apply.sh close-run <run-id-or-file>
 
 execute-handoff is non-mutating. It verifies the reviewed handoff, runs live prechecks,
 creates a verified backup artifact, writes an execution-run contract, then stops.
@@ -239,10 +242,57 @@ cmd_show_run(){
   cat "$file"
 }
 
+set_run_status(){
+  local file="$1" new_status="$2" stamp_key="$3"
+  python3 - "$file" "$new_status" "$stamp_key" <<'PY2'
+from pathlib import Path
+from datetime import datetime, UTC
+import re, sys
+f, status, stamp_key = sys.argv[1:]
+text = Path(f).read_text()
+text = re.sub(r'^run_status: .*$', f'run_status: {status}', text, flags=re.M)
+if re.search(rf'^{re.escape(stamp_key)}: ', text, flags=re.M):
+    text = re.sub(rf'^{re.escape(stamp_key)}: .*$', f'{stamp_key}: {datetime.now(UTC).strftime("%Y%m%d-%H%M%S")}', text, flags=re.M)
+else:
+    text = text.replace("precheck_log:", f"{stamp_key}: {datetime.now(UTC).strftime('%Y%m%d-%H%M%S')}\nprecheck_log:", 1)
+Path(f).write_text(text)
+PY2
+}
+
+cmd_approve_run(){
+  local file
+  file="$(resolve_run_file "${1:-}")"
+  [[ "$(line_value "$file" run_status)" == "prepared_backup_bound_dry_run" ]] || { echo "ERROR: only prepared dry-run can be approved" >&2; exit 2; }
+  set_run_status "$file" "manual_review_approved" "manual_review_approved_utc"
+  echo "RESULT: APPROVED run=$(basename "$file" .md)"
+}
+
+cmd_reject_run(){
+  local file
+  file="$(resolve_run_file "${1:-}")"
+  [[ "$(line_value "$file" run_status)" == "prepared_backup_bound_dry_run" ]] || { echo "ERROR: only prepared dry-run can be rejected" >&2; exit 2; }
+  set_run_status "$file" "manual_review_rejected" "manual_review_rejected_utc"
+  echo "RESULT: REJECTED run=$(basename "$file" .md)"
+}
+
+cmd_close_run(){
+  local file status
+  file="$(resolve_run_file "${1:-}")"
+  status="$(line_value "$file" run_status)"
+  [[ "$status" == "manual_review_approved" || "$status" == "manual_review_rejected" ]] || { echo "ERROR: run must be approved or rejected before close" >&2; exit 2; }
+  set_run_status "$file" "closed_no_execution" "closed_utc"
+  echo "RESULT: CLOSED run=$(basename "$file" .md)"
+}
+
 cmd_verify_run(){
   local file backup precheck
   file="$(resolve_run_file "${1:-}")"
-  [[ "$(line_value "$file" run_status)" == "prepared_backup_bound_dry_run" ]] || { echo "ERROR: run_status invalid" >&2; exit 2; }
+  local status
+  status="$(line_value "$file" run_status)"
+  case "$status" in
+    prepared_backup_bound_dry_run|manual_review_approved|manual_review_rejected|closed_no_execution) ;;
+    *) echo "ERROR: run_status invalid: ${status:-<missing>}" >&2; exit 2 ;;
+  esac
   [[ "$(line_value "$file" execution_allowed)" == "false" ]] || { echo "ERROR: execution_allowed must be false" >&2; exit 2; }
   [[ "$(line_value "$file" mutation_allowed)" == "false" ]] || { echo "ERROR: mutation_allowed must be false" >&2; exit 2; }
   [[ "$(line_value "$file" mutation_performed)" == "false" ]] || { echo "ERROR: mutation_performed must be false" >&2; exit 2; }
@@ -269,6 +319,9 @@ main(){
     runs) cmd_runs "$@";;
     show-run) cmd_show_run "$@";;
     verify-run) cmd_verify_run "$@";;
+    approve-run) cmd_approve_run "$@";;
+    reject-run) cmd_reject_run "$@";;
+    close-run) cmd_close_run "$@";;
     -h|--help|"") usage;;
     *) usage; exit 2;;
   esac
