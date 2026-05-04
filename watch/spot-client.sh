@@ -46,6 +46,8 @@ Usage:
   spot-client.sh show-action-request <id-or-file>
   spot-client.sh action-request-verify <id-or-file>
   spot-client.sh action-request-status <id-or-file>
+  spot-client.sh action-request-audit <id-or-file>
+  spot-client.sh action-request-summary [count]
   spot-client.sh approve-action-request <id-or-file>
   spot-client.sh reject-action-request <id-or-file>
   spot-client.sh close-action-request <id-or-file>
@@ -1294,6 +1296,77 @@ cmd_close_action_request(){
   echo "RESULT: CLOSED request=$(basename "$file" .json)"
 }
 
+cmd_action_request_audit(){
+  local file
+  file="$(resolve_action_request_file "${1:-}")"
+
+  python3 - "$file" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text())
+
+print("ACTION_REQUEST_AUDIT")
+print(f"request_id: {data.get('request_id')}")
+print(f"created_utc: {data.get('created_utc')}")
+print(f"action_class: {data.get('action_class')}")
+print(f"target: {data.get('target')}")
+print(f"risk_class: {data.get('risk_class')}")
+print(f"request_status: {data.get('request_status')}")
+print(f"policy_status: {data.get('policy_status')}")
+print(f"primary_rule: {data.get('primary_rule')}")
+print(f"autonomy_level: {data.get('autonomy_level')}")
+print(f"mutation_plugins_enabled: {str(data.get('mutation_plugins_enabled')).lower()}")
+print(f"execution_allowed: {str(data.get('execution_allowed')).lower()}")
+print(f"mutation_allowed: {str(data.get('mutation_allowed')).lower()}")
+print(f"mutation_performed: {str(data.get('mutation_performed')).lower()}")
+print(f"backup_required: {data.get('backup_required')}")
+print(f"backup_bound: {str(data.get('backup_bound')).lower()}")
+print(f"backup_artifact: {data.get('backup_artifact')}")
+print(f"approval_required: {data.get('approval_required')}")
+print(f"rollback_required: {data.get('rollback_required')}")
+print(f"rollback_authority: {data.get('rollback_authority')}")
+print(f"review_approved_utc: {data.get('review_approved_utc', '')}")
+print(f"review_rejected_utc: {data.get('review_rejected_utc', '')}")
+print(f"closed_utc: {data.get('closed_utc', '')}")
+
+history = data.get("lifecycle_history", [])
+print(f"lifecycle_events: {len(history)}")
+for idx, item in enumerate(history, 1):
+    print(f"- event_{idx}: utc={item.get('utc')} from={item.get('from')} to={item.get('to')}")
+PYINNER
+}
+
+cmd_action_request_summary(){
+  local count="${1:-10}"
+  local dir="${BASE_DIR}/action-requests"
+  mkdir -p "$dir"
+
+  find "$dir" -maxdepth 1 -type f -name 'ACTION-*.json' -printf '%T@ %p\n' 2>/dev/null \
+    | sort -nr \
+    | head -n "$count" \
+    | while read -r _ file; do
+        python3 - "$file" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+p = Path(sys.argv[1])
+data = json.loads(p.read_text())
+print(
+    f"{p.name} | "
+    f"status={data.get('request_status')} | "
+    f"class={data.get('action_class')} | "
+    f"risk={data.get('risk_class')} | "
+    f"target={data.get('target')} | "
+    f"exec={str(data.get('execution_allowed')).lower()} | "
+    f"mutation={str(data.get('mutation_allowed')).lower()}"
+)
+PYINNER
+      done
+}
+
 cmd_action_policy_verify(){
   local policy_file="${BASE_DIR}/policy/action-policy.json"
   [[ -f "$policy_file" ]] || { echo "ERROR: action policy missing: $policy_file" >&2; exit 2; }
@@ -1622,5 +1695,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"
