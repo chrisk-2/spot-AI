@@ -922,26 +922,26 @@ cmd_execution_handoff_status(){
 
 cmd_execute_handoff(){
   local apply_wrapper="${BASE_DIR}/spot-apply.sh"
-  [[ -x "$apply_wrapper" ]] || { echo "ERROR: spot apply wrapper not executable: $apply_wrapper" >&2; exit 2; }
-  "$apply_wrapper" execute-handoff "$@"
+  [[ -f "$apply_wrapper" ]] || { echo "ERROR: spot apply wrapper missing: $apply_wrapper" >&2; exit 2; }
+  bash "$apply_wrapper" execute-handoff "$@"
 }
 
 cmd_execution_runs(){
   local apply_wrapper="${BASE_DIR}/spot-apply.sh"
-  [[ -x "$apply_wrapper" ]] || { echo "ERROR: spot apply wrapper not executable: $apply_wrapper" >&2; exit 2; }
-  "$apply_wrapper" runs "$@"
+  [[ -f "$apply_wrapper" ]] || { echo "ERROR: spot apply wrapper missing: $apply_wrapper" >&2; exit 2; }
+  bash "$apply_wrapper" runs "$@"
 }
 
 cmd_show_execution_run(){
   local apply_wrapper="${BASE_DIR}/spot-apply.sh"
-  [[ -x "$apply_wrapper" ]] || { echo "ERROR: spot apply wrapper not executable: $apply_wrapper" >&2; exit 2; }
-  "$apply_wrapper" show-run "$@"
+  [[ -f "$apply_wrapper" ]] || { echo "ERROR: spot apply wrapper missing: $apply_wrapper" >&2; exit 2; }
+  bash "$apply_wrapper" show-run "$@"
 }
 
 cmd_execution_run_verify(){
   local apply_wrapper="${BASE_DIR}/spot-apply.sh"
-  [[ -x "$apply_wrapper" ]] || { echo "ERROR: spot apply wrapper not executable: $apply_wrapper" >&2; exit 2; }
-  "$apply_wrapper" verify-run "$@"
+  [[ -f "$apply_wrapper" ]] || { echo "ERROR: spot apply wrapper missing: $apply_wrapper" >&2; exit 2; }
+  bash "$apply_wrapper" verify-run "$@"
 }
 
 memory_append(){
