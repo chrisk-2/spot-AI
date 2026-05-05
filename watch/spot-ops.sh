@@ -65,6 +65,8 @@ Operator commands:
                            Show dry-run-only executor preflight artifact
   verify-executor-preflight <id|file>
                            Verify dry-run-only executor preflight artifact
+  executor-preflight-summary
+                           Summarize dry-run-only executor preflight artifacts
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -148,6 +150,7 @@ Examples:
   $(basename "$0") executor-preflights
   $(basename "$0") show-executor-preflight EXECUTOR-PREFLIGHT-YYYYMMDD-HHMMSS-name
   $(basename "$0") verify-executor-preflight EXECUTOR-PREFLIGHT-YYYYMMDD-HHMMSS-name
+  $(basename "$0") executor-preflight-summary
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -489,6 +492,12 @@ cmd_verify_executor_preflight() {
   need_cmd bash
   need_file "$EXECUTOR_PREFLIGHT_SCRIPT"
   bash "$EXECUTOR_PREFLIGHT_SCRIPT" verify "$@"
+}
+
+cmd_executor_preflight_summary() {
+  need_cmd bash
+  need_file "$EXECUTOR_PREFLIGHT_SCRIPT"
+  bash "$EXECUTOR_PREFLIGHT_SCRIPT" summary "$@"
 }
 
 cmd_status_json() {
@@ -1466,6 +1475,7 @@ main() {
     executor-preflights) cmd_executor_preflights "$@" ;;
     show-executor-preflight) cmd_show_executor_preflight "$@" ;;
     verify-executor-preflight) cmd_verify_executor_preflight "$@" ;;
+    executor-preflight-summary) cmd_executor_preflight_summary "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;
