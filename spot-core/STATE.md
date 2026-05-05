@@ -30,11 +30,11 @@ Known condition:
 
 PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.20
+Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.24
 
 Immediate next active step while waiting for worker-04 GPU hardware:
 
-PHASE 2.22 — BACKUP ARTIFACT MANIFEST CONTRACT DESIGN
+PHASE 2.26 — BACKUP ARTIFACT MANIFEST IMPLEMENTATION DRY-RUN SIMULATOR
 
 Goal:
 - Continue completing Phase 2 control-plane work.
@@ -76,6 +76,9 @@ Current safety posture:
 - Phase 2.18 — Backup-binding contract design
 - Phase 2.19 — Backup-binding contract operator surface
 - Phase 2.20 — Backup-binding contract summary/failure validation
+- Phase 2.22 — Backup artifact manifest contract design
+- Phase 2.23 — Backup artifact manifest operator surface
+- Phase 2.24 — Backup artifact manifest summary/failure validation
 
 ---
 
@@ -106,6 +109,9 @@ Current non-executing control chain:
 21. Backup-binding contract design
 22. Backup-binding contract operator surface/summary
 23. Backup-binding contract failure-path validation
+24. Backup artifact manifest contract design
+25. Backup artifact manifest operator surface/summary
+26. Backup artifact manifest failure-path validation
 
 This is a control and audit stack only.
 It does not dispatch plugins.
@@ -215,19 +221,19 @@ Do not promote worker-05 to automatic routing just because worker-04 hardware ch
 
 Next active Phase 2 work:
 
-PHASE 2.22 — BACKUP ARTIFACT MANIFEST CONTRACT DESIGN
+PHASE 2.26 — BACKUP ARTIFACT MANIFEST IMPLEMENTATION DRY-RUN SIMULATOR
 
 Completed since last state checkpoint:
-- Phase 2.18 added backup-binding contract design artifacts.
-- Phase 2.19 exposed backup-binding contract commands through the operator surface.
-- Phase 2.20 added backup-binding contract summary generation and rejected 15 unsafe contract variants.
-- Latest backup-binding summary confirmed known contracts are design-only, blocked, and non-mutating.
+- Phase 2.22 added backup artifact manifest contract design artifacts.
+- Phase 2.23 exposed backup artifact manifest contract commands through the operator surface.
+- Phase 2.24 added backup artifact manifest contract summary generation and rejected 23 unsafe manifest contract variants.
+- Latest manifest summary confirmed known manifest contracts are design-only, blocked, and non-mutating.
 
 Recommended scope:
-- design the backup artifact manifest contract only
-- define required metadata fields for future backup artifacts
-- define checksum/verification expectations
-- define prechange artifact inventory requirements
+- simulate future backup artifact manifest generation
+- produce dry-run manifest artifacts only
+- synthesize planned metadata and checksum inventory without reading or hashing live target files
+- verify linkage to backup artifact manifest contract
 - preserve dry-run only behavior
 - require all execution/mutation flags false
 - no service restarts
@@ -235,6 +241,7 @@ Recommended scope:
 - no network mutation
 - no live backup creation
 - no live backup binding
+- no real checksum generation over live files
 - no executor dispatch
 
 Do not enable mutation plugins until a future reviewed slice explicitly implements:

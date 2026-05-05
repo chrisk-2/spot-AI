@@ -14,7 +14,7 @@ Current active lane:
 - PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
 Phase 1.7 is complete and baseline locked.
-Phase 2.1 through Phase 2.20 are complete and non-mutating.
+Phase 2.1 through Phase 2.24 are complete and non-mutating.
 Worker-05 standby/manual integration is complete and non-routing.
 
 No active regression recovery is in progress.
@@ -74,6 +74,9 @@ Completed Phase 2 slices:
 - 2.18 backup-binding contract design
 - 2.19 backup-binding contract operator surface
 - 2.20 backup-binding contract summary/failure validation
+- 2.22 backup artifact manifest contract design
+- 2.23 backup artifact manifest operator surface
+- 2.24 backup artifact manifest summary/failure validation
 
 Current chain:
 
@@ -100,6 +103,9 @@ Current chain:
 21. backup-binding contract design
 22. backup-binding contract operator surface/summary
 23. backup-binding contract failure-path validation
+24. backup artifact manifest contract design
+25. backup artifact manifest operator surface/summary
+26. backup artifact manifest failure-path validation
 
 This is still a control/audit chain only.
 
@@ -204,30 +210,31 @@ Resume Phase 2, not routing.
 
 Next slice:
 
-PHASE 2.22 — BACKUP ARTIFACT MANIFEST CONTRACT DESIGN
+PHASE 2.26 — BACKUP ARTIFACT MANIFEST IMPLEMENTATION DRY-RUN SIMULATOR
 
 Completed since prior handoff:
-- Phase 2.18 added the backup-binding contract design artifact lane.
-- Phase 2.19 exposed backup-binding contract create-design/list/show/verify through `watch/spot-ops.sh`.
-- Phase 2.20 added backup-binding contract summary generation.
-- Phase 2.20 added failure-path validation and rejected 15 unsafe backup-binding contract variants.
-- All execution/mutation/plugin dispatch/service restart/config write/network mutation/live backup creation/live backup binding gates remain false.
-- Successful backup-binding contract artifacts report ok=true and blocked=true by design.
+- Phase 2.22 added the backup artifact manifest contract design artifact lane.
+- Phase 2.23 exposed backup artifact manifest contract create-design/list/show/verify through `watch/spot-ops.sh`.
+- Phase 2.24 added backup artifact manifest contract summary generation.
+- Phase 2.24 added failure-path validation and rejected 23 unsafe backup artifact manifest contract variants.
+- All execution/mutation/plugin dispatch/service restart/config write/network mutation/live backup creation/live backup binding/checksum generation gates remain false.
+- Successful backup artifact manifest contract artifacts report ok=true and blocked=true by design.
 
 Recommended next scope:
-- design the backup artifact manifest contract only
-- define required metadata fields for future backup artifacts
-- define checksum/verification expectations
-- define prechange artifact inventory requirements
+- simulate future backup artifact manifest generation
+- produce dry-run manifest artifacts only
+- synthesize planned metadata and checksum inventory without reading or hashing live target files
+- verify linkage to backup artifact manifest contract
 - preserve dry-run only behavior
 - no service restarts
 - no config writes
 - no network mutation
 - no live backup creation
 - no live backup binding
+- no real checksum generation over live files
 - no executor dispatch
 
-Do not proceed to live backup creation, live backup binding, or real executor behavior until the backup artifact manifest contract is committed and validated as a non-mutating artifact.
+Do not proceed to live backup creation, live backup binding, checksum generation over live files, or real executor behavior until the dry-run manifest simulator is committed and validated as a non-mutating artifact.
 
 ---
 
