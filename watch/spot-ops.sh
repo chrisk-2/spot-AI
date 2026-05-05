@@ -87,6 +87,8 @@ Operator commands:
                            Show design-only backup artifact manifest contract
   verify-backup-artifact-manifest-contract <id|file>
                            Verify design-only backup artifact manifest contract
+  backup-artifact-manifest-contract-summary
+                           Summarize design-only backup artifact manifest contracts
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -180,6 +182,7 @@ Examples:
   $(basename "$0") backup-artifact-manifest-contracts
   $(basename "$0") show-backup-artifact-manifest-contract BACKUP-ARTIFACT-MANIFEST-CONTRACT-YYYYMMDD-HHMMSS-name
   $(basename "$0") verify-backup-artifact-manifest-contract BACKUP-ARTIFACT-MANIFEST-CONTRACT-YYYYMMDD-HHMMSS-name
+  $(basename "$0") backup-artifact-manifest-contract-summary
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -581,6 +584,12 @@ cmd_verify_backup_artifact_manifest_contract() {
   need_cmd bash
   need_file "$BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT"
   bash "$BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT" verify "$@"
+}
+
+cmd_backup_artifact_manifest_contract_summary() {
+  need_cmd bash
+  need_file "$BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT"
+  bash "$BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT" summary "$@"
 }
 
 cmd_status_json() {
@@ -1568,6 +1577,7 @@ main() {
     backup-artifact-manifest-contracts) cmd_backup_artifact_manifest_contracts "$@" ;;
     show-backup-artifact-manifest-contract) cmd_show_backup_artifact_manifest_contract "$@" ;;
     verify-backup-artifact-manifest-contract) cmd_verify_backup_artifact_manifest_contract "$@" ;;
+    backup-artifact-manifest-contract-summary) cmd_backup_artifact_manifest_contract_summary "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;
