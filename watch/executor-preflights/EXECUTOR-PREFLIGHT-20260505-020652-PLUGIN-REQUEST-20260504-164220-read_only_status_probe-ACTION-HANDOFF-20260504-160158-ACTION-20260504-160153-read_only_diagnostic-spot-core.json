@@ -1,0 +1,66 @@
+{
+  "schema": "spot.executor_preflight.v1",
+  "phase": "2.14",
+  "created_utc": "20260505-020652",
+  "mode": "dry_run_only",
+  "preflight_status": "closed_blocked_no_execution",
+  "linked_plugin_request": "PLUGIN-REQUEST-20260504-164220-read_only_status_probe-ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core",
+  "linked_action_handoff": "ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core",
+  "linked_action_request": "ACTION-20260504-160153-read_only_diagnostic-spot-core",
+  "target": "spot-core",
+  "plugin_name": "read_only_status_probe",
+  "action_class": "read_only_diagnostic",
+  "risk_class": "low",
+  "source_files": {
+    "plugin_request": "watch/plugin-requests/PLUGIN-REQUEST-20260504-164220-read_only_status_probe-ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core.json",
+    "plugin_registry": "/home/ogre/spot-stack/watch/policy/plugin-registry.json",
+    "action_policy": "/home/ogre/spot-stack/watch/policy/action-policy.json"
+  },
+  "source_verification": {
+    "plugin_request_verified": true,
+    "plugin_registry_verified": true,
+    "action_policy_verified": true,
+    "registry_status": "locked_non_executing",
+    "policy_status": "locked",
+    "plugin_status": "disabled",
+    "action_policy_status": "allowed"
+  },
+  "phase_2_14_execution_gate": {
+    "dry_run_only": true,
+    "produce_preflight_artifact_only": true,
+    "execution_allowed": false,
+    "mutation_allowed": false,
+    "mutation_performed": false,
+    "plugin_execution_allowed": false,
+    "plugin_execution_enabled": false,
+    "mutation_plugins_enabled": false,
+    "executor_dispatch_allowed": false,
+    "service_restart_allowed": false,
+    "config_write_allowed": false,
+    "network_mutation_allowed": false,
+    "backup_binding_active": false
+  },
+  "policy_guards": {
+    "primary_rule": "no_backup_no_change",
+    "no_backup_no_change": true,
+    "backup_required_before_mutation": true,
+    "backup_delete_allowed": false,
+    "backup_overwrite_allowed": false,
+    "freeform_shell_forbidden": true,
+    "network_mutation_forbidden": true
+  },
+  "result": {
+    "ok": true,
+    "blocked": true,
+    "reason": "phase_2_14_preflight_artifact_only_no_execution"
+  },
+  "notes": [
+    "This artifact proves preflight source verification only.",
+    "This artifact does not authorize execution.",
+    "This artifact does not bind a backup.",
+    "This artifact does not restart services.",
+    "This artifact does not write configuration.",
+    "This artifact does not perform network mutation.",
+    "Future execution requires a separate reviewed phase with backup binding, validation, rollback, append-only logs, and explicit plugin allowlist enforcement."
+  ]
+}
