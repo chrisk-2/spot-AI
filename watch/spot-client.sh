@@ -56,6 +56,10 @@ Usage:
   spot-client.sh worker05-verify
   spot-client.sh worker05-routing-guard
   spot-client.sh worker05-ask <prompt>
+  spot-client.sh worker05-standby-draft
+  spot-client.sh worker05-standby-drafts [count]
+  spot-client.sh show-worker05-standby-draft <id-or-file>
+  spot-client.sh worker05-standby-draft-verify <id-or-file>
   spot-client.sh approve-plugin-request <id-or-file>
   spot-client.sh reject-plugin-request <id-or-file>
   spot-client.sh close-plugin-request <id-or-file>
@@ -2611,6 +2615,212 @@ print(response.strip())
 PYINNER
 }
 
+resolve_worker05_standby_draft_file(){
+  local id="${1:-}"
+  [[ -n "$id" ]] || { echo "ERROR: worker05 standby draft id/file required" >&2; exit 2; }
+
+  local dir="${BASE_DIR}/standby-registration"
+  local file="$id"
+  [[ -f "$file" ]] || file="${dir}/${id%.json}.json"
+  [[ -f "$file" ]] || file="${dir}/WORKER05-STANDBY-DRAFT-${id#WORKER05-STANDBY-DRAFT-}.json"
+
+  [[ -f "$file" ]] || { echo "ERROR: worker05 standby draft not found: $id" >&2; exit 2; }
+  printf '%s' "$file"
+}
+
+cmd_worker05_standby_draft(){
+  cmd_worker05_verify >/dev/null
+  cmd_worker05_routing_guard >/dev/null
+
+  mkdir -p "${BASE_DIR}/standby-registration"
+
+  python3 - "${BASE_DIR}/inventory/worker-05.json" "${BASE_DIR}/../spot-core/config/cluster_config.json" "${BASE_DIR}/standby-registration" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+from datetime import datetime, UTC
+
+inv = json.loads(Path(sys.argv[1]).read_text())
+cfg = json.loads(Path(sys.argv[2]).read_text())
+out_dir = Path(sys.argv[3])
+
+now = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+draft_id = f"WORKER05-STANDBY-DRAFT-{now}"
+out = out_dir / f"{draft_id}.json"
+
+role_priority = cfg.get("role_priority", {})
+workers = cfg.get("workers", {})
+warm_targets = cfg.get("warm_model_policy", {}).get("targets", [])
+
+draft = {
+    "schema": "spot.worker05_standby_registration_draft.v1",
+    "draft_id": draft_id,
+    "created_utc": now,
+    "worker_id": "spot-worker-05",
+    "draft_status": "prepared_non_mutating",
+    "source_inventory": "watch/inventory/worker-05.json",
+    "target_config": "spot-core/config/cluster_config.json",
+    "mutation_allowed": False,
+    "mutation_performed": False,
+    "routing_change_allowed": False,
+    "routing_change_performed": False,
+    "production_role": "none",
+    "primary": False,
+    "routing_enabled": False,
+    "desired_future_mode": {
+        "role": "heavy-secondary",
+        "standby": True,
+        "burst_candidate": True,
+        "fallback_candidate": True,
+        "manual_only_until_tested": True
+    },
+    "current_production_primaries": {
+        "general": role_priority.get("general", [None])[0],
+        "utility": role_priority.get("utility", [None])[0],
+        "coding": role_priority.get("coding", [None])[0],
+        "heavy": role_priority.get("heavy", [None])[0]
+    },
+    "current_worker05_presence": {
+        "in_workers_map": "spot-worker-05" in workers,
+        "in_role_priority": any("spot-worker-05" in xs for xs in role_priority.values() if isinstance(xs, list)),
+        "in_warm_targets": any(isinstance(t, dict) and t.get("worker") == "spot-worker-05" for t in warm_targets)
+    },
+    "proposed_future_config_delta": {
+        "do_not_apply_in_this_slice": True,
+        "workers.spot-worker-05": {
+            "base_url": "http://192.168.10.15:11434",
+            "primary_role": "heavy-secondary",
+            "secondary_roles": ["heavy"],
+            "enabled": False,
+            "eligible": False,
+            "routing_enabled": False,
+            "manual_only": True,
+            "standby": True,
+            "burst_candidate": True,
+            "fallback_candidate": True,
+            "gpu_label": "Quadro P6000 23GB",
+            "model": "llama3.1:8b"
+        }
+    },
+    "required_before_apply": [
+        "Review worker-05 standby draft.",
+        "Verify worker05-routing-guard passes.",
+        "Verify worker05-verify passes.",
+        "Add router support for enabled/eligible/routing_enabled/manual_only flags if not already enforced.",
+        "Add validator guard that worker-05 cannot become role_priority primary.",
+        "Apply only in a separate reviewed slice."
+    ],
+    "forbidden_in_this_slice": [
+        "Do not edit cluster_config.json.",
+        "Do not add worker-05 to role_priority.",
+        "Do not add worker-05 to warm_model_policy targets.",
+        "Do not add worker-05 to burst_policy.",
+        "Do not send production traffic to worker-05.",
+        "Do not make worker-05 primary."
+    ],
+    "validation_snapshot": {
+        "inventory_routing_enabled": inv.get("routing_enabled"),
+        "inventory_primary": inv.get("primary"),
+        "inventory_production_role": inv.get("production_role"),
+        "inventory_commission_status": inv.get("commission_status"),
+        "gpu": inv.get("gpu")
+    }
+}
+
+out.write_text(json.dumps(draft, indent=2) + "\n")
+print(out)
+PYINNER
+}
+
+cmd_worker05_standby_drafts(){
+  local count="${1:-10}"
+  local dir="${BASE_DIR}/standby-registration"
+  mkdir -p "$dir"
+  find "$dir" -maxdepth 1 -type f -name 'WORKER05-STANDBY-DRAFT-*.json' -printf '%T@ %f\n' 2>/dev/null \
+    | sort -nr \
+    | head -n "$count" \
+    | awk '{print $2}'
+}
+
+cmd_show_worker05_standby_draft(){
+  local file
+  file="$(resolve_worker05_standby_draft_file "${1:-}")"
+  python3 -m json.tool "$file"
+}
+
+cmd_worker05_standby_draft_verify(){
+  local file
+  file="$(resolve_worker05_standby_draft_file "${1:-}")"
+
+  python3 - "$file" "${BASE_DIR}/../spot-core/config/cluster_config.json" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+draft = json.loads(Path(sys.argv[1]).read_text())
+cfg = json.loads(Path(sys.argv[2]).read_text())
+fail = []
+
+def expect(path, actual, expected):
+    if actual != expected:
+        fail.append(f"{path} must be {expected!r}, got {actual!r}")
+
+worker = "spot-worker-05"
+
+expect("schema", draft.get("schema"), "spot.worker05_standby_registration_draft.v1")
+expect("draft_status", draft.get("draft_status"), "prepared_non_mutating")
+expect("worker_id", draft.get("worker_id"), worker)
+expect("mutation_allowed", draft.get("mutation_allowed"), False)
+expect("mutation_performed", draft.get("mutation_performed"), False)
+expect("routing_change_allowed", draft.get("routing_change_allowed"), False)
+expect("routing_change_performed", draft.get("routing_change_performed"), False)
+expect("production_role", draft.get("production_role"), "none")
+expect("primary", draft.get("primary"), False)
+expect("routing_enabled", draft.get("routing_enabled"), False)
+
+mode = draft.get("desired_future_mode", {})
+expect("desired_future_mode.role", mode.get("role"), "heavy-secondary")
+expect("desired_future_mode.standby", mode.get("standby"), True)
+expect("desired_future_mode.manual_only_until_tested", mode.get("manual_only_until_tested"), True)
+
+role_priority = cfg.get("role_priority", {})
+expected_primary_by_role = {
+    "general": "spot-worker-01",
+    "utility": "spot-worker-02",
+    "coding": "spot-worker-03",
+    "heavy": "spot-worker-04",
+}
+for role, expected in expected_primary_by_role.items():
+    workers = role_priority.get(role, [])
+    actual = workers[0] if workers else None
+    if actual != expected:
+        fail.append(f"live primary drift: {role} expected {expected}, got {actual}")
+    if worker in workers:
+        fail.append(f"worker-05 is live in role_priority.{role}; draft must be non-routing")
+
+if worker in cfg.get("workers", {}):
+    fail.append("worker-05 is already in live workers map; this draft expected no live registration")
+
+for phrase in [
+    "Do not edit cluster_config.json.",
+    "Do not add worker-05 to role_priority.",
+    "Do not send production traffic to worker-05.",
+    "Do not make worker-05 primary.",
+]:
+    if phrase not in draft.get("forbidden_in_this_slice", []):
+        fail.append(f"missing forbidden guard: {phrase}")
+
+for item in fail:
+    print(f"[FAIL] {item}")
+
+if fail:
+    print(f"RESULT: FAIL worker05_standby_draft fail={len(fail)}")
+    raise SystemExit(1)
+
+print(f"RESULT: PASS worker05_standby_draft draft={draft.get('draft_id')} non_mutating=true")
+PYINNER
+}
+
 cmd_worker05_verify(){
   local inv="${BASE_DIR}/inventory/worker-05.json"
   [[ -f "$inv" ]] || { echo "ERROR: worker-05 inventory missing: $inv" >&2; exit 2; }
@@ -3148,5 +3358,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-summary) cmd_plugin_registry_summary "$@";; plugin-registry-audit) cmd_plugin_registry_audit "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-plugin-request) cmd_create_plugin_request "$@";; plugin-requests) cmd_plugin_requests "$@";; show-plugin-request) cmd_show_plugin_request "$@";; plugin-request-status) cmd_plugin_request_status "$@";; plugin-request-audit) cmd_plugin_request_audit "$@";; plugin-request-summary) cmd_plugin_request_summary "$@";; plugin-request-verify) cmd_plugin_request_verify "$@";; worker05-status) cmd_worker05_status "$@";; worker05-verify) cmd_worker05_verify "$@";; worker05-routing-guard) cmd_worker05_routing_guard "$@";; worker05-ask) cmd_worker05_ask "$@";; approve-plugin-request) cmd_approve_plugin_request "$@";; reject-plugin-request) cmd_reject_plugin_request "$@";; close-plugin-request) cmd_close_plugin_request "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-summary) cmd_plugin_registry_summary "$@";; plugin-registry-audit) cmd_plugin_registry_audit "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-plugin-request) cmd_create_plugin_request "$@";; plugin-requests) cmd_plugin_requests "$@";; show-plugin-request) cmd_show_plugin_request "$@";; plugin-request-status) cmd_plugin_request_status "$@";; plugin-request-audit) cmd_plugin_request_audit "$@";; plugin-request-summary) cmd_plugin_request_summary "$@";; plugin-request-verify) cmd_plugin_request_verify "$@";; worker05-status) cmd_worker05_status "$@";; worker05-verify) cmd_worker05_verify "$@";; worker05-routing-guard) cmd_worker05_routing_guard "$@";; worker05-ask) cmd_worker05_ask "$@";; worker05-standby-draft) cmd_worker05_standby_draft "$@";; worker05-standby-drafts) cmd_worker05_standby_drafts "$@";; show-worker05-standby-draft) cmd_show_worker05_standby_draft "$@";; worker05-standby-draft-verify) cmd_worker05_standby_draft_verify "$@";; approve-plugin-request) cmd_approve_plugin_request "$@";; reject-plugin-request) cmd_reject_plugin_request "$@";; close-plugin-request) cmd_close_plugin_request "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"

@@ -1,0 +1,81 @@
+{
+  "schema": "spot.worker05_standby_registration_draft.v1",
+  "draft_id": "WORKER05-STANDBY-DRAFT-20260505-002114",
+  "created_utc": "20260505-002114",
+  "worker_id": "spot-worker-05",
+  "draft_status": "prepared_non_mutating",
+  "source_inventory": "watch/inventory/worker-05.json",
+  "target_config": "spot-core/config/cluster_config.json",
+  "mutation_allowed": false,
+  "mutation_performed": false,
+  "routing_change_allowed": false,
+  "routing_change_performed": false,
+  "production_role": "none",
+  "primary": false,
+  "routing_enabled": false,
+  "desired_future_mode": {
+    "role": "heavy-secondary",
+    "standby": true,
+    "burst_candidate": true,
+    "fallback_candidate": true,
+    "manual_only_until_tested": true
+  },
+  "current_production_primaries": {
+    "general": "spot-worker-01",
+    "utility": "spot-worker-02",
+    "coding": "spot-worker-03",
+    "heavy": "spot-worker-04"
+  },
+  "current_worker05_presence": {
+    "in_workers_map": false,
+    "in_role_priority": false,
+    "in_warm_targets": false
+  },
+  "proposed_future_config_delta": {
+    "do_not_apply_in_this_slice": true,
+    "workers.spot-worker-05": {
+      "base_url": "http://192.168.10.15:11434",
+      "primary_role": "heavy-secondary",
+      "secondary_roles": [
+        "heavy"
+      ],
+      "enabled": false,
+      "eligible": false,
+      "routing_enabled": false,
+      "manual_only": true,
+      "standby": true,
+      "burst_candidate": true,
+      "fallback_candidate": true,
+      "gpu_label": "Quadro P6000 23GB",
+      "model": "llama3.1:8b"
+    }
+  },
+  "required_before_apply": [
+    "Review worker-05 standby draft.",
+    "Verify worker05-routing-guard passes.",
+    "Verify worker05-verify passes.",
+    "Add router support for enabled/eligible/routing_enabled/manual_only flags if not already enforced.",
+    "Add validator guard that worker-05 cannot become role_priority primary.",
+    "Apply only in a separate reviewed slice."
+  ],
+  "forbidden_in_this_slice": [
+    "Do not edit cluster_config.json.",
+    "Do not add worker-05 to role_priority.",
+    "Do not add worker-05 to warm_model_policy targets.",
+    "Do not add worker-05 to burst_policy.",
+    "Do not send production traffic to worker-05.",
+    "Do not make worker-05 primary."
+  ],
+  "validation_snapshot": {
+    "inventory_routing_enabled": false,
+    "inventory_primary": false,
+    "inventory_production_role": "none",
+    "inventory_commission_status": "gpu_validated_pre_routing",
+    "gpu": {
+      "model": "Quadro P6000",
+      "vram_mib": 23040,
+      "driver": "535.288.01",
+      "cuda": "12.2"
+    }
+  }
+}
