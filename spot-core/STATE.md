@@ -1,4 +1,4 @@
-# SPOT CORE STATE — 2026-05-04
+# SPOT CORE STATE — 2026-05-05
 
 ## CURRENT STATUS
 
@@ -8,7 +8,7 @@ Primary routing ownership intact.
 Git tree clean at last checkpoint.
 
 Current commit:
-- 983a7c8 phase213: add plugin request lifecycle and audit
+- 60daec0 worker05: add guarded standby registration draft
 
 Validation baseline:
 - spot validate: PASS
@@ -32,7 +32,14 @@ PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
 Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.13
 
-Phase 2 is building controlled autonomy rails without enabling autonomous mutation.
+Immediate next active step while waiting for worker-04 GPU hardware:
+
+PHASE 2.14 — EXECUTOR DRY-RUN PREFLIGHT CONTRACT
+
+Goal:
+- Continue completing Phase 2 control-plane work.
+- Do not route worker-05 automatically.
+- Do not modify production routing until a separate reviewed routing slice.
 
 Current safety posture:
 - mutation_plugins_enabled: false
@@ -96,38 +103,112 @@ It does not enable autonomous execution.
 
 ---
 
-## IMPORTANT ARTIFACTS
+## WORKER-05 STATUS
 
-Policy manifest:
-- /home/ogre/spot-stack/watch/policy/action-policy.json
+worker-05 integration status:
+- validated
+- documented
+- inventory-registered
+- standby-guarded
+- manual-ask capable
+- future-registration drafted
+- not production-routed
 
-Plugin registry:
-- /home/ogre/spot-stack/watch/policy/plugin-registry.json
+Current worker-05 classification:
 
-Sample closed action request:
-- /home/ogre/spot-stack/watch/action-requests/ACTION-20260504-153133-read_only_diagnostic-spot-core.json
+```text
+worker-05 = heavy-secondary / standby / burst-candidate / fallback-candidate
+routing_enabled = false
+primary = false
+production_role = none
+```
 
-Sample closed action handoff:
-- /home/ogre/spot-stack/watch/action-handoffs/ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core.json
+Latest worker-05 checkpoint:
+- 60daec0 worker05: add guarded standby registration draft
 
-Sample closed plugin request:
-- /home/ogre/spot-stack/watch/plugin-requests/PLUGIN-REQUEST-20260504-164220-read_only_status_probe-ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core.json
+Worker-05 artifacts:
+- /home/ogre/spot-stack/WORKER-05-COMMISSIONING.md
+- /home/ogre/spot-stack/watch/inventory/worker-05.json
+- /home/ogre/spot-stack/watch/standby-registration/WORKER05-STANDBY-DRAFT-20260505-002114.json
 
-Phase 1.7 canonical run:
-- RUN-HANDOFF-APPLY-phase17-lifecycle-test-041538-20260504-030310
+Worker-05 command surface:
+- watch/spot-client.sh worker05-status
+- watch/spot-client.sh worker05-verify
+- watch/spot-client.sh worker05-routing-guard
+- watch/spot-client.sh worker05-ask <prompt>
+- watch/spot-client.sh worker05-standby-draft
+- watch/spot-client.sh worker05-standby-drafts [count]
+- watch/spot-client.sh show-worker05-standby-draft <id-or-file>
+- watch/spot-client.sh worker05-standby-draft-verify <id-or-file>
+
+Worker-05 must remain out of production routing until a future reviewed routing slice adds router support for:
+- enabled
+- eligible
+- routing_enabled
+- manual_only
+
+---
+
+## ACTIVE PRODUCTION ROUTING
+
+Production primaries remain:
+
+```text
+general -> spot-worker-01
+utility -> spot-worker-02
+coding  -> spot-worker-03
+heavy   -> spot-worker-04
+```
+
+Worker-05 is not in:
+- active role_priority
+- active workers map
+- warm_model_policy targets
+- burst_policy
+
+---
+
+## WORKER-04 GPU UPGRADE PLAN
+
+Worker-04 remains the heavy primary.
+Its new GPU is expected next.
+
+After worker-04 new GPU is physically installed, do not change routing ownership. Keep:
+
+```text
+heavy -> spot-worker-04
+worker-05 -> heavy-secondary standby
+```
+
+Worker-04 post-GPU validation path:
+
+1. Boot worker-04 after GPU install.
+2. Verify PCI detection:
+   - lspci | egrep -i 'nvidia|vga|3d|display'
+3. Verify NVIDIA driver:
+   - nvidia-smi
+   - nvidia-smi --query-gpu=index,name,memory.total,memory.free,temperature.gpu,power.draw,driver_version --format=csv,noheader,nounits
+4. Verify nvidia-persistenced active.
+5. Verify Ollama active.
+6. Run local Ollama GPU smoke.
+7. Verify remote health/API from spot-core.
+8. Run spot validate.
+9. Update docs and checkpoint.
+
+Do not promote worker-05 to automatic routing just because worker-04 hardware changes.
 
 ---
 
 ## NEXT ENGINEERING LANE
 
-Next candidate:
+Next active Phase 2 work:
 
 PHASE 2.14 — EXECUTOR DRY-RUN PREFLIGHT CONTRACT
 
 Recommended scope:
 - define executor preflight contract artifact
 - require plugin request verification
-- require registry verification
+- require plugin registry verification
 - require action policy verification
 - require dry-run only
 - require all execution/mutation flags false
@@ -149,51 +230,15 @@ Do not enable mutation plugins until a future reviewed slice explicitly implemen
 
 ## FLEET SNAPSHOT
 
-worker-01 = general
-worker-02 = utility, healthy but latency warning-level
-worker-03 = coding
-worker-04 = heavy-primary
-worker-05 = heavy-secondary commissioning/GPU-validated/pre-routing
+worker-01 = general primary
+worker-02 = utility primary, healthy but latency warning-level
+worker-03 = coding primary
+worker-04 = heavy primary, new GPU pending
+worker-05 = heavy-secondary standby, manual-only, not production-routed
 
 Latest observed checkpoint trend:
 - worker-01 healthy and fast
-- worker-02 healthy but slow, p50 around 10–12s in recent checkpoints
+- worker-02 healthy but slow, p50 around 10s in recent checkpoints
 - worker-03 healthy and fast
 - worker-04 healthy and fast
-
----
-
-## WORKER-05 GPU BRING-UP CHECKLIST
-
-spot-worker-05 has Quadro P6000 installed and GPU smoke validated. It remains pre-routing.
-
-Current ready state:
-- hostname: spot-worker-05
-- IP: 192.168.10.15
-- OS: Ubuntu 24.04
-- CPU: i7-8700
-- board: ASUS PRIME Z390-A
-- RAM target: 64GB DDR4 UDIMM non-ECC
-- storage: NVMe
-- /mnt/collective mounted
-- /mnt/unimatrix6 mounted
-- Docker active
-- Ollama active
-- health API active on port 8755
-
-GPU status:
-- Quadro P6000 installed
-- NVIDIA driver 535.288.01 active
-- nvidia-smi reports Quadro P6000 with 23040 MiB VRAM
-- Ollama llama3.1:8b GPU smoke test passed
-- health endpoint reports GPU info
-- still not registered into Spot production routing
-
-Post-GPU commands on worker-05:
-  ~/worker05_post_gpu.sh
-  sudo reboot
-  nvidia-smi
-  ~/worker05_health.sh
-  curl -s http://127.0.0.1:8755/health | jq
-
-Do not add worker-05 to production routing until a separate reviewed registration slice updates inventory, health checks, role assignment, and routing policy.
+- worker-05 validated standby / manual ask works

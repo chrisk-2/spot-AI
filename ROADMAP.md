@@ -45,17 +45,6 @@ Canonical proof:
 - commit `4e17214`
 - verified run `RUN-HANDOFF-APPLY-phase17-lifecycle-test-041538-20260504-030310`
 
-Completed:
-- approved proposal -> reviewable apply-plan generation
-- apply-plan lifecycle review/approve/reject/check/verify surfaces
-- execution handoff generation and verification
-- supervised dry-run execution wrapper
-- execution-run artifacts and verify routines
-- backup-bound prechange artifact creation
-- SHA256 backup integrity verification
-- dry-run/no-mutation run contract
-- no-backup-no-change enforcement at wrapper level
-
 Carry-forward constraints:
 - no unrestricted auto-apply
 - no bypassing backup-first enforcement
@@ -66,14 +55,33 @@ Carry-forward constraints:
 
 # PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: ACTIVE — NON-MUTATING CONTROL STACK COMPLETE THROUGH PHASE 2.9.
+Status: ACTIVE — NON-MUTATING CONTROL STACK COMPLETE THROUGH PHASE 2.13.
 
-Phase 2 is building the control, policy, audit, and lifecycle rails for controlled autonomy before enabling any mutation.
+Current active next slice:
 
-Current checkpoint:
-- `77de4b6 phase29: add action handoff review lifecycle and audit`
+## Phase 2.14 — Executor dry-run preflight contract
 
-Completed slices:
+Status: NEXT.
+
+Allowed scope:
+- define executor preflight contract artifact
+- require plugin request verification
+- require plugin registry verification
+- require action policy verification
+- require dry-run only
+- require all execution/mutation flags false
+- produce preflight artifact only
+- no service restarts
+- no config writes
+- no network mutation
+- no backup binding for mutation yet
+
+Phase 2 remains a non-mutating control-plane build until a later reviewed slice explicitly enables narrow execution.
+
+Current checkpoint before Phase 2.14:
+- `60daec0 worker05: add guarded standby registration draft`
+
+Completed Phase 2 slices:
 
 ## Phase 2.1 — Execution-run lifecycle
 Status: complete.
@@ -84,29 +92,14 @@ Status: complete.
 ## Phase 2.3 — Action policy manifest
 Status: complete.
 
-Created:
-- `watch/policy/action-policy.json`
-
 ## Phase 2.4 — Action policy verifier
 Status: complete.
-
-Created:
-- `spot-client.sh action-policy-verify`
 
 ## Phase 2.5 — Non-executing action request artifacts
 Status: complete.
 
-Created:
-- `watch/action-requests/ACTION-*.json`
-
 ## Phase 2.6 — Action request lifecycle
 Status: complete.
-
-States:
-- draft_non_executing
-- review_approved_non_executing
-- review_rejected
-- closed_no_execution
 
 ## Phase 2.7 — Action request audit/summary
 Status: complete.
@@ -114,17 +107,20 @@ Status: complete.
 ## Phase 2.8 — Non-executing action handoff bridge
 Status: complete.
 
-Created:
-- `watch/action-handoffs/ACTION-HANDOFF-*.json`
-
 ## Phase 2.9 — Action handoff lifecycle/audit
 Status: complete.
 
-States:
-- prepared_non_executing
-- review_approved_non_executing
-- review_rejected
-- closed_no_execution
+## Phase 2.10 — Disabled plugin registry manifest
+Status: complete.
+
+## Phase 2.11 — Plugin registry audit/summary
+Status: complete.
+
+## Phase 2.12 — Non-executing plugin request artifacts
+Status: complete.
+
+## Phase 2.13 — Plugin request lifecycle/audit
+Status: complete.
 
 Current control chain:
 
@@ -139,40 +135,98 @@ policy manifest
 -> action handoff verifier
 -> action handoff lifecycle
 -> action handoff audit/summary
+-> plugin registry
+-> plugin registry verifier/audit
+-> plugin request
+-> plugin request verifier/lifecycle/audit
 ```
 
 Current hard limits:
 - mutation_plugins_enabled=false
+- plugin_execution_enabled=false
+- plugin_execution_allowed=false
 - execution_allowed=false
 - mutation_allowed=false
 - mutation_performed=false
-- backup_artifact=pending on non-executing action handoffs
-- next_allowed_action=manual_review_only
-- network_change restricted_disabled
+- network_change restricted_disabled/forbidden depending layer
 - freeform_shell_mutation forbidden
 - backup_delete_or_overwrite forbidden
 
 ---
 
-# PHASE 2.10 — CONTROLLED EXECUTOR SKELETON / PLUGIN REGISTRY MANIFEST
+# WORKER-05 STANDBY INTEGRATION TRACK
 
-Status: NEXT CANDIDATE.
+Status: complete for safe standby/manual scope.
 
-Allowed scope:
-- plugin registry manifest
-- all plugins disabled by default
-- registry display command
-- registry verifier
-- no plugin execution
-- no service restart
-- no config write
-- no backup binding for mutation
-- no network/firewall/DNS/DHCP/VLAN/routing mutation
+Latest checkpoint:
+- `60daec0 worker05: add guarded standby registration draft`
 
-Required safety posture:
-- registry verifier must fail if any plugin is enabled before reviewed implementation
-- plugin classes must map to action policy classes
-- all execution must remain blocked
+worker-05 current mode:
+
+```text
+role = heavy-secondary
+standby = true
+burst_candidate = true
+fallback_candidate = true
+routing_enabled = false
+primary = false
+production_role = none
+manual ask = allowed through worker05-ask only
+```
+
+Completed worker-05 slices:
+- GPU installed and validated
+- NVIDIA 535.288.01 active
+- Quadro P6000 with 23040 MiB VRAM
+- Ollama GPU smoke passed
+- remote Ollama API passed
+- remote GPU inference confirmed
+- passwordless SSH from core passed
+- passwordless sudo from core passed
+- health endpoint status corrected to gpu_validated_pre_routing
+- commissioning runbook added
+- non-routing inventory record added
+- standby health verifier added
+- standby routing guard added
+- manual standby ask command added
+- guarded standby registration draft added
+
+Worker-05 remains out of production routing.
+
+Before any automatic worker-05 routing:
+- add router enforcement for enabled/eligible/routing_enabled/manual_only
+- add validator guard preventing worker-05 from becoming primary
+- use a reviewed apply slice
+- prove worker-05 only appears during explicit burst/fallback tests
+
+---
+
+# WORKER-04 GPU UPGRADE TRACK
+
+Status: pending hardware.
+
+worker-04 remains heavy primary before and after the GPU upgrade unless a separate reviewed routing change says otherwise.
+
+After worker-04 new GPU is installed:
+
+1. Verify PCI detection:
+   - `lspci | egrep -i 'nvidia|vga|3d|display'`
+2. Verify NVIDIA driver:
+   - `nvidia-smi`
+   - `nvidia-smi --query-gpu=index,name,memory.total,memory.free,temperature.gpu,power.draw,driver_version --format=csv,noheader,nounits`
+3. Verify nvidia-persistenced.
+4. Verify Ollama.
+5. Run local Ollama GPU smoke.
+6. Validate remote health and remote Ollama from spot-core.
+7. Run `spot validate`.
+8. Update support docs and checkpoint.
+
+Expected post-upgrade routing posture:
+
+```text
+heavy -> spot-worker-04
+worker-05 -> heavy-secondary standby/manual-only
+```
 
 ---
 
@@ -208,6 +262,8 @@ PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
 Immediate next objective:
 
-Build Phase 2.10 as a non-executing plugin registry manifest and verifier.
+PHASE 2.14 — Executor dry-run preflight contract.
 
 Do not enable mutation plugins until a future reviewed slice implements backup binding, validation, rollback, append-only logs, and explicit plugin allowlist enforcement.
+
+Do not enable worker-05 automatic routing until a future reviewed routing slice implements enabled/eligible/routing_enabled/manual_only enforcement.

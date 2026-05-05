@@ -1,4 +1,4 @@
-# STARFLEET HANDOFF — 2026-05-04
+# STARFLEET HANDOFF — 2026-05-05
 
 Read spot-core/STATE.md first.
 
@@ -8,29 +8,34 @@ Read spot-core/STATE.md first.
 
 System stable.
 Fleet validate currently PASS.
-Git tree was clean at checkpoint 983a7c8.
+Git tree should be committed after this docs update.
 
 Current active lane:
 - PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
 Phase 1.7 is complete and baseline locked.
 Phase 2.1 through Phase 2.13 are complete and non-mutating.
+Worker-05 standby/manual integration is complete and non-routing.
 
 No active regression recovery is in progress.
 No autonomous mutation is enabled.
 No plugin dispatch is enabled.
+No worker-05 automatic routing is enabled.
 
 ---
 
 ## CURRENT CHECKPOINT
 
-Current commit:
-- 983a7c8 phase213: add plugin request lifecycle and audit
+Latest completed worker-05 checkpoint:
+- 60daec0 worker05: add guarded standby registration draft
 
 Validated:
 - action-policy-verify PASS
 - plugin-registry-verify PASS
 - plugin request verifier PASS
+- worker05-verify PASS
+- worker05-routing-guard PASS
+- worker05-standby-draft-verify PASS
 - spot validate PASS, pass=19 warn=0 fail=0
 
 Runtime posture:
@@ -40,8 +45,9 @@ Runtime posture:
 - execution_allowed=false on control artifacts
 - mutation_allowed=false on control artifacts
 - mutation_performed=false on control artifacts
-- backup_artifact remains pending for non-executing plugin requests
-- next_allowed_action=manual_review_only
+- worker-05 routing_enabled=false
+- worker-05 primary=false
+- worker-05 production_role=none
 
 ---
 
@@ -87,52 +93,111 @@ This is still a control/audit chain only.
 
 ---
 
-## IMPORTANT ARTIFACTS
+## WORKER-05 STATUS
 
-Policy manifest:
-- /home/ogre/spot-stack/watch/policy/action-policy.json
+worker-05 is fully prepared as a validated standby/manual node.
 
-Plugin registry:
-- /home/ogre/spot-stack/watch/policy/plugin-registry.json
+Current classification:
 
-Sample closed action request:
-- /home/ogre/spot-stack/watch/action-requests/ACTION-20260504-153133-read_only_diagnostic-spot-core.json
+```text
+spot-worker-05 = heavy-secondary / standby / burst-candidate / fallback-candidate
+routing_enabled = false
+primary = false
+production_role = none
+manual ask = allowed through worker05-ask only
+```
 
-Sample closed action handoff:
-- /home/ogre/spot-stack/watch/action-handoffs/ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core.json
+Completed worker-05 work:
+- GPU install validated
+- NVIDIA driver 535.288.01 active
+- Quadro P6000 visible with 23040 MiB VRAM
+- Ollama GPU smoke passed
+- remote Ollama API passed
+- remote GPU inference confirmed
+- passwordless SSH from core passed
+- passwordless sudo from core passed
+- health endpoint status corrected to gpu_validated_pre_routing
+- commissioning runbook added
+- non-routing inventory added
+- standby health verifier added
+- standby routing guard added
+- manual worker05-ask added
+- guarded standby registration draft added
 
-Sample closed plugin request:
-- /home/ogre/spot-stack/watch/plugin-requests/PLUGIN-REQUEST-20260504-164220-read_only_status_probe-ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core.json
+Important files:
+- /home/ogre/spot-stack/WORKER-05-COMMISSIONING.md
+- /home/ogre/spot-stack/watch/inventory/worker-05.json
+- /home/ogre/spot-stack/watch/standby-registration/WORKER05-STANDBY-DRAFT-20260505-002114.json
 
-Phase 1.7 canonical run:
-- RUN-HANDOFF-APPLY-phase17-lifecycle-test-041538-20260504-030310
+Worker-05 commands:
+- watch/spot-client.sh worker05-status
+- watch/spot-client.sh worker05-verify
+- watch/spot-client.sh worker05-routing-guard
+- watch/spot-client.sh worker05-ask <prompt>
+- watch/spot-client.sh worker05-standby-drafts [count]
+- watch/spot-client.sh show-worker05-standby-draft <id-or-file>
+- watch/spot-client.sh worker05-standby-draft-verify <id-or-file>
+
+Do not add worker-05 to automatic routing until a separate reviewed routing slice adds router enforcement for enabled/eligible/routing_enabled/manual_only.
 
 ---
 
-## PROJECT RULES STILL LOCKED
+## ACTIVE PRODUCTION ROUTING
 
-No backup, no change.
-No autonomous mutation.
-No freeform shell mutation.
-No backup deletion or overwrite.
-No network/firewall/DNS/DHCP/VLAN/routing mutation.
-No plugin execution until an explicit future reviewed slice enables a narrow allowlisted plugin.
+Production primaries remain:
 
-Memory and proposal history remain context only, not authorization.
-Rollback authority remains recorded_prechange_backup_only.
+```text
+general -> spot-worker-01
+utility -> spot-worker-02
+coding  -> spot-worker-03
+heavy   -> spot-worker-04
+```
+
+worker-05 is not production-routed.
 
 ---
 
-## NEXT ENGINEERING LANE
+## WORKER-04 GPU UPGRADE NEXT HARDWARE PATH
 
-Next candidate:
+worker-04 remains heavy primary.
+Its new GPU is expected next.
+
+After worker-04 new GPU is installed:
+
+1. Keep heavy primary on worker-04.
+2. Do not promote worker-05 automatically.
+3. Validate worker-04 hardware and driver:
+   - lspci | egrep -i 'nvidia|vga|3d|display'
+   - nvidia-smi
+   - nvidia-smi --query-gpu=index,name,memory.total,memory.free,temperature.gpu,power.draw,driver_version --format=csv,noheader,nounits
+4. Validate nvidia-persistenced.
+5. Validate Ollama.
+6. Run local Ollama GPU smoke.
+7. Validate remote health and remote Ollama from spot-core.
+8. Run spot validate.
+9. Update STATE.md, HANDOFF.md, ROADMAP.md, and any worker-04 runbook/checkpoint.
+
+Post-GPU worker-04 result should be:
+
+```text
+heavy -> spot-worker-04
+worker-05 -> heavy-secondary standby/manual-only
+```
+
+---
+
+## NEXT ACTIVE ENGINEERING LANE WHILE WAITING
+
+Resume Phase 2, not routing.
+
+Next slice:
 
 PHASE 2.14 — EXECUTOR DRY-RUN PREFLIGHT CONTRACT
 
 Recommended scope:
 - define executor preflight contract artifact
 - require plugin request verification
-- require registry verification
+- require plugin registry verification
 - require action policy verification
 - require dry-run only
 - require all execution/mutation flags false
@@ -146,24 +211,15 @@ Do not proceed to real executor behavior until dry-run preflight contract is com
 
 ---
 
-## WORKER-05 NEXT PHYSICAL STEP
+## PROJECT RULES STILL LOCKED
 
-worker-05 remains commissioning/pre-routing.
+No backup, no change.
+No autonomous mutation.
+No freeform shell mutation.
+No backup deletion or overwrite.
+No network/firewall/DNS/DHCP/VLAN/routing mutation.
+No plugin execution until an explicit future reviewed slice enables a narrow allowlisted plugin.
+No worker-05 automatic traffic until explicit routing enablement.
 
-When the Quadro P6000 arrives:
-
-1. Power down worker-05.
-2. Install P6000.
-3. Remove GT730 if slot/airflow requires.
-4. Confirm PCIe power is proper.
-5. Boot worker-05.
-6. Run:
-   ~/worker05_post_gpu.sh
-   sudo reboot
-   nvidia-smi
-   ~/worker05_health.sh
-   curl -s http://127.0.0.1:8755/health | jq
-
-Worker-05 must remain out of production routing until GPU, driver, thermals, Ollama, mounts, and health API all pass.
-
-Do not tune worker-02 until after TITAN Xp GPU swap unless a new hard failure appears.
+Memory and proposal history remain context only, not authorization.
+Rollback authority remains recorded_prechange_backup_only.
