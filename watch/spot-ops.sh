@@ -6,6 +6,7 @@ STATE_DIR="${STATE_DIR:-${BASE_DIR}/state}"
 LOG_DIR="${LOG_DIR:-${BASE_DIR}/logs}"
 SPOT_BASE_URL="${SPOT_BASE_URL:-http://127.0.0.1:8787}"
 SELF_HEAL_SCRIPT="${SELF_HEAL_SCRIPT:-${BASE_DIR}/spot-self-heal.sh}"
+EXECUTOR_PREFLIGHT_SCRIPT="${EXECUTOR_PREFLIGHT_SCRIPT:-${BASE_DIR}/spot-executor-preflight.sh}"
 VALIDATOR="${VALIDATOR:-${BASE_DIR}/fleet-validate.sh}"
 FLEET_STATUS_FILE="${FLEET_STATUS_FILE:-${STATE_DIR}/fleet-status.json}"
 AUDIT_SUMMARY_FILE="${AUDIT_SUMMARY_FILE:-${STATE_DIR}/routing-audit-summary.json}"
@@ -56,6 +57,14 @@ Operator commands:
   show-execution-handoff <id|file> Show non-mutating execution handoff artifact
   execution-handoff-status <id|file> Show execution handoff metadata
   execution-handoff-verify <id|file> Verify non-mutating execution handoff artifact
+  executor-preflight <plugin-request-id|file>
+                           Create dry-run-only executor preflight artifact
+  executor-preflights [count]
+                           List dry-run-only executor preflight artifacts
+  show-executor-preflight <id|file>
+                           Show dry-run-only executor preflight artifact
+  verify-executor-preflight <id|file>
+                           Verify dry-run-only executor preflight artifact
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -135,6 +144,10 @@ Examples:
   $(basename "$0") execution-handoffs
   $(basename "$0") execution-handoff-status HANDOFF-APPLY-P-YYYYMMDD-HHMMSS-name
   $(basename "$0") execution-handoff-verify HANDOFF-APPLY-P-YYYYMMDD-HHMMSS-name
+  $(basename "$0") executor-preflight PLUGIN-REQUEST-YYYYMMDD-HHMMSS-name
+  $(basename "$0") executor-preflights
+  $(basename "$0") show-executor-preflight EXECUTOR-PREFLIGHT-YYYYMMDD-HHMMSS-name
+  $(basename "$0") verify-executor-preflight EXECUTOR-PREFLIGHT-YYYYMMDD-HHMMSS-name
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -451,6 +464,31 @@ except Exception as exc:
 
 print(json.dumps(result))
 PY
+}
+
+
+cmd_executor_preflight() {
+  need_cmd bash
+  need_file "$EXECUTOR_PREFLIGHT_SCRIPT"
+  bash "$EXECUTOR_PREFLIGHT_SCRIPT" create "$@"
+}
+
+cmd_executor_preflights() {
+  need_cmd bash
+  need_file "$EXECUTOR_PREFLIGHT_SCRIPT"
+  bash "$EXECUTOR_PREFLIGHT_SCRIPT" list "$@"
+}
+
+cmd_show_executor_preflight() {
+  need_cmd bash
+  need_file "$EXECUTOR_PREFLIGHT_SCRIPT"
+  bash "$EXECUTOR_PREFLIGHT_SCRIPT" show "$@"
+}
+
+cmd_verify_executor_preflight() {
+  need_cmd bash
+  need_file "$EXECUTOR_PREFLIGHT_SCRIPT"
+  bash "$EXECUTOR_PREFLIGHT_SCRIPT" verify "$@"
 }
 
 cmd_status_json() {
@@ -1424,6 +1462,10 @@ main() {
     show-execution-handoff) bash "${BASE_DIR}/spot-client.sh" show-execution-handoff "$@" ;;
     execution-handoff-status) bash "${BASE_DIR}/spot-client.sh" execution-handoff-status "$@" ;;
     execution-handoff-verify) bash "${BASE_DIR}/spot-client.sh" execution-handoff-verify "$@" ;;
+    executor-preflight)  cmd_executor_preflight "$@" ;;
+    executor-preflights) cmd_executor_preflights "$@" ;;
+    show-executor-preflight) cmd_show_executor_preflight "$@" ;;
+    verify-executor-preflight) cmd_verify_executor_preflight "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;
