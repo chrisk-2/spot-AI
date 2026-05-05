@@ -9,6 +9,7 @@ SELF_HEAL_SCRIPT="${SELF_HEAL_SCRIPT:-${BASE_DIR}/spot-self-heal.sh}"
 EXECUTOR_PREFLIGHT_SCRIPT="${EXECUTOR_PREFLIGHT_SCRIPT:-${BASE_DIR}/spot-executor-preflight.sh}"
 BACKUP_BINDING_CONTRACT_SCRIPT="${BACKUP_BINDING_CONTRACT_SCRIPT:-${BASE_DIR}/spot-backup-binding-contract.sh}"
 BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT="${BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT:-${BASE_DIR}/spot-backup-artifact-manifest-contract.sh}"
+BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT="${BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT:-${BASE_DIR}/spot-backup-artifact-manifest-dry-run.sh}"
 VALIDATOR="${VALIDATOR:-${BASE_DIR}/fleet-validate.sh}"
 FLEET_STATUS_FILE="${FLEET_STATUS_FILE:-${STATE_DIR}/fleet-status.json}"
 AUDIT_SUMMARY_FILE="${AUDIT_SUMMARY_FILE:-${STATE_DIR}/routing-audit-summary.json}"
@@ -89,6 +90,14 @@ Operator commands:
                            Verify design-only backup artifact manifest contract
   backup-artifact-manifest-contract-summary
                            Summarize design-only backup artifact manifest contracts
+  backup-artifact-manifest-dry-run <backup-artifact-manifest-contract-id|file>
+                           Create simulated backup artifact manifest dry-run
+  backup-artifact-manifest-dry-runs [count]
+                           List simulated backup artifact manifest dry-runs
+  show-backup-artifact-manifest-dry-run <id|file>
+                           Show simulated backup artifact manifest dry-run
+  verify-backup-artifact-manifest-dry-run <id|file>
+                           Verify simulated backup artifact manifest dry-run
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -183,6 +192,10 @@ Examples:
   $(basename "$0") show-backup-artifact-manifest-contract BACKUP-ARTIFACT-MANIFEST-CONTRACT-YYYYMMDD-HHMMSS-name
   $(basename "$0") verify-backup-artifact-manifest-contract BACKUP-ARTIFACT-MANIFEST-CONTRACT-YYYYMMDD-HHMMSS-name
   $(basename "$0") backup-artifact-manifest-contract-summary
+  $(basename "$0") backup-artifact-manifest-dry-run BACKUP-ARTIFACT-MANIFEST-CONTRACT-YYYYMMDD-HHMMSS-name
+  $(basename "$0") backup-artifact-manifest-dry-runs
+  $(basename "$0") show-backup-artifact-manifest-dry-run BACKUP-ARTIFACT-MANIFEST-DRY-RUN-YYYYMMDD-HHMMSS-name
+  $(basename "$0") verify-backup-artifact-manifest-dry-run BACKUP-ARTIFACT-MANIFEST-DRY-RUN-YYYYMMDD-HHMMSS-name
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -590,6 +603,30 @@ cmd_backup_artifact_manifest_contract_summary() {
   need_cmd bash
   need_file "$BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT"
   bash "$BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT" summary "$@"
+}
+
+cmd_backup_artifact_manifest_dry_run() {
+  need_cmd bash
+  need_file "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT"
+  bash "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT" create "$@"
+}
+
+cmd_backup_artifact_manifest_dry_runs() {
+  need_cmd bash
+  need_file "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT"
+  bash "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT" list "$@"
+}
+
+cmd_show_backup_artifact_manifest_dry_run() {
+  need_cmd bash
+  need_file "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT"
+  bash "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT" show "$@"
+}
+
+cmd_verify_backup_artifact_manifest_dry_run() {
+  need_cmd bash
+  need_file "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT"
+  bash "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT" verify "$@"
 }
 
 cmd_status_json() {
@@ -1578,6 +1615,10 @@ main() {
     show-backup-artifact-manifest-contract) cmd_show_backup_artifact_manifest_contract "$@" ;;
     verify-backup-artifact-manifest-contract) cmd_verify_backup_artifact_manifest_contract "$@" ;;
     backup-artifact-manifest-contract-summary) cmd_backup_artifact_manifest_contract_summary "$@" ;;
+    backup-artifact-manifest-dry-run) cmd_backup_artifact_manifest_dry_run "$@" ;;
+    backup-artifact-manifest-dry-runs) cmd_backup_artifact_manifest_dry_runs "$@" ;;
+    show-backup-artifact-manifest-dry-run) cmd_show_backup_artifact_manifest_dry_run "$@" ;;
+    verify-backup-artifact-manifest-dry-run) cmd_verify_backup_artifact_manifest_dry_run "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;
