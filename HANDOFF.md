@@ -259,3 +259,11 @@ No worker-05 automatic traffic until explicit routing enablement.
 
 Memory and proposal history remain context only, not authorization.
 Rollback authority remains recorded_prechange_backup_only.
+
+Hardware lane update:
+- Worker-04 received the new Quadro P6000 24GB GPU, validated successfully, and remains the heavy primary.
+- Worker-05 memory was upgraded from 16GB to 32GB, but worker-05 remains standby/manual-only unless explicitly promoted in a later reviewed slice.
+- Worker-02 is the Dell Precision chassis with PSU/GPU power constraints: only 2x 6-pin GPU power is available.
+- The planned swap of worker-04's former 16GB GPU into worker-02, replacing the 6GB GPU, is blocked by worker-02 power constraints.
+- Worker-02 remains on the existing 6GB + 8GB GPU layout for now unless replaced.
+- Future expansion option: add worker-06 with the 16GB + 8GB GPUs, or replace worker-02 with a chassis/PSU that can support the intended GPU layout.
