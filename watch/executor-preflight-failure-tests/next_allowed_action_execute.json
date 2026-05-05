@@ -1,0 +1,65 @@
+{
+  "schema": "spot.plugin_request.v1",
+  "plugin_request_id": "NEGATIVE-TEST-next_allowed_action_execute",
+  "created_utc": "20260504-164220",
+  "linked_action_handoff": "ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core",
+  "linked_action_request": "ACTION-20260504-160153-read_only_diagnostic-spot-core",
+  "plugin_name": "read_only_status_probe",
+  "plugin_status_at_request": "disabled",
+  "action_class": "read_only_diagnostic",
+  "target": "spot-core",
+  "summary": "prepare non-executing handoff bridge test",
+  "risk_class": "low",
+  "request_status": "closed_no_execution",
+  "handoff_status_at_request": "closed_no_execution",
+  "registry_status": "locked_non_executing",
+  "policy_status": "locked",
+  "primary_rule": "no_backup_no_change",
+  "mutation_plugins_enabled": false,
+  "plugin_execution_enabled": false,
+  "plugin_execution_allowed": false,
+  "execution_allowed": false,
+  "mutation_allowed": false,
+  "mutation_performed": false,
+  "backup_required": false,
+  "backup_bound": false,
+  "backup_artifact": "pending",
+  "approval_required": false,
+  "rollback_required": false,
+  "rollback_authority": "recorded_prechange_backup_only",
+  "next_allowed_action": "execute",
+  "source_policy": "Spot_Autonomy_Policy_and_Safety_Model",
+  "execution_chain_required": {
+    "backup_required_before_mutation": true,
+    "backup_binding_required": true,
+    "precheck_required": true,
+    "postcheck_required": true,
+    "rollback_contract_required": true,
+    "append_only_action_log_required": true,
+    "freeform_shell_forbidden": true,
+    "network_mutation_forbidden": true,
+    "backup_delete_allowed": false,
+    "backup_overwrite_allowed": false
+  },
+  "notes": [
+    "This artifact is a non-executing plugin request.",
+    "This artifact does not authorize plugin execution.",
+    "This artifact does not perform mutation.",
+    "Plugin execution remains disabled by registry.",
+    "Future execution requires separate backup binding, validation, rollback, and explicit reviewed enablement."
+  ],
+  "review_approved_utc": "20260504-164555",
+  "lifecycle_history": [
+    {
+      "utc": "20260504-164555",
+      "from": "draft_non_executing",
+      "to": "review_approved_non_executing"
+    },
+    {
+      "utc": "20260504-164555",
+      "from": "review_approved_non_executing",
+      "to": "closed_no_execution"
+    }
+  ],
+  "closed_utc": "20260504-164555"
+}
