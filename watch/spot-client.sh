@@ -55,6 +55,7 @@ Usage:
   spot-client.sh worker05-status
   spot-client.sh worker05-verify
   spot-client.sh worker05-routing-guard
+  spot-client.sh worker05-ask <prompt>
   spot-client.sh approve-plugin-request <id-or-file>
   spot-client.sh reject-plugin-request <id-or-file>
   spot-client.sh close-plugin-request <id-or-file>
@@ -2554,6 +2555,62 @@ PYINNER
 }
 
 
+cmd_worker05_ask(){
+  local prompt="${*:-}"
+  [[ -n "$prompt" ]] || { echo "ERROR: prompt required" >&2; exit 2; }
+
+  cmd_worker05_verify >/dev/null
+  cmd_worker05_routing_guard >/dev/null
+
+  python3 - "$prompt" <<'PYINNER'
+import json
+import sys
+import urllib.request
+import urllib.error
+
+prompt = sys.argv[1]
+url = "http://spot-worker-05:11434/api/generate"
+
+payload = {
+    "model": "llama3.1:8b",
+    "prompt": prompt,
+    "stream": False
+}
+
+req = urllib.request.Request(
+    url,
+    data=json.dumps(payload).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+
+try:
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        body = resp.read().decode("utf-8")
+except urllib.error.URLError as e:
+    print(f"ERROR: worker-05 manual ask failed: {e}", file=sys.stderr)
+    raise SystemExit(1)
+
+try:
+    data = json.loads(body)
+except json.JSONDecodeError:
+    print("ERROR: worker-05 returned non-JSON response", file=sys.stderr)
+    print(body, file=sys.stderr)
+    raise SystemExit(1)
+
+if data.get("error"):
+    print(f"ERROR: worker-05 ollama error: {data.get('error')}", file=sys.stderr)
+    raise SystemExit(1)
+
+response = data.get("response")
+if not response:
+    print("ERROR: worker-05 returned empty response", file=sys.stderr)
+    raise SystemExit(1)
+
+print(response.strip())
+PYINNER
+}
+
 cmd_worker05_verify(){
   local inv="${BASE_DIR}/inventory/worker-05.json"
   [[ -f "$inv" ]] || { echo "ERROR: worker-05 inventory missing: $inv" >&2; exit 2; }
@@ -3091,5 +3148,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-summary) cmd_plugin_registry_summary "$@";; plugin-registry-audit) cmd_plugin_registry_audit "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-plugin-request) cmd_create_plugin_request "$@";; plugin-requests) cmd_plugin_requests "$@";; show-plugin-request) cmd_show_plugin_request "$@";; plugin-request-status) cmd_plugin_request_status "$@";; plugin-request-audit) cmd_plugin_request_audit "$@";; plugin-request-summary) cmd_plugin_request_summary "$@";; plugin-request-verify) cmd_plugin_request_verify "$@";; worker05-status) cmd_worker05_status "$@";; worker05-verify) cmd_worker05_verify "$@";; worker05-routing-guard) cmd_worker05_routing_guard "$@";; approve-plugin-request) cmd_approve_plugin_request "$@";; reject-plugin-request) cmd_reject_plugin_request "$@";; close-plugin-request) cmd_close_plugin_request "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-summary) cmd_plugin_registry_summary "$@";; plugin-registry-audit) cmd_plugin_registry_audit "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-plugin-request) cmd_create_plugin_request "$@";; plugin-requests) cmd_plugin_requests "$@";; show-plugin-request) cmd_show_plugin_request "$@";; plugin-request-status) cmd_plugin_request_status "$@";; plugin-request-audit) cmd_plugin_request_audit "$@";; plugin-request-summary) cmd_plugin_request_summary "$@";; plugin-request-verify) cmd_plugin_request_verify "$@";; worker05-status) cmd_worker05_status "$@";; worker05-verify) cmd_worker05_verify "$@";; worker05-routing-guard) cmd_worker05_routing_guard "$@";; worker05-ask) cmd_worker05_ask "$@";; approve-plugin-request) cmd_approve_plugin_request "$@";; reject-plugin-request) cmd_reject_plugin_request "$@";; close-plugin-request) cmd_close_plugin_request "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"
