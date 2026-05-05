@@ -3,6 +3,8 @@ set -Eeuo pipefail
 
 BASE_DIR="${BASE_DIR:-/home/ogre/spot-stack/watch}"
 DRY_RUN_DIR="${DRY_RUN_DIR:-${BASE_DIR}/backup-artifact-manifest-dry-runs}"
+STATE_DIR="${STATE_DIR:-${BASE_DIR}/state}"
+SUMMARY_FILE="${SUMMARY_FILE:-${STATE_DIR}/backup-artifact-manifest-dry-run-summary.json}"
 MANIFEST_CONTRACT_SCRIPT="${MANIFEST_CONTRACT_SCRIPT:-${BASE_DIR}/spot-backup-artifact-manifest-contract.sh}"
 
 usage() {
@@ -12,6 +14,7 @@ Usage:
   spot-backup-artifact-manifest-dry-run.sh verify <dry-run-id-or-file>
   spot-backup-artifact-manifest-dry-run.sh show <dry-run-id-or-file>
   spot-backup-artifact-manifest-dry-run.sh list [count]
+  spot-backup-artifact-manifest-dry-run.sh summary
 
 Phase 2.26 only:
 - simulates future backup artifact manifest generation
@@ -324,6 +327,130 @@ cmd_list() {
     | cut -d' ' -f2-
 }
 
+
+cmd_summary() {
+  need_cmd python3
+  mkdir -p "$DRY_RUN_DIR" "$STATE_DIR"
+
+  python3 - "$DRY_RUN_DIR" "$SUMMARY_FILE" <<'SUMMARY_PY'
+import json
+import sys
+from pathlib import Path
+from datetime import datetime, UTC
+
+dry_run_dir = Path(sys.argv[1])
+summary_file = Path(sys.argv[2])
+
+gate_keys = [
+    "live_source_files_read",
+    "live_source_files_hashed",
+    "backup_manifest_created",
+    "backup_artifact_created",
+    "checksum_generated",
+    "backup_creation_allowed",
+    "backup_binding_active",
+    "backup_verified",
+    "execution_allowed",
+    "mutation_allowed",
+    "mutation_performed",
+    "executor_dispatch_allowed",
+    "service_restart_allowed",
+    "config_write_allowed",
+    "network_mutation_allowed",
+]
+
+items = []
+for path in sorted(dry_run_dir.glob("BACKUP-ARTIFACT-MANIFEST-DRY-RUN-*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+    try:
+        data = json.loads(path.read_text())
+        gate = data.get("phase_2_26_dry_run_gate", {})
+        sim = data.get("simulated_manifest", {})
+        result = data.get("result", {})
+        item = {
+            "file": str(path),
+            "name": path.name,
+            "mtime": int(path.stat().st_mtime),
+            "schema": data.get("schema"),
+            "phase": data.get("phase"),
+            "created_utc": data.get("created_utc"),
+            "mode": data.get("mode"),
+            "dry_run_status": data.get("dry_run_status"),
+            "linked_backup_artifact_manifest_contract": data.get("linked_backup_artifact_manifest_contract"),
+            "linked_backup_binding_contract": data.get("linked_backup_binding_contract"),
+            "linked_executor_preflight": data.get("linked_executor_preflight"),
+            "linked_plugin_request": data.get("linked_plugin_request"),
+            "plugin_name": data.get("plugin_name"),
+            "action_class": data.get("action_class"),
+            "risk_class": data.get("risk_class"),
+            "ok": result.get("ok"),
+            "blocked": result.get("blocked"),
+            "reason": result.get("reason"),
+            "simulated_manifest_schema": sim.get("schema"),
+            "manifest_filename": sim.get("manifest_filename"),
+            "checksum_filename": sim.get("checksum_filename"),
+            "checksum_algorithm": sim.get("checksum_algorithm"),
+            "checksum_mode": sim.get("checksum_mode"),
+            "verification_result": sim.get("verification_result"),
+            "rollback_authority": sim.get("rollback_authority"),
+            "restore_without_recorded_artifact_allowed": sim.get("restore_without_recorded_artifact_allowed"),
+            "simulated_mutation_allowed": sim.get("mutation_allowed"),
+            "simulated_execution_allowed": sim.get("execution_allowed"),
+        }
+        for key in gate_keys:
+            item[key] = gate.get(key)
+        items.append(item)
+    except Exception as exc:
+        items.append({
+            "file": str(path),
+            "name": path.name,
+            "mtime": int(path.stat().st_mtime),
+            "parse_error": repr(exc),
+            "ok": False,
+            "blocked": None,
+        })
+
+def is_verified(item):
+    return (
+        item.get("schema") == "spot.backup_artifact_manifest_dry_run.v1"
+        and item.get("phase") == "2.26"
+        and item.get("mode") == "dry_run_simulation_only"
+        and item.get("dry_run_status") == "simulated_manifest_no_backup_creation"
+        and item.get("ok") is True
+        and item.get("blocked") is True
+        and item.get("simulated_manifest_schema") == "spot.backup_artifact_manifest.simulated.v1"
+        and item.get("manifest_filename") == "metadata.json"
+        and item.get("checksum_filename") == "SHA256SUMS"
+        and item.get("checksum_algorithm") == "sha256"
+        and item.get("checksum_mode") == "simulated_not_calculated"
+        and item.get("verification_result") == "not_verified_dry_run_only"
+        and item.get("rollback_authority") == "recorded_prechange_backup_only"
+        and item.get("restore_without_recorded_artifact_allowed") is False
+        and item.get("simulated_mutation_allowed") is False
+        and item.get("simulated_execution_allowed") is False
+        and all(item.get(key) is False for key in gate_keys)
+    )
+
+verified_items = [item for item in items if is_verified(item)]
+
+summary = {
+    "schema": "spot.backup_artifact_manifest_dry_run_summary.v1",
+    "created_utc": datetime.now(UTC).strftime("%Y%m%d-%H%M%S"),
+    "dry_run_dir": str(dry_run_dir),
+    "summary_file": str(summary_file),
+    "count": len(items),
+    "verified_count": len(verified_items),
+    "invalid_count": len(items) - len(verified_items),
+    "newest": items[0] if items else None,
+    "hard_gate_keys": gate_keys,
+    "all_known_dry_runs_simulated_only_blocked_and_non_mutating": len(items) == len(verified_items),
+    "items": items[:25],
+}
+
+summary_file.write_text(json.dumps(summary, indent=2) + "\n")
+print(json.dumps(summary, indent=2))
+SUMMARY_PY
+}
+
 main() {
   local cmd="${1:-}"
   shift || true
@@ -333,6 +460,7 @@ main() {
     verify) cmd_verify "$@" ;;
     show) cmd_show "$@" ;;
     list) cmd_list "$@" ;;
+    summary) cmd_summary "$@" ;;
     -h|--help|help|"") usage ;;
     *) echo "ERROR: unknown command: $cmd" >&2; usage >&2; exit 2 ;;
   esac

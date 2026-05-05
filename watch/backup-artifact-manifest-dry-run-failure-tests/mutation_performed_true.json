@@ -1,0 +1,100 @@
+{
+  "schema": "spot.backup_artifact_manifest_dry_run.v1",
+  "phase": "2.26",
+  "created_utc": "20260505-175200",
+  "mode": "dry_run_simulation_only",
+  "dry_run_status": "simulated_manifest_no_backup_creation",
+  "linked_backup_artifact_manifest_contract": "BACKUP-ARTIFACT-MANIFEST-CONTRACT-20260505-032211-BACKUP-BINDING-CONTRACT-20260505-031246-4a29a8134552.json",
+  "linked_backup_artifact_manifest_contract_file": "/home/ogre/spot-stack/watch/backup-artifact-manifest-contracts/BACKUP-ARTIFACT-MANIFEST-CONTRACT-20260505-032211-BACKUP-BINDING-CONTRACT-20260505-031246-4a29a8134552.json",
+  "linked_backup_binding_contract": "BACKUP-BINDING-CONTRACT-20260505-031246-EXECUTOR-PREFLIGHT-20260505-030346-PLUGIN-REQUEST-20260504-164220-read_only_status_probe-ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core.json",
+  "linked_executor_preflight": "EXECUTOR-PREFLIGHT-20260505-030346-PLUGIN-REQUEST-20260504-164220-read_only_status_probe-ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core.json",
+  "linked_plugin_request": "PLUGIN-REQUEST-20260504-164220-read_only_status_probe-ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core",
+  "linked_action_handoff": "ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core",
+  "linked_action_request": "ACTION-20260504-160153-read_only_diagnostic-spot-core",
+  "target": "spot-core",
+  "plugin_name": "read_only_status_probe",
+  "action_class": "read_only_diagnostic",
+  "risk_class": "low",
+  "simulated_manifest": {
+    "schema": "spot.backup_artifact_manifest.simulated.v1",
+    "manifest_filename": "metadata.json",
+    "checksum_filename": "SHA256SUMS",
+    "checksum_algorithm": "sha256",
+    "checksum_mode": "simulated_not_calculated",
+    "backup_artifact_path": "/mnt/collective/backups/<target>/<service>/<timestamp>/",
+    "artifact_inventory": [
+      {
+        "relative_path": "metadata.json",
+        "artifact_type": "manifest_design_placeholder",
+        "size_bytes": 0,
+        "sha256": "SIMULATED-NOT-CALCULATED",
+        "source_path": "SIMULATED-NO-LIVE-SOURCE-READ",
+        "capture_mode": "dry_run_placeholder"
+      },
+      {
+        "relative_path": "SHA256SUMS",
+        "artifact_type": "checksum_manifest_placeholder",
+        "size_bytes": 0,
+        "sha256": "SIMULATED-NOT-CALCULATED",
+        "source_path": "SIMULATED-NO-LIVE-SOURCE-READ",
+        "capture_mode": "dry_run_placeholder"
+      },
+      {
+        "relative_path": "prechange_files_or_state_snapshot/",
+        "artifact_type": "prechange_snapshot_placeholder",
+        "size_bytes": 0,
+        "sha256": "SIMULATED-NOT-CALCULATED",
+        "source_path": "SIMULATED-NO-LIVE-SOURCE-READ",
+        "capture_mode": "dry_run_placeholder"
+      }
+    ],
+    "verification_result": "not_verified_dry_run_only",
+    "rollback_authority": "recorded_prechange_backup_only",
+    "restore_without_recorded_artifact_allowed": false,
+    "mutation_allowed": false,
+    "execution_allowed": false
+  },
+  "source_contract_requirements_reflected": {
+    "required_manifest_fields_present_in_plan": true,
+    "required_artifact_inventory_fields_present_in_plan": true,
+    "required_verification_checks_reflected_in_plan": true,
+    "manifest_required_before_backup_binding": true,
+    "backup_delete_allowed": false,
+    "backup_overwrite_allowed": false
+  },
+  "phase_2_26_dry_run_gate": {
+    "dry_run_only": true,
+    "simulated_manifest_only": true,
+    "live_source_files_read": false,
+    "live_source_files_hashed": false,
+    "backup_manifest_created": false,
+    "backup_artifact_created": false,
+    "checksum_generated": false,
+    "backup_creation_allowed": false,
+    "backup_binding_active": false,
+    "backup_verified": false,
+    "execution_allowed": false,
+    "mutation_allowed": false,
+    "mutation_performed": true,
+    "executor_dispatch_allowed": false,
+    "service_restart_allowed": false,
+    "config_write_allowed": false,
+    "network_mutation_allowed": false
+  },
+  "result": {
+    "ok": true,
+    "blocked": true,
+    "reason": "phase_2_26_backup_artifact_manifest_dry_run_only_no_live_backup_creation"
+  },
+  "notes": [
+    "This artifact simulates future backup artifact manifest generation only.",
+    "This artifact does not read live source files.",
+    "This artifact does not hash live source files.",
+    "This artifact does not create metadata.json in a backup directory.",
+    "This artifact does not create SHA256SUMS in a backup directory.",
+    "This artifact does not create a backup.",
+    "This artifact does not bind a backup.",
+    "This artifact does not authorize execution.",
+    "Future live backup artifact creation requires a separate reviewed implementation slice."
+  ]
+}

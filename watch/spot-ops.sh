@@ -98,6 +98,8 @@ Operator commands:
                            Show simulated backup artifact manifest dry-run
   verify-backup-artifact-manifest-dry-run <id|file>
                            Verify simulated backup artifact manifest dry-run
+  backup-artifact-manifest-dry-run-summary
+                           Summarize simulated backup artifact manifest dry-runs
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -196,6 +198,7 @@ Examples:
   $(basename "$0") backup-artifact-manifest-dry-runs
   $(basename "$0") show-backup-artifact-manifest-dry-run BACKUP-ARTIFACT-MANIFEST-DRY-RUN-YYYYMMDD-HHMMSS-name
   $(basename "$0") verify-backup-artifact-manifest-dry-run BACKUP-ARTIFACT-MANIFEST-DRY-RUN-YYYYMMDD-HHMMSS-name
+  $(basename "$0") backup-artifact-manifest-dry-run-summary
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -627,6 +630,12 @@ cmd_verify_backup_artifact_manifest_dry_run() {
   need_cmd bash
   need_file "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT"
   bash "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT" verify "$@"
+}
+
+cmd_backup_artifact_manifest_dry_run_summary() {
+  need_cmd bash
+  need_file "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT"
+  bash "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT" summary "$@"
 }
 
 cmd_status_json() {
@@ -1619,6 +1628,7 @@ main() {
     backup-artifact-manifest-dry-runs) cmd_backup_artifact_manifest_dry_runs "$@" ;;
     show-backup-artifact-manifest-dry-run) cmd_show_backup_artifact_manifest_dry_run "$@" ;;
     verify-backup-artifact-manifest-dry-run) cmd_verify_backup_artifact_manifest_dry_run "$@" ;;
+    backup-artifact-manifest-dry-run-summary) cmd_backup_artifact_manifest_dry_run_summary "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;
