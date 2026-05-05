@@ -55,19 +55,20 @@ Carry-forward constraints:
 
 # PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: ACTIVE — NON-MUTATING CONTROL STACK COMPLETE THROUGH PHASE 2.24.
+Status: ACTIVE — NON-MUTATING CONTROL STACK COMPLETE THROUGH PHASE 2.28.
 
 Current active next slice:
 
-## Phase 2.26 — Backup artifact manifest implementation dry-run simulator
+## Phase 2.29 — Readiness gate decision checkpoint
 
 Status: NEXT.
 
 Allowed scope:
-- simulate future backup artifact manifest generation
-- produce dry-run manifest artifacts only
-- synthesize planned metadata and checksum inventory without reading or hashing live target files
-- verify linkage to backup artifact manifest contract
+- define a go/no-go readiness checkpoint for future live backup work
+- aggregate proof from executor preflight, backup-binding contract, manifest contract, and manifest dry-run lanes
+- verify all known summaries are clean
+- verify all failure-path harnesses pass
+- produce checkpoint artifact only
 - preserve dry-run only behavior
 - require all execution/mutation flags false
 - no service restarts
@@ -80,11 +81,11 @@ Allowed scope:
 
 Phase 2 remains a non-mutating control-plane build until a later reviewed slice explicitly enables narrow execution.
 
-Current checkpoint before Phase 2.26:
-- Phase 2.22 backup artifact manifest contract design implemented
-- Phase 2.23 backup artifact manifest operator surface implemented
-- Phase 2.24 backup artifact manifest summary/failure validation implemented and passed
-- latest checkpoint: `6aaa095 phase2: expose backup artifact manifest summary command`
+Current checkpoint before Phase 2.29:
+- Phase 2.26 backup artifact manifest dry-run simulator implemented
+- Phase 2.27 backup artifact manifest dry-run operator surface implemented
+- Phase 2.28 backup artifact manifest dry-run summary/failure validation implemented and passed
+- latest checkpoint: `11e9c38 phase2: add backup artifact manifest dry-run summary and failure validation`
 
 Completed Phase 2 slices:
 
@@ -172,6 +173,21 @@ Status: complete.
 
 Phase 2.24 added backup artifact manifest contract summary generation and `watch/spot-backup-artifact-manifest-contract-failure-test.sh`. The failure harness rejected unsafe manifest contract variants including live mode, created status, manifest/checksum filename drift, checksum algorithm drift, backup artifact creation, checksum generation, backup creation allowed, backup binding active, execution/mutation/dispatch enabled, and result not blocked.
 
+## Phase 2.26 — Backup artifact manifest implementation dry-run simulator
+Status: complete.
+
+Phase 2.26 added `watch/spot-backup-artifact-manifest-dry-run.sh` and the `watch/backup-artifact-manifest-dry-runs/` artifact lane. It simulates future backup artifact manifest generation without reading live source files, hashing live source files, creating manifests, creating backups, binding backups, or authorizing execution.
+
+## Phase 2.27 — Backup artifact manifest dry-run operator surface
+Status: complete.
+
+Phase 2.27 exposed backup artifact manifest dry-run create/list/show/verify through `watch/spot-ops.sh` and added an operator-surface proof artifact. All live file read, live hash, backup manifest creation, backup artifact creation, checksum generation, backup creation, backup binding, execution, mutation, and dispatch gates remain false.
+
+## Phase 2.28 — Backup artifact manifest dry-run summary/failure validation
+Status: complete.
+
+Phase 2.28 added backup artifact manifest dry-run summary generation and `watch/spot-backup-artifact-manifest-dry-run-failure-test.sh`. The failure harness rejected unsafe dry-run variants including live mode, live source file reads, live source file hashing, manifest creation, backup artifact creation, checksum generation, backup creation allowed, backup binding active, backup verified, execution/mutation/dispatch enabled, service restart/config write/network mutation enabled, and result not blocked.
+
 Current control chain:
 
 ```text
@@ -198,6 +214,9 @@ policy manifest
 -> backup artifact manifest contract design
 -> backup artifact manifest contract operator surface/summary
 -> backup artifact manifest contract failure-path validation
+-> backup artifact manifest dry-run simulator
+-> backup artifact manifest dry-run operator surface/summary
+-> backup artifact manifest dry-run failure-path validation
 ```
 
 Current hard limits:
@@ -321,7 +340,7 @@ PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
 Immediate next objective:
 
-PHASE 2.26 — Backup artifact manifest implementation dry-run simulator.
+PHASE 2.29 — Readiness gate decision checkpoint.
 
 Do not enable mutation plugins until a future reviewed slice implements backup binding, validation, rollback, append-only logs, and explicit plugin allowlist enforcement.
 

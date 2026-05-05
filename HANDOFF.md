@@ -14,7 +14,7 @@ Current active lane:
 - PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
 Phase 1.7 is complete and baseline locked.
-Phase 2.1 through Phase 2.24 are complete and non-mutating.
+Phase 2.1 through Phase 2.28 are complete and non-mutating.
 Worker-05 standby/manual integration is complete and non-routing.
 
 No active regression recovery is in progress.
@@ -77,6 +77,9 @@ Completed Phase 2 slices:
 - 2.22 backup artifact manifest contract design
 - 2.23 backup artifact manifest operator surface
 - 2.24 backup artifact manifest summary/failure validation
+- 2.26 backup artifact manifest implementation dry-run simulator
+- 2.27 backup artifact manifest dry-run operator surface
+- 2.28 backup artifact manifest dry-run summary/failure validation
 
 Current chain:
 
@@ -106,6 +109,9 @@ Current chain:
 24. backup artifact manifest contract design
 25. backup artifact manifest operator surface/summary
 26. backup artifact manifest failure-path validation
+27. backup artifact manifest dry-run simulator
+28. backup artifact manifest dry-run operator surface/summary
+29. backup artifact manifest dry-run failure-path validation
 
 This is still a control/audit chain only.
 
@@ -210,31 +216,34 @@ Resume Phase 2, not routing.
 
 Next slice:
 
-PHASE 2.26 — BACKUP ARTIFACT MANIFEST IMPLEMENTATION DRY-RUN SIMULATOR
+PHASE 2.29 — READINESS GATE DECISION CHECKPOINT
 
 Completed since prior handoff:
-- Phase 2.22 added the backup artifact manifest contract design artifact lane.
-- Phase 2.23 exposed backup artifact manifest contract create-design/list/show/verify through `watch/spot-ops.sh`.
-- Phase 2.24 added backup artifact manifest contract summary generation.
-- Phase 2.24 added failure-path validation and rejected 23 unsafe backup artifact manifest contract variants.
-- All execution/mutation/plugin dispatch/service restart/config write/network mutation/live backup creation/live backup binding/checksum generation gates remain false.
-- Successful backup artifact manifest contract artifacts report ok=true and blocked=true by design.
+- Phase 2.26 added the backup artifact manifest dry-run simulator artifact lane.
+- Phase 2.27 exposed backup artifact manifest dry-run create/list/show/verify through `watch/spot-ops.sh`.
+- Phase 2.28 added backup artifact manifest dry-run summary generation.
+- Phase 2.28 added failure-path validation and rejected 30 unsafe backup artifact manifest dry-run variants.
+- All execution/mutation/plugin dispatch/service restart/config write/network mutation/live file read/live hashing/live backup creation/live backup binding/checksum generation gates remain false.
+- Successful backup artifact manifest dry-run artifacts report ok=true and blocked=true by design.
 
 Recommended next scope:
-- simulate future backup artifact manifest generation
-- produce dry-run manifest artifacts only
-- synthesize planned metadata and checksum inventory without reading or hashing live target files
-- verify linkage to backup artifact manifest contract
+- define a go/no-go readiness checkpoint for future live backup work
+- aggregate proof from executor preflight, backup-binding contract, manifest contract, and manifest dry-run lanes
+- verify all known summaries are clean
+- verify all failure-path harnesses pass
+- produce checkpoint artifact only
 - preserve dry-run only behavior
 - no service restarts
 - no config writes
 - no network mutation
 - no live backup creation
 - no live backup binding
+- no live source file reads
+- no live source file hashing
 - no real checksum generation over live files
 - no executor dispatch
 
-Do not proceed to live backup creation, live backup binding, checksum generation over live files, or real executor behavior until the dry-run manifest simulator is committed and validated as a non-mutating artifact.
+Do not proceed to live backup creation, live backup binding, checksum generation over live files, live source file reads, live source file hashing, or real executor behavior until the readiness gate checkpoint is committed and reviewed.
 
 ---
 

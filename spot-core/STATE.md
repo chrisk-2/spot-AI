@@ -30,11 +30,11 @@ Known condition:
 
 PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.24
+Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.28
 
 Immediate next active step while waiting for worker-04 GPU hardware:
 
-PHASE 2.26 — BACKUP ARTIFACT MANIFEST IMPLEMENTATION DRY-RUN SIMULATOR
+PHASE 2.29 — READINESS GATE DECISION CHECKPOINT
 
 Goal:
 - Continue completing Phase 2 control-plane work.
@@ -79,6 +79,9 @@ Current safety posture:
 - Phase 2.22 — Backup artifact manifest contract design
 - Phase 2.23 — Backup artifact manifest operator surface
 - Phase 2.24 — Backup artifact manifest summary/failure validation
+- Phase 2.26 — Backup artifact manifest implementation dry-run simulator
+- Phase 2.27 — Backup artifact manifest dry-run operator surface
+- Phase 2.28 — Backup artifact manifest dry-run summary/failure validation
 
 ---
 
@@ -112,6 +115,9 @@ Current non-executing control chain:
 24. Backup artifact manifest contract design
 25. Backup artifact manifest operator surface/summary
 26. Backup artifact manifest failure-path validation
+27. Backup artifact manifest dry-run simulator
+28. Backup artifact manifest dry-run operator surface/summary
+29. Backup artifact manifest dry-run failure-path validation
 
 This is a control and audit stack only.
 It does not dispatch plugins.
@@ -221,19 +227,20 @@ Do not promote worker-05 to automatic routing just because worker-04 hardware ch
 
 Next active Phase 2 work:
 
-PHASE 2.26 — BACKUP ARTIFACT MANIFEST IMPLEMENTATION DRY-RUN SIMULATOR
+PHASE 2.29 — READINESS GATE DECISION CHECKPOINT
 
 Completed since last state checkpoint:
-- Phase 2.22 added backup artifact manifest contract design artifacts.
-- Phase 2.23 exposed backup artifact manifest contract commands through the operator surface.
-- Phase 2.24 added backup artifact manifest contract summary generation and rejected 23 unsafe manifest contract variants.
-- Latest manifest summary confirmed known manifest contracts are design-only, blocked, and non-mutating.
+- Phase 2.26 added backup artifact manifest dry-run simulator artifacts.
+- Phase 2.27 exposed backup artifact manifest dry-run commands through the operator surface.
+- Phase 2.28 added backup artifact manifest dry-run summary generation and rejected 30 unsafe dry-run variants.
+- Latest dry-run summary confirmed known dry-runs are simulated-only, blocked, and non-mutating.
 
 Recommended scope:
-- simulate future backup artifact manifest generation
-- produce dry-run manifest artifacts only
-- synthesize planned metadata and checksum inventory without reading or hashing live target files
-- verify linkage to backup artifact manifest contract
+- define a go/no-go readiness checkpoint for future live backup work
+- aggregate proof from executor preflight, backup-binding contract, manifest contract, and manifest dry-run lanes
+- verify all known summaries are clean
+- verify all failure-path harnesses pass
+- produce checkpoint artifact only
 - preserve dry-run only behavior
 - require all execution/mutation flags false
 - no service restarts
