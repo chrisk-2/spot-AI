@@ -30,11 +30,11 @@ Known condition:
 
 PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.13
+Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.14
 
 Immediate next active step while waiting for worker-04 GPU hardware:
 
-PHASE 2.14 — EXECUTOR DRY-RUN PREFLIGHT CONTRACT
+PHASE 2.15 — EXECUTOR PREFLIGHT LIFECYCLE/OPERATOR SURFACE
 
 Goal:
 - Continue completing Phase 2 control-plane work.
@@ -70,6 +70,7 @@ Current safety posture:
 - Phase 2.11 — Plugin registry audit/summary
 - Phase 2.12 — Non-executing plugin request artifacts
 - Phase 2.13 — Plugin request lifecycle/audit
+- Phase 2.14 — Executor dry-run preflight contract
 
 ---
 
@@ -94,6 +95,7 @@ Current non-executing control chain:
 15. Plugin request verifier
 16. Plugin request lifecycle
 17. Plugin request audit/summary
+18. Executor dry-run preflight contract
 
 This is a control and audit stack only.
 It does not dispatch plugins.
@@ -203,20 +205,18 @@ Do not promote worker-05 to automatic routing just because worker-04 hardware ch
 
 Next active Phase 2 work:
 
-PHASE 2.14 — EXECUTOR DRY-RUN PREFLIGHT CONTRACT
+PHASE 2.15 — EXECUTOR PREFLIGHT LIFECYCLE/OPERATOR SURFACE
 
 Recommended scope:
-- define executor preflight contract artifact
-- require plugin request verification
-- require plugin registry verification
-- require action policy verification
-- require dry-run only
+- expose executor preflight create/list/show/verify through the operator surface
+- add lifecycle/audit visibility for executor preflight artifacts
+- preserve dry-run only behavior
 - require all execution/mutation flags false
-- produce preflight artifact only
 - no service restarts
 - no config writes
 - no network mutation
 - no backup binding for mutation yet
+- no executor dispatch
 
 Do not enable mutation plugins until a future reviewed slice explicitly implements:
 - backup binding

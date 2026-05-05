@@ -14,7 +14,7 @@ Current active lane:
 - PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
 Phase 1.7 is complete and baseline locked.
-Phase 2.1 through Phase 2.13 are complete and non-mutating.
+Phase 2.1 through Phase 2.14 are complete and non-mutating.
 Worker-05 standby/manual integration is complete and non-routing.
 
 No active regression recovery is in progress.
@@ -68,6 +68,7 @@ Completed Phase 2 slices:
 - 2.11 plugin registry audit/summary
 - 2.12 non-executing plugin request artifacts
 - 2.13 plugin request lifecycle/audit
+- 2.14 executor dry-run preflight contract
 
 Current chain:
 
@@ -88,6 +89,7 @@ Current chain:
 15. plugin request verifier
 16. plugin request lifecycle
 17. plugin request audit/summary
+18. executor dry-run preflight contract
 
 This is still a control/audit chain only.
 
@@ -192,22 +194,26 @@ Resume Phase 2, not routing.
 
 Next slice:
 
-PHASE 2.14 — EXECUTOR DRY-RUN PREFLIGHT CONTRACT
+PHASE 2.15 — EXECUTOR PREFLIGHT LIFECYCLE/OPERATOR SURFACE
 
-Recommended scope:
-- define executor preflight contract artifact
-- require plugin request verification
-- require plugin registry verification
-- require action policy verification
-- require dry-run only
-- require all execution/mutation flags false
-- produce preflight artifact only
+Phase 2.14 completed:
+- `watch/spot-executor-preflight.sh`
+- `watch/executor-preflights/` artifact lane
+- verified preflight artifact generated from the known read_only_status_probe plugin request
+- all execution/mutation/plugin dispatch/service restart/config write/network mutation/backup binding gates remain false
+- successful preflight artifact reports ok=true and blocked=true by design
+
+Recommended next scope:
+- expose executor preflight create/list/show/verify through the operator surface
+- add lifecycle/audit visibility for executor preflight artifacts
+- preserve dry-run only behavior
 - no service restarts
 - no config writes
 - no network mutation
 - no backup binding for mutation yet
+- no executor dispatch
 
-Do not proceed to real executor behavior until dry-run preflight contract is committed and validated.
+Do not proceed to real executor behavior until the operator-visible preflight lifecycle is committed and validated.
 
 ---
 
