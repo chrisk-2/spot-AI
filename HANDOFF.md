@@ -14,7 +14,7 @@ Current active lane:
 - PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
 Phase 1.7 is complete and baseline locked.
-Phase 2.1 through Phase 2.14 are complete and non-mutating.
+Phase 2.1 through Phase 2.16 are complete and non-mutating.
 Worker-05 standby/manual integration is complete and non-routing.
 
 No active regression recovery is in progress.
@@ -69,6 +69,8 @@ Completed Phase 2 slices:
 - 2.12 non-executing plugin request artifacts
 - 2.13 plugin request lifecycle/audit
 - 2.14 executor dry-run preflight contract
+- 2.15 executor preflight lifecycle/operator surface
+- 2.16 executor preflight failure-path validation
 
 Current chain:
 
@@ -90,6 +92,8 @@ Current chain:
 16. plugin request lifecycle
 17. plugin request audit/summary
 18. executor dry-run preflight contract
+19. executor preflight lifecycle/operator surface
+20. executor preflight failure-path validation
 
 This is still a control/audit chain only.
 
@@ -194,26 +198,29 @@ Resume Phase 2, not routing.
 
 Next slice:
 
-PHASE 2.15 — EXECUTOR PREFLIGHT LIFECYCLE/OPERATOR SURFACE
+PHASE 2.18 — BACKUP-BINDING CONTRACT DESIGN
 
-Phase 2.14 completed:
-- `watch/spot-executor-preflight.sh`
-- `watch/executor-preflights/` artifact lane
-- verified preflight artifact generated from the known read_only_status_probe plugin request
-- all execution/mutation/plugin dispatch/service restart/config write/network mutation/backup binding gates remain false
-- successful preflight artifact reports ok=true and blocked=true by design
+Completed since prior handoff:
+- Phase 2.14 added the dry-run executor preflight contract artifact lane.
+- Phase 2.15 exposed executor preflight create/list/show/verify through `watch/spot-ops.sh`.
+- Phase 2.15 added executor preflight summary generation.
+- Phase 2.16 added failure-path validation and rejected unsafe plugin request variants.
+- All execution/mutation/plugin dispatch/service restart/config write/network mutation/backup binding gates remain false.
+- Successful preflight artifacts report ok=true and blocked=true by design.
 
 Recommended next scope:
-- expose executor preflight create/list/show/verify through the operator surface
-- add lifecycle/audit visibility for executor preflight artifacts
+- design the backup-binding contract artifact only
+- define required fields for future backup binding
+- define verification expectations for future backup artifacts
+- define rollback-authority references
 - preserve dry-run only behavior
 - no service restarts
 - no config writes
 - no network mutation
-- no backup binding for mutation yet
+- no live backup binding yet
 - no executor dispatch
 
-Do not proceed to real executor behavior until the operator-visible preflight lifecycle is committed and validated.
+Do not proceed to live backup binding or real executor behavior until the backup-binding contract is committed and validated as a non-mutating artifact.
 
 ---
 

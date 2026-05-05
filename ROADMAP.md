@@ -55,30 +55,34 @@ Carry-forward constraints:
 
 # PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: ACTIVE — NON-MUTATING CONTROL STACK COMPLETE THROUGH PHASE 2.14.
+Status: ACTIVE — NON-MUTATING CONTROL STACK COMPLETE THROUGH PHASE 2.16.
 
 Current active next slice:
 
-## Phase 2.15 — Executor preflight lifecycle/operator surface
+## Phase 2.18 — Backup-binding contract design
 
 Status: NEXT.
 
 Allowed scope:
-- expose executor preflight create/list/show/verify through the operator surface
-- add lifecycle/audit visibility for executor preflight artifacts
+- design the backup-binding contract artifact only
+- define required fields for future backup binding
+- define verification expectations for future backup artifacts
+- define rollback-authority references
 - preserve dry-run only behavior
 - require all execution/mutation flags false
 - no service restarts
 - no config writes
 - no network mutation
-- no backup binding for mutation yet
+- no live backup binding yet
 - no executor dispatch
 
 Phase 2 remains a non-mutating control-plane build until a later reviewed slice explicitly enables narrow execution.
 
-Current checkpoint before Phase 2.15:
+Current checkpoint before Phase 2.18:
 - Phase 2.14 executor dry-run preflight contract implemented and locally verified
-- artifact proof: `watch/executor-preflights/EXECUTOR-PREFLIGHT-20260505-020652-PLUGIN-REQUEST-20260504-164220-read_only_status_probe-ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core.json`
+- Phase 2.15 executor preflight operator surface and audit summary implemented
+- Phase 2.16 executor preflight failure-path validation implemented and passed
+- latest checkpoint: `a95ca78 phase2: add executor preflight failure-path validation`
 
 Completed Phase 2 slices:
 
@@ -126,6 +130,16 @@ Status: complete.
 
 Phase 2.14 added `watch/spot-executor-preflight.sh` and the `watch/executor-preflights/` artifact lane. It verifies the plugin request, plugin registry, and action policy before producing a dry-run-only executor preflight artifact. Successful Phase 2.14 preflight artifacts intentionally report `ok=true` and `blocked=true` while keeping execution, mutation, plugin dispatch, service restart, config write, network mutation, and backup binding disabled.
 
+## Phase 2.15 — Executor preflight lifecycle/operator surface
+Status: complete.
+
+Phase 2.15 exposed executor preflight create/list/show/verify through `watch/spot-ops.sh`, added operator-surface proof, and added executor preflight audit summary generation. The summary confirms known preflight artifacts are blocked and non-mutating.
+
+## Phase 2.16 — Executor preflight failure-path validation
+Status: complete.
+
+Phase 2.16 added `watch/spot-executor-preflight-failure-test.sh` and negative fixtures proving unsafe plugin request variants are rejected before preflight artifact creation. Rejected cases include execution enabled, mutation enabled, mutation performed, backup already bound, unknown plugin, bad schema, and non-closed request status.
+
 Current control chain:
 
 ```text
@@ -144,6 +158,8 @@ policy manifest
 -> plugin request
 -> plugin request verifier/lifecycle/audit
 -> executor dry-run preflight contract
+-> executor preflight operator surface/audit summary
+-> executor preflight failure-path validation
 ```
 
 Current hard limits:
@@ -267,7 +283,7 @@ PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
 Immediate next objective:
 
-PHASE 2.15 — Executor preflight lifecycle/operator surface.
+PHASE 2.18 — Backup-binding contract design.
 
 Do not enable mutation plugins until a future reviewed slice implements backup binding, validation, rollback, append-only logs, and explicit plugin allowlist enforcement.
 

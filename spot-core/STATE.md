@@ -30,11 +30,11 @@ Known condition:
 
 PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.14
+Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.16
 
 Immediate next active step while waiting for worker-04 GPU hardware:
 
-PHASE 2.15 — EXECUTOR PREFLIGHT LIFECYCLE/OPERATOR SURFACE
+PHASE 2.18 — BACKUP-BINDING CONTRACT DESIGN
 
 Goal:
 - Continue completing Phase 2 control-plane work.
@@ -71,6 +71,8 @@ Current safety posture:
 - Phase 2.12 — Non-executing plugin request artifacts
 - Phase 2.13 — Plugin request lifecycle/audit
 - Phase 2.14 — Executor dry-run preflight contract
+- Phase 2.15 — Executor preflight lifecycle/operator surface
+- Phase 2.16 — Executor preflight failure-path validation
 
 ---
 
@@ -96,6 +98,8 @@ Current non-executing control chain:
 16. Plugin request lifecycle
 17. Plugin request audit/summary
 18. Executor dry-run preflight contract
+19. Executor preflight lifecycle/operator surface
+20. Executor preflight failure-path validation
 
 This is a control and audit stack only.
 It does not dispatch plugins.
@@ -205,17 +209,24 @@ Do not promote worker-05 to automatic routing just because worker-04 hardware ch
 
 Next active Phase 2 work:
 
-PHASE 2.15 — EXECUTOR PREFLIGHT LIFECYCLE/OPERATOR SURFACE
+PHASE 2.18 — BACKUP-BINDING CONTRACT DESIGN
+
+Completed since last state checkpoint:
+- Phase 2.15 exposed executor preflight create/list/show/verify through the operator surface.
+- Phase 2.15 added executor preflight audit summary generation.
+- Phase 2.16 added failure-path validation and rejected 9 unsafe plugin request variants.
 
 Recommended scope:
-- expose executor preflight create/list/show/verify through the operator surface
-- add lifecycle/audit visibility for executor preflight artifacts
+- design the backup-binding contract artifact only
+- define required fields for future backup binding
+- define verification expectations for future backup artifacts
+- define rollback-authority references
 - preserve dry-run only behavior
 - require all execution/mutation flags false
 - no service restarts
 - no config writes
 - no network mutation
-- no backup binding for mutation yet
+- no live backup binding yet
 - no executor dispatch
 
 Do not enable mutation plugins until a future reviewed slice explicitly implements:
