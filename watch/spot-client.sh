@@ -54,6 +54,7 @@ Usage:
   spot-client.sh plugin-request-verify <id-or-file>
   spot-client.sh worker05-status
   spot-client.sh worker05-verify
+  spot-client.sh worker05-routing-guard
   spot-client.sh approve-plugin-request <id-or-file>
   spot-client.sh reject-plugin-request <id-or-file>
   spot-client.sh close-plugin-request <id-or-file>
@@ -2470,6 +2471,89 @@ if gpu:
 PYINNER
 }
 
+cmd_worker05_routing_guard(){
+  local inv="${BASE_DIR}/inventory/worker-05.json"
+  local cfg="${BASE_DIR}/../spot-core/config/cluster_config.json"
+  [[ -f "$inv" ]] || { echo "ERROR: worker-05 inventory missing: $inv" >&2; exit 2; }
+  [[ -f "$cfg" ]] || { echo "ERROR: cluster config missing: $cfg" >&2; exit 2; }
+
+  python3 - "$inv" "$cfg" <<'PYINNER'
+import json
+import sys
+from pathlib import Path
+
+inv = json.loads(Path(sys.argv[1]).read_text())
+cfg = json.loads(Path(sys.argv[2]).read_text())
+fail = []
+warn = []
+
+worker = "spot-worker-05"
+
+def expect(path, actual, expected):
+    if actual != expected:
+        fail.append(f"{path} must be {expected!r}, got {actual!r}")
+
+expect("inventory.worker_id", inv.get("worker_id"), worker)
+expect("inventory.routing_enabled", inv.get("routing_enabled"), False)
+expect("inventory.production_role", inv.get("production_role"), "none")
+expect("inventory.commission_status", inv.get("commission_status"), "gpu_validated_pre_routing")
+expect("inventory.primary", inv.get("primary"), False)
+expect("inventory.standby", inv.get("standby"), True)
+expect("inventory.burst_candidate", inv.get("burst_candidate"), True)
+expect("inventory.fallback_candidate", inv.get("fallback_candidate"), True)
+
+role_priority = cfg.get("role_priority", {})
+if not isinstance(role_priority, dict) or not role_priority:
+    fail.append("role_priority map not found in cluster_config.json")
+
+expected_primary_by_role = {
+    "general": "spot-worker-01",
+    "utility": "spot-worker-02",
+    "coding": "spot-worker-03",
+    "heavy": "spot-worker-04",
+}
+
+for role, expected_primary in expected_primary_by_role.items():
+    workers = role_priority.get(role)
+    if not isinstance(workers, list) or not workers:
+        fail.append(f"role_priority.{role} must be a non-empty list")
+        continue
+
+    actual_primary = workers[0]
+    if actual_primary != expected_primary:
+        fail.append(f"primary drift: role_priority.{role}[0] expected {expected_primary}, got {actual_primary}")
+
+    if worker in workers:
+        fail.append(f"worker-05 must not be in active role_priority.{role} while routing_enabled=false")
+
+workers_map = cfg.get("workers", {})
+if worker in workers_map:
+    fail.append("worker-05 must not be in active workers map until explicit routing-registration slice")
+
+burst_policy = cfg.get("burst_policy", {})
+if isinstance(burst_policy, dict) and worker in burst_policy:
+    fail.append("worker-05 must not be in active burst_policy until explicit burst test slice")
+
+warm_targets = cfg.get("warm_model_policy", {}).get("targets", [])
+if isinstance(warm_targets, list):
+    for idx, target in enumerate(warm_targets):
+        if isinstance(target, dict) and target.get("worker") == worker:
+            fail.append(f"worker-05 must not be in warm_model_policy.targets[{idx}] before routing enablement")
+
+for item in warn:
+    print(f"[WARN] {item}")
+for item in fail:
+    print(f"[FAIL] {item}")
+
+if fail:
+    print(f"RESULT: FAIL worker05_routing_guard fail={len(fail)} warn={len(warn)}")
+    raise SystemExit(1)
+
+print("RESULT: PASS worker05_routing_guard routing_enabled=false primary=false production_role=none")
+PYINNER
+}
+
+
 cmd_worker05_verify(){
   local inv="${BASE_DIR}/inventory/worker-05.json"
   [[ -f "$inv" ]] || { echo "ERROR: worker-05 inventory missing: $inv" >&2; exit 2; }
@@ -3007,5 +3091,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-summary) cmd_plugin_registry_summary "$@";; plugin-registry-audit) cmd_plugin_registry_audit "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-plugin-request) cmd_create_plugin_request "$@";; plugin-requests) cmd_plugin_requests "$@";; show-plugin-request) cmd_show_plugin_request "$@";; plugin-request-status) cmd_plugin_request_status "$@";; plugin-request-audit) cmd_plugin_request_audit "$@";; plugin-request-summary) cmd_plugin_request_summary "$@";; plugin-request-verify) cmd_plugin_request_verify "$@";; worker05-status) cmd_worker05_status "$@";; worker05-verify) cmd_worker05_verify "$@";; approve-plugin-request) cmd_approve_plugin_request "$@";; reject-plugin-request) cmd_reject_plugin_request "$@";; close-plugin-request) cmd_close_plugin_request "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-summary) cmd_plugin_registry_summary "$@";; plugin-registry-audit) cmd_plugin_registry_audit "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-plugin-request) cmd_create_plugin_request "$@";; plugin-requests) cmd_plugin_requests "$@";; show-plugin-request) cmd_show_plugin_request "$@";; plugin-request-status) cmd_plugin_request_status "$@";; plugin-request-audit) cmd_plugin_request_audit "$@";; plugin-request-summary) cmd_plugin_request_summary "$@";; plugin-request-verify) cmd_plugin_request_verify "$@";; worker05-status) cmd_worker05_status "$@";; worker05-verify) cmd_worker05_verify "$@";; worker05-routing-guard) cmd_worker05_routing_guard "$@";; approve-plugin-request) cmd_approve_plugin_request "$@";; reject-plugin-request) cmd_reject_plugin_request "$@";; close-plugin-request) cmd_close_plugin_request "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"

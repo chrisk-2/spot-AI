@@ -21,6 +21,14 @@
     "Worker-05 is commissioned as a validated standby node.",
     "Worker-05 is not part of production Spot routing yet.",
     "No production role assigned.",
-    "Cluster routing must be changed only in a separate reviewed slice."
-  ]
+    "Cluster routing must be changed only in a separate reviewed slice.",
+    "Designated heavy-secondary standby node.",
+    "Burst and fallback candidate only after explicit tested routing slice.",
+    "Must not be role owner or active priority worker while routing_enabled=false."
+  ],
+  "role": "heavy-secondary",
+  "standby": true,
+  "burst_candidate": true,
+  "fallback_candidate": true,
+  "primary": false
 }
