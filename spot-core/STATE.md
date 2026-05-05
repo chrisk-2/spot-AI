@@ -30,11 +30,11 @@ Known condition:
 
 PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.16
+Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.20
 
 Immediate next active step while waiting for worker-04 GPU hardware:
 
-PHASE 2.18 — BACKUP-BINDING CONTRACT DESIGN
+PHASE 2.22 — BACKUP ARTIFACT MANIFEST CONTRACT DESIGN
 
 Goal:
 - Continue completing Phase 2 control-plane work.
@@ -73,6 +73,9 @@ Current safety posture:
 - Phase 2.14 — Executor dry-run preflight contract
 - Phase 2.15 — Executor preflight lifecycle/operator surface
 - Phase 2.16 — Executor preflight failure-path validation
+- Phase 2.18 — Backup-binding contract design
+- Phase 2.19 — Backup-binding contract operator surface
+- Phase 2.20 — Backup-binding contract summary/failure validation
 
 ---
 
@@ -100,6 +103,9 @@ Current non-executing control chain:
 18. Executor dry-run preflight contract
 19. Executor preflight lifecycle/operator surface
 20. Executor preflight failure-path validation
+21. Backup-binding contract design
+22. Backup-binding contract operator surface/summary
+23. Backup-binding contract failure-path validation
 
 This is a control and audit stack only.
 It does not dispatch plugins.
@@ -209,24 +215,26 @@ Do not promote worker-05 to automatic routing just because worker-04 hardware ch
 
 Next active Phase 2 work:
 
-PHASE 2.18 — BACKUP-BINDING CONTRACT DESIGN
+PHASE 2.22 — BACKUP ARTIFACT MANIFEST CONTRACT DESIGN
 
 Completed since last state checkpoint:
-- Phase 2.15 exposed executor preflight create/list/show/verify through the operator surface.
-- Phase 2.15 added executor preflight audit summary generation.
-- Phase 2.16 added failure-path validation and rejected 9 unsafe plugin request variants.
+- Phase 2.18 added backup-binding contract design artifacts.
+- Phase 2.19 exposed backup-binding contract commands through the operator surface.
+- Phase 2.20 added backup-binding contract summary generation and rejected 15 unsafe contract variants.
+- Latest backup-binding summary confirmed known contracts are design-only, blocked, and non-mutating.
 
 Recommended scope:
-- design the backup-binding contract artifact only
-- define required fields for future backup binding
-- define verification expectations for future backup artifacts
-- define rollback-authority references
+- design the backup artifact manifest contract only
+- define required metadata fields for future backup artifacts
+- define checksum/verification expectations
+- define prechange artifact inventory requirements
 - preserve dry-run only behavior
 - require all execution/mutation flags false
 - no service restarts
 - no config writes
 - no network mutation
-- no live backup binding yet
+- no live backup creation
+- no live backup binding
 - no executor dispatch
 
 Do not enable mutation plugins until a future reviewed slice explicitly implements:

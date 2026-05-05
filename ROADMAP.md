@@ -55,34 +55,35 @@ Carry-forward constraints:
 
 # PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: ACTIVE — NON-MUTATING CONTROL STACK COMPLETE THROUGH PHASE 2.16.
+Status: ACTIVE — NON-MUTATING CONTROL STACK COMPLETE THROUGH PHASE 2.20.
 
 Current active next slice:
 
-## Phase 2.18 — Backup-binding contract design
+## Phase 2.22 — Backup artifact manifest contract design
 
 Status: NEXT.
 
 Allowed scope:
-- design the backup-binding contract artifact only
-- define required fields for future backup binding
-- define verification expectations for future backup artifacts
-- define rollback-authority references
+- design the backup artifact manifest contract only
+- define required metadata fields for future backup artifacts
+- define checksum/verification expectations
+- define prechange artifact inventory requirements
 - preserve dry-run only behavior
 - require all execution/mutation flags false
 - no service restarts
 - no config writes
 - no network mutation
-- no live backup binding yet
+- no live backup creation
+- no live backup binding
 - no executor dispatch
 
 Phase 2 remains a non-mutating control-plane build until a later reviewed slice explicitly enables narrow execution.
 
-Current checkpoint before Phase 2.18:
-- Phase 2.14 executor dry-run preflight contract implemented and locally verified
-- Phase 2.15 executor preflight operator surface and audit summary implemented
-- Phase 2.16 executor preflight failure-path validation implemented and passed
-- latest checkpoint: `a95ca78 phase2: add executor preflight failure-path validation`
+Current checkpoint before Phase 2.22:
+- Phase 2.18 backup-binding contract design implemented
+- Phase 2.19 backup-binding contract operator surface implemented
+- Phase 2.20 backup-binding contract summary/failure validation implemented and passed
+- latest checkpoint: `4f88b81 phase2: add backup-binding contract summary and failure validation`
 
 Completed Phase 2 slices:
 
@@ -140,6 +141,21 @@ Status: complete.
 
 Phase 2.16 added `watch/spot-executor-preflight-failure-test.sh` and negative fixtures proving unsafe plugin request variants are rejected before preflight artifact creation. Rejected cases include execution enabled, mutation enabled, mutation performed, backup already bound, unknown plugin, bad schema, and non-closed request status.
 
+## Phase 2.18 — Backup-binding contract design
+Status: complete.
+
+Phase 2.18 added `watch/spot-backup-binding-contract.sh` and the `watch/backup-binding-contracts/` artifact lane. It defines future backup-binding contract shape only. Generated contracts are design-only, blocked, non-mutating, and explicitly do not create or bind backups.
+
+## Phase 2.19 — Backup-binding contract operator surface
+Status: complete.
+
+Phase 2.19 exposed backup-binding contract create-design/list/show/verify through `watch/spot-ops.sh` and added an operator-surface proof artifact. All backup creation, live binding, execution, mutation, and dispatch gates remain false.
+
+## Phase 2.20 — Backup-binding contract summary/failure validation
+Status: complete.
+
+Phase 2.20 added backup-binding contract summary generation and `watch/spot-backup-binding-contract-failure-test.sh`. The failure harness rejected unsafe contract variants including live mode, bound status, backup creation allowed, backup binding active, execution/mutation/dispatch enabled, backup delete/overwrite allowed, bad rollback authority, and result not blocked.
+
 Current control chain:
 
 ```text
@@ -160,6 +176,9 @@ policy manifest
 -> executor dry-run preflight contract
 -> executor preflight operator surface/audit summary
 -> executor preflight failure-path validation
+-> backup-binding contract design
+-> backup-binding contract operator surface/summary
+-> backup-binding contract failure-path validation
 ```
 
 Current hard limits:
@@ -283,7 +302,7 @@ PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
 Immediate next objective:
 
-PHASE 2.18 — Backup-binding contract design.
+PHASE 2.22 — Backup artifact manifest contract design.
 
 Do not enable mutation plugins until a future reviewed slice implements backup binding, validation, rollback, append-only logs, and explicit plugin allowlist enforcement.
 

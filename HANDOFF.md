@@ -14,7 +14,7 @@ Current active lane:
 - PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
 Phase 1.7 is complete and baseline locked.
-Phase 2.1 through Phase 2.16 are complete and non-mutating.
+Phase 2.1 through Phase 2.20 are complete and non-mutating.
 Worker-05 standby/manual integration is complete and non-routing.
 
 No active regression recovery is in progress.
@@ -71,6 +71,9 @@ Completed Phase 2 slices:
 - 2.14 executor dry-run preflight contract
 - 2.15 executor preflight lifecycle/operator surface
 - 2.16 executor preflight failure-path validation
+- 2.18 backup-binding contract design
+- 2.19 backup-binding contract operator surface
+- 2.20 backup-binding contract summary/failure validation
 
 Current chain:
 
@@ -94,6 +97,9 @@ Current chain:
 18. executor dry-run preflight contract
 19. executor preflight lifecycle/operator surface
 20. executor preflight failure-path validation
+21. backup-binding contract design
+22. backup-binding contract operator surface/summary
+23. backup-binding contract failure-path validation
 
 This is still a control/audit chain only.
 
@@ -198,29 +204,30 @@ Resume Phase 2, not routing.
 
 Next slice:
 
-PHASE 2.18 — BACKUP-BINDING CONTRACT DESIGN
+PHASE 2.22 — BACKUP ARTIFACT MANIFEST CONTRACT DESIGN
 
 Completed since prior handoff:
-- Phase 2.14 added the dry-run executor preflight contract artifact lane.
-- Phase 2.15 exposed executor preflight create/list/show/verify through `watch/spot-ops.sh`.
-- Phase 2.15 added executor preflight summary generation.
-- Phase 2.16 added failure-path validation and rejected unsafe plugin request variants.
-- All execution/mutation/plugin dispatch/service restart/config write/network mutation/backup binding gates remain false.
-- Successful preflight artifacts report ok=true and blocked=true by design.
+- Phase 2.18 added the backup-binding contract design artifact lane.
+- Phase 2.19 exposed backup-binding contract create-design/list/show/verify through `watch/spot-ops.sh`.
+- Phase 2.20 added backup-binding contract summary generation.
+- Phase 2.20 added failure-path validation and rejected 15 unsafe backup-binding contract variants.
+- All execution/mutation/plugin dispatch/service restart/config write/network mutation/live backup creation/live backup binding gates remain false.
+- Successful backup-binding contract artifacts report ok=true and blocked=true by design.
 
 Recommended next scope:
-- design the backup-binding contract artifact only
-- define required fields for future backup binding
-- define verification expectations for future backup artifacts
-- define rollback-authority references
+- design the backup artifact manifest contract only
+- define required metadata fields for future backup artifacts
+- define checksum/verification expectations
+- define prechange artifact inventory requirements
 - preserve dry-run only behavior
 - no service restarts
 - no config writes
 - no network mutation
-- no live backup binding yet
+- no live backup creation
+- no live backup binding
 - no executor dispatch
 
-Do not proceed to live backup binding or real executor behavior until the backup-binding contract is committed and validated as a non-mutating artifact.
+Do not proceed to live backup creation, live backup binding, or real executor behavior until the backup artifact manifest contract is committed and validated as a non-mutating artifact.
 
 ---
 
