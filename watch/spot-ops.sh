@@ -7,6 +7,7 @@ LOG_DIR="${LOG_DIR:-${BASE_DIR}/logs}"
 SPOT_BASE_URL="${SPOT_BASE_URL:-http://127.0.0.1:8787}"
 SELF_HEAL_SCRIPT="${SELF_HEAL_SCRIPT:-${BASE_DIR}/spot-self-heal.sh}"
 EXECUTOR_PREFLIGHT_SCRIPT="${EXECUTOR_PREFLIGHT_SCRIPT:-${BASE_DIR}/spot-executor-preflight.sh}"
+BACKUP_BINDING_CONTRACT_SCRIPT="${BACKUP_BINDING_CONTRACT_SCRIPT:-${BASE_DIR}/spot-backup-binding-contract.sh}"
 VALIDATOR="${VALIDATOR:-${BASE_DIR}/fleet-validate.sh}"
 FLEET_STATUS_FILE="${FLEET_STATUS_FILE:-${STATE_DIR}/fleet-status.json}"
 AUDIT_SUMMARY_FILE="${AUDIT_SUMMARY_FILE:-${STATE_DIR}/routing-audit-summary.json}"
@@ -67,6 +68,14 @@ Operator commands:
                            Verify dry-run-only executor preflight artifact
   executor-preflight-summary
                            Summarize dry-run-only executor preflight artifacts
+  backup-binding-contract <executor-preflight-id|file>
+                           Create design-only backup-binding contract artifact
+  backup-binding-contracts [count]
+                           List design-only backup-binding contract artifacts
+  show-backup-binding-contract <id|file>
+                           Show design-only backup-binding contract artifact
+  verify-backup-binding-contract <id|file>
+                           Verify design-only backup-binding contract artifact
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -151,6 +160,10 @@ Examples:
   $(basename "$0") show-executor-preflight EXECUTOR-PREFLIGHT-YYYYMMDD-HHMMSS-name
   $(basename "$0") verify-executor-preflight EXECUTOR-PREFLIGHT-YYYYMMDD-HHMMSS-name
   $(basename "$0") executor-preflight-summary
+  $(basename "$0") backup-binding-contract EXECUTOR-PREFLIGHT-YYYYMMDD-HHMMSS-name
+  $(basename "$0") backup-binding-contracts
+  $(basename "$0") show-backup-binding-contract BACKUP-BINDING-CONTRACT-YYYYMMDD-HHMMSS-name
+  $(basename "$0") verify-backup-binding-contract BACKUP-BINDING-CONTRACT-YYYYMMDD-HHMMSS-name
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -498,6 +511,30 @@ cmd_executor_preflight_summary() {
   need_cmd bash
   need_file "$EXECUTOR_PREFLIGHT_SCRIPT"
   bash "$EXECUTOR_PREFLIGHT_SCRIPT" summary "$@"
+}
+
+cmd_backup_binding_contract() {
+  need_cmd bash
+  need_file "$BACKUP_BINDING_CONTRACT_SCRIPT"
+  bash "$BACKUP_BINDING_CONTRACT_SCRIPT" create-design "$@"
+}
+
+cmd_backup_binding_contracts() {
+  need_cmd bash
+  need_file "$BACKUP_BINDING_CONTRACT_SCRIPT"
+  bash "$BACKUP_BINDING_CONTRACT_SCRIPT" list "$@"
+}
+
+cmd_show_backup_binding_contract() {
+  need_cmd bash
+  need_file "$BACKUP_BINDING_CONTRACT_SCRIPT"
+  bash "$BACKUP_BINDING_CONTRACT_SCRIPT" show "$@"
+}
+
+cmd_verify_backup_binding_contract() {
+  need_cmd bash
+  need_file "$BACKUP_BINDING_CONTRACT_SCRIPT"
+  bash "$BACKUP_BINDING_CONTRACT_SCRIPT" verify "$@"
 }
 
 cmd_status_json() {
@@ -1476,6 +1513,10 @@ main() {
     show-executor-preflight) cmd_show_executor_preflight "$@" ;;
     verify-executor-preflight) cmd_verify_executor_preflight "$@" ;;
     executor-preflight-summary) cmd_executor_preflight_summary "$@" ;;
+    backup-binding-contract) cmd_backup_binding_contract "$@" ;;
+    backup-binding-contracts) cmd_backup_binding_contracts "$@" ;;
+    show-backup-binding-contract) cmd_show_backup_binding_contract "$@" ;;
+    verify-backup-binding-contract) cmd_verify_backup_binding_contract "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;
