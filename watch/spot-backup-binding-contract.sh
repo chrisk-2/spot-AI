@@ -3,6 +3,8 @@ set -Eeuo pipefail
 
 BASE_DIR="${BASE_DIR:-/home/ogre/spot-stack/watch}"
 CONTRACT_DIR="${CONTRACT_DIR:-${BASE_DIR}/backup-binding-contracts}"
+STATE_DIR="${STATE_DIR:-${BASE_DIR}/state}"
+SUMMARY_FILE="${SUMMARY_FILE:-${STATE_DIR}/backup-binding-contract-summary.json}"
 PREFLIGHT_SCRIPT="${PREFLIGHT_SCRIPT:-${BASE_DIR}/spot-executor-preflight.sh}"
 
 usage() {
@@ -12,6 +14,7 @@ Usage:
   spot-backup-binding-contract.sh verify <contract-id-or-file>
   spot-backup-binding-contract.sh show <contract-id-or-file>
   spot-backup-binding-contract.sh list [count]
+  spot-backup-binding-contract.sh summary
 
 Phase 2.18 only:
 - designs future backup-binding contract artifacts
@@ -278,6 +281,111 @@ cmd_list() {
     | cut -d' ' -f2-
 }
 
+
+cmd_summary() {
+  need_cmd python3
+  mkdir -p "$CONTRACT_DIR" "$STATE_DIR"
+
+  python3 - "$CONTRACT_DIR" "$SUMMARY_FILE" <<'SUMMARY_PY'
+import json
+import sys
+from pathlib import Path
+from datetime import datetime, UTC
+
+contract_dir = Path(sys.argv[1])
+summary_file = Path(sys.argv[2])
+
+gate_keys = [
+    "backup_creation_allowed",
+    "backup_binding_active",
+    "backup_verified",
+    "execution_allowed",
+    "mutation_allowed",
+    "mutation_performed",
+    "executor_dispatch_allowed",
+    "service_restart_allowed",
+    "config_write_allowed",
+    "network_mutation_allowed",
+]
+
+items = []
+for path in sorted(contract_dir.glob("BACKUP-BINDING-CONTRACT-*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+    try:
+        data = json.loads(path.read_text())
+        gate = data.get("phase_2_18_design_gate", {})
+        future = data.get("future_backup_contract", {})
+        result = data.get("result", {})
+        item = {
+            "file": str(path),
+            "name": path.name,
+            "mtime": int(path.stat().st_mtime),
+            "schema": data.get("schema"),
+            "phase": data.get("phase"),
+            "created_utc": data.get("created_utc"),
+            "mode": data.get("mode"),
+            "contract_status": data.get("contract_status"),
+            "linked_executor_preflight": data.get("linked_executor_preflight"),
+            "linked_plugin_request": data.get("linked_plugin_request"),
+            "plugin_name": data.get("plugin_name"),
+            "action_class": data.get("action_class"),
+            "risk_class": data.get("risk_class"),
+            "ok": result.get("ok"),
+            "blocked": result.get("blocked"),
+            "reason": result.get("reason"),
+            "backup_required_before_mutation": future.get("backup_required_before_mutation"),
+            "rollback_authority": future.get("rollback_authority"),
+            "backup_delete_allowed": future.get("backup_delete_allowed"),
+            "backup_overwrite_allowed": future.get("backup_overwrite_allowed"),
+        }
+        for key in gate_keys:
+            item[key] = gate.get(key)
+        items.append(item)
+    except Exception as exc:
+        items.append({
+            "file": str(path),
+            "name": path.name,
+            "mtime": int(path.stat().st_mtime),
+            "parse_error": repr(exc),
+            "ok": False,
+            "blocked": None,
+        })
+
+def is_verified(item):
+    return (
+        item.get("schema") == "spot.backup_binding_contract.v1"
+        and item.get("phase") == "2.18"
+        and item.get("mode") == "contract_design_only"
+        and item.get("contract_status") == "draft_design_no_binding"
+        and item.get("ok") is True
+        and item.get("blocked") is True
+        and item.get("backup_required_before_mutation") is True
+        and item.get("rollback_authority") == "recorded_prechange_backup_only"
+        and item.get("backup_delete_allowed") is False
+        and item.get("backup_overwrite_allowed") is False
+        and all(item.get(key) is False for key in gate_keys)
+    )
+
+verified_items = [item for item in items if is_verified(item)]
+
+summary = {
+    "schema": "spot.backup_binding_contract_summary.v1",
+    "created_utc": datetime.now(UTC).strftime("%Y%m%d-%H%M%S"),
+    "contract_dir": str(contract_dir),
+    "summary_file": str(summary_file),
+    "count": len(items),
+    "verified_count": len(verified_items),
+    "invalid_count": len(items) - len(verified_items),
+    "newest": items[0] if items else None,
+    "hard_gate_keys": gate_keys,
+    "all_known_contracts_design_only_blocked_and_non_mutating": len(items) == len(verified_items),
+    "items": items[:25],
+}
+
+summary_file.write_text(json.dumps(summary, indent=2) + "\n")
+print(json.dumps(summary, indent=2))
+SUMMARY_PY
+}
+
 main() {
   local cmd="${1:-}"
   shift || true
@@ -287,6 +395,7 @@ main() {
     verify) cmd_verify "$@" ;;
     show) cmd_show "$@" ;;
     list) cmd_list "$@" ;;
+    summary) cmd_summary "$@" ;;
     -h|--help|help|"") usage ;;
     *) echo "ERROR: unknown command: $cmd" >&2; usage >&2; exit 2 ;;
   esac

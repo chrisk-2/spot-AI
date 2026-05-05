@@ -1,0 +1,79 @@
+{
+  "schema": "spot.backup_binding_contract.v1",
+  "phase": "2.18",
+  "created_utc": "20260505-031246",
+  "mode": "contract_design_only",
+  "contract_status": "draft_design_no_binding",
+  "linked_executor_preflight": "EXECUTOR-PREFLIGHT-20260505-030346-PLUGIN-REQUEST-20260504-164220-read_only_status_probe-ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core.json",
+  "linked_executor_preflight_file": "/home/ogre/spot-stack/watch/executor-preflights/EXECUTOR-PREFLIGHT-20260505-030346-PLUGIN-REQUEST-20260504-164220-read_only_status_probe-ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core.json",
+  "linked_plugin_request": "PLUGIN-REQUEST-20260504-164220-read_only_status_probe-ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core",
+  "linked_action_handoff": "ACTION-HANDOFF-20260504-160158-ACTION-20260504-160153-read_only_diagnostic-spot-core",
+  "linked_action_request": "ACTION-20260504-160153-read_only_diagnostic-spot-core",
+  "target": "spot-core",
+  "plugin_name": "read_only_status_probe",
+  "action_class": "read_only_diagnostic",
+  "risk_class": "low",
+  "future_backup_contract": {
+    "backup_required_before_mutation": true,
+    "backup_root_required": "/mnt/collective/backups/",
+    "target_path_template": "/mnt/collective/backups/<target>/<service>/<timestamp>/",
+    "required_artifacts": [
+      "metadata.json",
+      "SHA256SUMS",
+      "prechange_files_or_state_snapshot",
+      "linked_executor_preflight",
+      "linked_backup_binding_contract"
+    ],
+    "required_metadata_fields": [
+      "created_utc",
+      "target",
+      "service",
+      "action_class",
+      "risk_class",
+      "source_policy",
+      "executor_preflight_file",
+      "backup_artifact_path",
+      "checksum_file",
+      "verification_result",
+      "rollback_authority"
+    ],
+    "verification_requirements": [
+      "backup_directory_exists",
+      "required_artifacts_present",
+      "metadata_json_valid",
+      "sha256sums_valid",
+      "backup_path_readable",
+      "backup_path_recorded_before_execution"
+    ],
+    "rollback_authority": "recorded_prechange_backup_only",
+    "restore_without_recorded_artifact_allowed": false,
+    "backup_delete_allowed": false,
+    "backup_overwrite_allowed": false
+  },
+  "phase_2_18_design_gate": {
+    "design_only": true,
+    "backup_creation_allowed": true,
+    "backup_binding_active": false,
+    "backup_verified": false,
+    "execution_allowed": false,
+    "mutation_allowed": false,
+    "mutation_performed": false,
+    "executor_dispatch_allowed": false,
+    "service_restart_allowed": false,
+    "config_write_allowed": false,
+    "network_mutation_allowed": false
+  },
+  "result": {
+    "ok": true,
+    "blocked": true,
+    "reason": "phase_2_18_backup_binding_contract_design_only_no_live_binding"
+  },
+  "notes": [
+    "This artifact defines the future backup-binding contract shape only.",
+    "This artifact does not create a backup.",
+    "This artifact does not bind a backup.",
+    "This artifact does not authorize execution.",
+    "This artifact does not perform mutation.",
+    "Future live backup binding requires a separate reviewed implementation slice."
+  ]
+}

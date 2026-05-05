@@ -76,6 +76,8 @@ Operator commands:
                            Show design-only backup-binding contract artifact
   verify-backup-binding-contract <id|file>
                            Verify design-only backup-binding contract artifact
+  backup-binding-contract-summary
+                           Summarize design-only backup-binding contract artifacts
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -164,6 +166,7 @@ Examples:
   $(basename "$0") backup-binding-contracts
   $(basename "$0") show-backup-binding-contract BACKUP-BINDING-CONTRACT-YYYYMMDD-HHMMSS-name
   $(basename "$0") verify-backup-binding-contract BACKUP-BINDING-CONTRACT-YYYYMMDD-HHMMSS-name
+  $(basename "$0") backup-binding-contract-summary
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -535,6 +538,12 @@ cmd_verify_backup_binding_contract() {
   need_cmd bash
   need_file "$BACKUP_BINDING_CONTRACT_SCRIPT"
   bash "$BACKUP_BINDING_CONTRACT_SCRIPT" verify "$@"
+}
+
+cmd_backup_binding_contract_summary() {
+  need_cmd bash
+  need_file "$BACKUP_BINDING_CONTRACT_SCRIPT"
+  bash "$BACKUP_BINDING_CONTRACT_SCRIPT" summary "$@"
 }
 
 cmd_status_json() {
@@ -1517,6 +1526,7 @@ main() {
     backup-binding-contracts) cmd_backup_binding_contracts "$@" ;;
     show-backup-binding-contract) cmd_show_backup_binding_contract "$@" ;;
     verify-backup-binding-contract) cmd_verify_backup_binding_contract "$@" ;;
+    backup-binding-contract-summary) cmd_backup_binding_contract_summary "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;
