@@ -201,7 +201,7 @@
       ],
       "gpu_routes": {
         "gpu0": {
-          "label": "worker-02 ollama lane",
+          "label": "worker-02 utility lane: Quadro M4000 8GB + GTX 1060 6GB",
           "max_total": 1,
           "classes": [
             "utility",
@@ -312,7 +312,7 @@
       ],
       "gpu_routes": {
         "gpu0": {
-          "label": "TITAN Xp 12GB",
+          "label": "Quadro P6000 24GB",
           "max_total": 1,
           "classes": [
             "heavy"
