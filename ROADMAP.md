@@ -361,3 +361,106 @@ Hardware metadata checkpoint:
 - Worker-02 is the Dell Precision chassis with Quadro M4000 8GB + GTX 1060 6GB.
 - Worker-02 PSU/GPU power constraints block the planned installation of worker-04's former 16GB GPU; worker-02 remains on the existing 8GB + 6GB layout unless replaced.
 - Worker-02 numeric CUDA indexing is unreliable for pinning; use GPU UUIDs if pinning is needed.
+## Starfleet Fleet Layout Update — 7 Worker Target
+
+Current target layout after hardware shuffle:
+
+| Worker | Target role | Target hardware / notes |
+|---|---|---|
+| spot-worker-01 | General Prime | EPYC 4245P, 32GB RAM, RTX 3060 12GB. Keep as general primary. |
+| spot-worker-02 | Aux / Embeddings / Lab | Dell Precision T3610, Xeon E5-1620 v2, Quadro M4000 8GB + GTX 1060 6GB. Demote from primary utility after worker-06 validates. Keep for embeddings, low-risk services, lab, and fallback. |
+| spot-worker-03 | Coding Prime | Ryzen 7 2700X, 32GB RAM, GTX 1070 8GB + RTX 3060 12GB. Keep as coding primary. |
+| spot-worker-04 | Heavy Prime | i7-13700KF, 64GB RAM, Quadro P6000 24GB. Primary heavy / premium inference lane. |
+| spot-worker-05 | Spot UI Visual / Render Node | Receives 12GB GPU after P6000 transfer. Use for Spot UI 3D, visual rendering, map/dashboard graphics, experimental UI workloads. Not primary inference. |
+| spot-worker-06 | Utility Prime Candidate | New Z97/i5-4570 box, 32GB RAM, currently 8GB + 4GB GPU for initial validation. Future likely 8GB + Quadro M4000 8GB if worker-02 is demoted and transplant is validated. |
+| spot-worker-07 | Heavy Secondary Candidate | i9-9900K / Z390 class, 64GB RAM planned, receives Quadro P6000 24GB from worker-05. Heavy secondary / overflow premium lane after validation. |
+
+Routing intent after validation:
+- General owner remains spot-worker-01.
+- Coding owner remains spot-worker-03.
+- Heavy owner remains spot-worker-04 initially.
+- Heavy secondary adds spot-worker-07 after validation.
+- Utility owner migrates from spot-worker-02 to spot-worker-06 only after worker-06 passes live validation.
+- spot-worker-02 becomes aux/embeddings/lab, not dead/retired.
+- spot-worker-05 becomes visual/render support for Spot UI, not standby-only.
+
+Hardware guardrails:
+- Do not cannibalize worker-02 until worker-06 passes Linux, NVIDIA, Ollama, thermal, PSU, and uptime validation.
+- Do not promote worker-07 until P6000 fitment, power, thermals, driver, Ollama, and heavy smoke tests pass.
+- Do not change Spot routing ownership until the new node has clean validation artifacts.
+- Treat existing worker-04 P6000 state as current truth; older worker-04 TITAN Xp references are stale.
+- Numeric CUDA indexing is unreliable on worker-02; use GPU UUID if pinning is required.
+
+## New Worker Onboarding Checklist — worker-06 / worker-07
+
+Before routing changes, each new worker must pass:
+
+1. OS / identity
+   - Ubuntu Server installed
+   - hostname set correctly
+   - static DHCP / DNS reservation planned
+   - SSH key access from spot-core working
+
+2. Hardware visibility
+   - CPU confirmed with `lscpu`
+   - RAM confirmed with `free -h`
+   - GPUs confirmed with `lspci` and `nvidia-smi`
+   - storage confirmed with `lsblk`
+   - PSU/cooling inspected physically
+
+3. NVIDIA / Ollama
+   - NVIDIA driver loaded
+   - `nvidia-smi` clean
+   - `nvidia-persistenced` active
+   - Ollama installed and active
+   - Ollama sees intended GPU(s)
+   - no numeric CUDA pinning unless proven safe; prefer UUID pinning
+
+4. Network / mounts
+   - reachable from spot-core
+   - `curl http://<worker>:11434/api/tags` works from spot-core
+   - `/mnt/collective` mounted if required
+   - DNS/search domain behavior checked
+
+5. Smoke tests
+   - local Ollama generate works
+   - remote Ollama generate from spot-core works
+   - GPU memory and thermals stay sane
+   - no zombie runners
+   - reboot returns cleanly
+
+6. Spot integration
+   - add worker to cluster config only after validation
+   - keep route ownership unchanged until validation passes
+   - run `watch/spot-ops.sh validate`
+   - confirm routing audit labels and role ownership
+   - commit config/docs before activation
+
+Worker-specific notes:
+- worker-06 starts as utility prime candidate. Do not replace worker-02 as utility owner until worker-06 proves stable.
+- worker-07 starts as heavy secondary candidate. Do not add as heavy route until P6000 validation passes.
+
+## Phase 2 Closeout Direction
+
+Current Phase 2 status:
+- Phase 2.1 through Phase 2.29 are complete and non-mutating.
+- Phase 2.29 readiness gate returned GO_FOR_DESIGN_REVIEW_ONLY.
+- Live backup creation remains forbidden until a separate reviewed design slice is completed.
+- Current next autonomy lane is design-only: live backup creation design review.
+- Before deeper autonomy work, align fleet hardware documentation and onboard worker-06 / worker-07 safely.
+
+Immediate priority order:
+1. Update fleet support docs for 7-worker target layout.
+2. Validate worker-06 as utility prime candidate.
+3. Validate worker-07 as heavy secondary candidate.
+4. Update cluster config only after validation.
+5. Run HANDOFF-SPOT-INTEGRATION.md.
+6. Run HANDOFF-CODEX-INTEGRATION.md.
+7. Then resume Spot UI / visual lane using worker-05 as visual/render node.
+
+Phase 2 must not proceed to live backup creation implementation until:
+- design review is committed,
+- backup target allowlist is defined,
+- immutable backup artifact behavior is verified,
+- restore/rollback proof exists,
+- operator approval flow is explicit.
