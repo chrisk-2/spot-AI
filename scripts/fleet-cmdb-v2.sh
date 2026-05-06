@@ -17,6 +17,11 @@ HOSTS=(
   "spot-worker-03|192.168.10.13|ENGINEERING|6|Worker node"
   "spot-worker-04|192.168.10.14|ENGINEERING|8|Worker node"
   "spot-worker-05|192.168.10.15|ENGINEERING||Worker node"
+  "spot-core|192.168.60.30|INFRASTRUCTURE|24|Primary orchestrator"
+  "dns-core|192.168.60.10|INFRASTRUCTURE|22|Primary DNS / AdGuard"
+  "starfleet-core|192.168.60.20|INFRASTRUCTURE|21|NPM + UniFi + Secondary DNS + NTP"
+  "starfleet-tower|192.168.30.5|SECTION 31|13|Homarr / Portainer / Uptime Kuma / Glances / Netdata"
+  "sentinel-core|192.168.1.3|HOUSE||Proxmox host"
 )
 
 collect_host() {
@@ -29,15 +34,33 @@ collect_host() {
   if ! ssh -o BatchMode=yes -o ConnectTimeout=8 "$host" "true" >/dev/null 2>&1; then
     cat > "$json" <<EOF
 {
-  "hostname": "$host",
-  "ip": "$ip",
-  "category": "$category",
-  "switch_port": "$switch_port",
-  "description": "$description",
-  "reachable": false,
-  "collected_at": "$(date -Is)"
+  "identity": {
+    "hostname": "$host",
+    "reported_hostname": "$host",
+    "ip": "$ip",
+    "category": "$category",
+    "switch_port": "$switch_port",
+    "description": "$description",
+    "reachable": false,
+    "collected_at": "$(date -Is)"
+  },
+  "system": {},
+  "cpu": {},
+  "memory": {},
+  "network": {},
+  "storage": {},
+  "gpu": {
+    "summary": [],
+    "topology": []
+  },
+  "services": {},
+  "ollama": {
+    "models": []
+  },
+  "thermal": {}
 }
 EOF
+
     echo "WARN: $host unreachable"
     return 0
   fi
