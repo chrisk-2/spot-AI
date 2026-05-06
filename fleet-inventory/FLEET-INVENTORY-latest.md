@@ -1,0 +1,18 @@
+# Starfleet Fleet Inventory — 20260506-235242
+
+| Host | IP | Reachable | CPU | RAM | GPU | Ollama | Models |
+|---|---:|---:|---|---:|---|---:|---|
+| spot-ui-01 | 192.168.10.12 | True | 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz | 30Gi |  | inactive |  |
+| spot-worker-01 | 192.168.10.10 | True | AMD EPYC 4245P 6-Core Processor | 30Gi | 0, NVIDIA GeForce RTX 3060, GPU-3fe10587-6253-1847-40c7-b1a5ba3c1a56, 00000000:01:00.0, 12288, 535.288.01, 38, 16.28, 170.00 | active | qwen2.5-coder:7b 4.7 GB;qwen2.5:14b 9.0 GB llama3.1:8b 4.9 GB;mistral:7b 4.4 GB |
+| spot-worker-02 | 192.168.10.11 | True | Intel(R) Xeon(R) CPU E5-1620 v2 @ 3.70GHz | 31Gi | 0, Quadro M4000, GPU-df37cf4b-9f71-6aa8-43b7-ab55693fdef1, 00000000:02:00.0, 8192, 535.288.01, 44, 12.51, 120.00;1, NVIDIA GeForce GTX 1060 6GB, GPU-4ec68a12-f832-487e-9e8b-531d3de4795b, 00000000:03:00.0, 6144, 535.288.01, 44, 5.91, 120.00 | active | phi3.5:latest 2.2 GB;nomic-embed-text:latest 274 MB bge-m3:latest 1.2 GB |
+| spot-worker-03 | 192.168.10.13 | True | AMD Ryzen 7 2700X Eight-Core Processor | 31Gi | 0, NVIDIA GeForce GTX 1070, GPU-3a66bdad-85a1-0f7a-5048-30508862e003, 00000000:05:00.0, 8192, 580.126.09, 35, 8.05, 151.00;1, NVIDIA GeForce RTX 3060, GPU-b647d860-02c8-2c3c-a99c-ae0800e7a349, 00000000:06:00.0, 12288, 580.126.09, 36, 15.82, 170.00 | active | codellama:7b 3.8 GB;deepseek-coder:6.7b 3.8 GB qwen2.5:14b 9.0 GB;qwen2.5-coder:7b 4.7 GB |
+| spot-worker-04 | 192.168.10.14 | True | 13th Gen Intel(R) Core(TM) i7-13700KF | 62Gi | 0, Quadro P6000, GPU-1a54a95a-f9cb-08ea-ef40-bf3cb8a54af7, 00000000:01:00.0, 24576, 580.126.09, 25, 8.90, 250.00 | active | qwen2.5:14b 9.0 GB |
+| spot-worker-05 | 192.168.10.15 | True | Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz | 31Gi | 0, Quadro P6000, GPU-9f013ff4-9576-674f-e630-47af0308820a, 00000000:01:00.0, 23040, 535.288.01, 36, 55.88, 250.00 | active | llama3.1:8b 4.9 GB |
+| spot-worker-06 | 192.168.10.16 | False |  |  |  |  |  |
+| spot-worker-07 | 192.168.10.17 | False |  |  |  |  |  |
+
+## Notes
+- Collection is read-only.
+- Unreachable hosts are recorded instead of blocking the run.
+- Raw SSH output is stored under `raw/`.
+- Per-host JSON is stored under `json/`.
