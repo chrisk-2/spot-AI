@@ -353,3 +353,11 @@ Hardware lane update:
 - The planned swap of worker-04's former 16GB GPU into worker-02, replacing the 6GB GPU, is blocked by worker-02 power constraints.
 - Worker-02 remains on the existing 6GB + 8GB GPU layout for now unless replaced.
 - Future expansion option: add worker-06 with the 16GB + 8GB GPUs, or replace worker-02 with a chassis/PSU that can support the intended GPU layout.
+
+Hardware metadata checkpoint:
+- Worker-04 received the Quadro P6000 24GB GPU, validated successfully, and remains the heavy primary.
+- Worker-04 routing/config label should be Quadro P6000 24GB, replacing the stale TITAN Xp 12GB label.
+- Worker-05 RAM was upgraded from 16GB to 32GB, but worker-05 remains standby/manual-only unless explicitly promoted in a later reviewed slice.
+- Worker-02 is the Dell Precision chassis with Quadro M4000 8GB + GTX 1060 6GB.
+- Worker-02 PSU/GPU power constraints block the planned installation of worker-04's former 16GB GPU; worker-02 remains on the existing 8GB + 6GB layout unless replaced.
+- Worker-02 numeric CUDA indexing is unreliable for pinning; use GPU UUIDs if pinning is needed.
