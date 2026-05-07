@@ -32,8 +32,10 @@ cmd_verify() {
   local missing
   missing="$(
     jq -r --slurpfile schema "$SCHEMA_FILE" '
-      $schema[0].required_fields[]
-      | select(has(.) | not)
+      . as $contract
+      | $schema[0].required_fields[]
+      | . as $field
+      | select(($contract | has($field)) | not)
     ' "$file"
   )"
 

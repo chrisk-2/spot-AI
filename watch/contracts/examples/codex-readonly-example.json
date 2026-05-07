@@ -1,0 +1,20 @@
+{
+  "task_id": "task-20260507-example-readonly",
+  "created_utc": "2026-05-07T15:15:00Z",
+  "requester": "operator",
+  "executor_type": "codex",
+  "target_worker": "spot-worker-03",
+  "task_summary": "Inspect validation scripts and summarize findings.",
+  "risk_class": "read_only",
+  "mode": "inspect_only",
+  "capabilities_required": [
+    "coding",
+    "codex_runner"
+  ],
+  "rollback_required": false,
+  "validation_required": false,
+  "live_write_allowed": false,
+  "service_restart_allowed": false,
+  "network_mutation_allowed": false,
+  "requires_spot_core_apply": false
+}
