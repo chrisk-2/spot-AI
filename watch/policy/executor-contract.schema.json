@@ -1,0 +1,46 @@
+{
+  "schema": "spot.executor_contract_schema.v1",
+  "purpose": "Defines the required envelope for future controlled executor tasks, including Codex tasks.",
+  "required_fields": [
+    "task_id",
+    "created_utc",
+    "requester",
+    "executor_type",
+    "target_worker",
+    "task_summary",
+    "risk_class",
+    "mode",
+    "capabilities_required",
+    "rollback_required",
+    "validation_required",
+    "live_write_allowed",
+    "service_restart_allowed",
+    "network_mutation_allowed",
+    "requires_spot_core_apply"
+  ],
+  "allowed_executor_types": [
+    "codex",
+    "shell_plugin",
+    "service_action"
+  ],
+  "allowed_risk_classes": [
+    "read_only",
+    "low",
+    "medium",
+    "high"
+  ],
+  "allowed_modes": [
+    "inspect_only",
+    "patch_only",
+    "dry_run",
+    "spot_core_apply"
+  ],
+  "hard_rules": {
+    "no_backup_no_change": true,
+    "direct_live_mutation_for_codex_allowed": false,
+    "network_mutation_default_allowed": false,
+    "rollback_required_for_mutation": true,
+    "validation_required_for_mutation": true,
+    "spot_core_is_policy_authority": true
+  }
+}
