@@ -120,6 +120,16 @@ cmd_verify() {
       failures=$((failures + 1))
     fi
 
+    if [[ "$(echo "$line" | jq -r '.journal_version')" != "1" ]]; then
+      echo "FAIL: line ${line_no}: invalid journal_version"
+      failures=$((failures + 1))
+    fi
+
+    if [[ "$(echo "$line" | jq -r '.journal_mode')" != "append_only_audit" ]]; then
+      echo "FAIL: line ${line_no}: invalid journal_mode"
+      failures=$((failures + 1))
+    fi
+
     for field in mutation_performed execution_performed service_restart_performed network_mutation_performed live_write_performed; do
       if [[ "$(echo "$line" | jq -r ".${field}")" != "false" ]]; then
         echo "FAIL: line ${line_no}: ${field} not false"
