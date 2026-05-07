@@ -14,6 +14,7 @@ VALIDATOR="${VALIDATOR:-${BASE_DIR}/fleet-validate.sh}"
 CAPABILITIES_SCRIPT="${CAPABILITIES_SCRIPT:-${BASE_DIR}/spot-capabilities.sh}"
 EXECUTOR_CONTRACT_SCRIPT="${EXECUTOR_CONTRACT_SCRIPT:-${BASE_DIR}/spot-executor-contract.sh}"
 EXECUTOR_CONTRACT_FAILURE_TEST_SCRIPT="${EXECUTOR_CONTRACT_FAILURE_TEST_SCRIPT:-${BASE_DIR}/spot-executor-contract-failure-test.sh}"
+EXECUTOR_JOURNAL_SCRIPT="${EXECUTOR_JOURNAL_SCRIPT:-${BASE_DIR}/spot-executor-journal.sh}"
 FLEET_STATUS_FILE="${FLEET_STATUS_FILE:-${STATE_DIR}/fleet-status.json}"
 AUDIT_SUMMARY_FILE="${AUDIT_SUMMARY_FILE:-${STATE_DIR}/routing-audit-summary.json}"
 AUDIT_FILE="${AUDIT_FILE:-${STATE_DIR}/routing-audit.jsonl}"
@@ -112,6 +113,14 @@ Operator commands:
                            Verify an executor contract envelope
   executor-contract-failure-test
                            Verify unsafe executor contracts are rejected
+  executor-journal-append <event_type> <contract.json>
+                           Append immutable executor journal event
+  executor-journal-list [count]
+                           List immutable executor journal entries
+  executor-journal-verify
+                           Verify immutable executor journal integrity
+  executor-journal-summary
+                           Summarize immutable executor journal state
   capabilities            List worker capability registry
   capability <worker>      Show one worker capability manifest
   find-capability <name>   Find workers with a capability
@@ -753,6 +762,22 @@ cmd_executor_contract_verify() {
 
 cmd_executor_contract_failure_test() {
   "$EXECUTOR_CONTRACT_FAILURE_TEST_SCRIPT" run
+}
+
+cmd_executor_journal_append() {
+  "$EXECUTOR_JOURNAL_SCRIPT" append "$@"
+}
+
+cmd_executor_journal_list() {
+  "$EXECUTOR_JOURNAL_SCRIPT" list "$@"
+}
+
+cmd_executor_journal_verify() {
+  "$EXECUTOR_JOURNAL_SCRIPT" verify
+}
+
+cmd_executor_journal_summary() {
+  "$EXECUTOR_JOURNAL_SCRIPT" summary
 }
 
 cmd_capabilities() {
@@ -1667,6 +1692,10 @@ main() {
     status-json)         cmd_status_json "$@" ;;
     executor-contract-verify)       cmd_executor_contract_verify "$@" ;;
     executor-contract-failure-test) cmd_executor_contract_failure_test "$@" ;;
+    executor-journal-append) cmd_executor_journal_append "$@" ;;
+    executor-journal-list) cmd_executor_journal_list "$@" ;;
+    executor-journal-verify) cmd_executor_journal_verify "$@" ;;
+    executor-journal-summary) cmd_executor_journal_summary "$@" ;;
     capabilities)                   cmd_capabilities "$@" ;;
     capability)         cmd_capability "$@" ;;
     find-capability)    cmd_find_capability "$@" ;;
