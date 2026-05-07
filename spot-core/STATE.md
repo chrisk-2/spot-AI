@@ -394,3 +394,66 @@ Phase 2 must not proceed to live backup creation implementation until:
 - immutable backup artifact behavior is verified,
 - restore/rollback proof exists,
 - operator approval flow is explicit.
+---
+
+## 2026-05-07 — Codex Executor Capability Registry Checkpoint
+
+Status:
+- PASS
+- validated
+- committed
+- non-mutating
+
+Completed:
+- Registered `spot-worker-03` as the first capability-managed Codex executor.
+- Added capability manifest:
+  - `watch/capabilities/spot-worker-03.json`
+- Added capability registry operator tool:
+  - `watch/spot-capabilities.sh`
+- Extended operator surface:
+  - `watch/spot-ops.sh capabilities`
+  - `watch/spot-ops.sh capability <worker>`
+  - `watch/spot-ops.sh find-capability <name>`
+
+Current executor posture:
+- `codex_enabled = true`
+- `mode = worktree_patch_only`
+- `live_write_allowed = false`
+- `service_restart_allowed = false`
+- `requires_spot_core_apply = true`
+
+Current Codex integration state:
+- `spot-worker-03` hosts isolated Codex worktree execution environment.
+- Per-task git worktree creation operational.
+- Artifact/log generation operational.
+- Patch-only workflow operational.
+- Bubblewrap namespace sandbox currently degraded on worker-03.
+- Temporary operation currently uses bypassed Codex sandbox inside isolated worktrees only.
+- Live runtime mutation remains forbidden.
+
+Validation:
+- `watch/spot-ops.sh capabilities` PASS
+- `watch/spot-ops.sh capability spot-worker-03` PASS
+- `watch/spot-ops.sh find-capability codex_runner` PASS
+- `watch/spot-ops.sh validate` PASS
+- Validation timestamp:
+  - `2026-05-07T14:55:23Z`
+  - `pass=19 warn=0 fail=0`
+
+Design direction:
+- Codex is treated as an executor/reasoning layer.
+- spot-core remains the authoritative policy, backup, validation, and rollback layer.
+- Future autonomy must preserve:
+  - no backup, no change
+  - append-only audit
+  - rollback-first design
+  - restricted network mutation
+  - explicit execution policy
+
+Next planned lane:
+1. Executor contract design
+2. Capability-aware scheduling
+3. Immutable operation journal
+4. spot-core mediated Codex task API
+5. Validation-gated live apply workflow
+6. Controlled autonomous remediation review
