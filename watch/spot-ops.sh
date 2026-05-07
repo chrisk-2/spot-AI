@@ -11,6 +11,7 @@ BACKUP_BINDING_CONTRACT_SCRIPT="${BACKUP_BINDING_CONTRACT_SCRIPT:-${BASE_DIR}/sp
 BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT="${BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT:-${BASE_DIR}/spot-backup-artifact-manifest-contract.sh}"
 BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT="${BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT:-${BASE_DIR}/spot-backup-artifact-manifest-dry-run.sh}"
 VALIDATOR="${VALIDATOR:-${BASE_DIR}/fleet-validate.sh}"
+CAPABILITIES_SCRIPT="${CAPABILITIES_SCRIPT:-${BASE_DIR}/spot-capabilities.sh}"
 FLEET_STATUS_FILE="${FLEET_STATUS_FILE:-${STATE_DIR}/fleet-status.json}"
 AUDIT_SUMMARY_FILE="${AUDIT_SUMMARY_FILE:-${STATE_DIR}/routing-audit-summary.json}"
 AUDIT_FILE="${AUDIT_FILE:-${STATE_DIR}/routing-audit.jsonl}"
@@ -105,6 +106,9 @@ Operator commands:
   recall <keyword>         Search durable memory entries
   status                   Show concise operator status summary
   status-json              Show raw JSON operator status
+  capabilities            List worker capability registry
+  capability <worker>      Show one worker capability manifest
+  find-capability <name>   Find workers with a capability
   validate                 Run scripted fleet validation
   validate-smoke [worker]  Run validation with quarantine/unquarantine smoke test
   smoke [worker]           Alias for validate-smoke
@@ -735,6 +739,18 @@ cmd_self_heal() {
   esac
 
   bash "$SELF_HEAL_SCRIPT" "$mode"
+}
+
+cmd_capabilities() {
+  "$CAPABILITIES_SCRIPT" list
+}
+
+cmd_capability() {
+  "$CAPABILITIES_SCRIPT" show "${1:-}"
+}
+
+cmd_find_capability() {
+  "$CAPABILITIES_SCRIPT" find "${1:-}"
 }
 
 cmd_validate() {
@@ -1635,6 +1651,9 @@ main() {
     recall)              bash "${BASE_DIR}/spot-client.sh" recall "$@" ;;
     status)              cmd_status "$@" ;;
     status-json)         cmd_status_json "$@" ;;
+    capabilities)       cmd_capabilities "$@" ;;
+    capability)         cmd_capability "$@" ;;
+    find-capability)    cmd_find_capability "$@" ;;
     validate)            cmd_validate "$@" ;;
     validate-smoke)      cmd_validate_smoke "$@" ;;
     smoke)               cmd_validate_smoke "$@" ;;
