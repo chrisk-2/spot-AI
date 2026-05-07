@@ -8,7 +8,7 @@ Primary routing ownership intact.
 Git tree clean at last checkpoint.
 
 Current commit:
-- 60daec0 worker05: add guarded standby registration draft
+- 3976f67 codex: add immutable executor journal
 
 Validation baseline:
 - spot validate: PASS
@@ -30,11 +30,11 @@ Known condition:
 
 PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.28
+Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.30
 
 Immediate next active step while waiting for worker-04 GPU hardware:
 
-PHASE 2.29 — READINESS GATE DECISION CHECKPOINT
+PHASE 2.30 — IMMUTABLE EXECUTOR JOURNAL
 
 Goal:
 - Continue completing Phase 2 control-plane work.
@@ -52,7 +52,10 @@ Current safety posture:
 - freeform shell mutation remains forbidden
 - high-risk network change remains restricted/disabled or forbidden depending layer
 - no backup, no change remains absolute
-
+- immutable executor journal active
+- executor journal append/list/verify/summary active
+- executor journal remains audit-only
+- executor journal cannot trigger execution or mutation
 ---
 
 ## COMPLETED PHASE 2 SLICES
@@ -82,7 +85,7 @@ Current safety posture:
 - Phase 2.26 — Backup artifact manifest implementation dry-run simulator
 - Phase 2.27 — Backup artifact manifest dry-run operator surface
 - Phase 2.28 — Backup artifact manifest dry-run summary/failure validation
-
+- Phase 2.30 — Immutable executor journal
 ---
 
 ## CURRENT CONTROL STACK
@@ -118,12 +121,16 @@ Current non-executing control chain:
 27. Backup artifact manifest dry-run simulator
 28. Backup artifact manifest dry-run operator surface/summary
 29. Backup artifact manifest dry-run failure-path validation
+30. Immutable executor journal
 
 This is a control and audit stack only.
 It does not dispatch plugins.
 It does not mutate live systems.
 It does not bind backups for mutation.
 It does not enable autonomous execution.
+It records executor contract verification/task events only.
+It does not trigger execution from journal events.
+It does not modify live runtime files.
 
 ---
 
@@ -227,29 +234,28 @@ Do not promote worker-05 to automatic routing just because worker-04 hardware ch
 
 Next active Phase 2 work:
 
-PHASE 2.29 — READINESS GATE DECISION CHECKPOINT
+PHASE 2.31 — CODEX TASK API DESIGN CHECKPOINT
 
 Completed since last state checkpoint:
-- Phase 2.26 added backup artifact manifest dry-run simulator artifacts.
-- Phase 2.27 exposed backup artifact manifest dry-run commands through the operator surface.
-- Phase 2.28 added backup artifact manifest dry-run summary generation and rejected 30 unsafe dry-run variants.
-- Latest dry-run summary confirmed known dry-runs are simulated-only, blocked, and non-mutating.
+- Phase 2.30 added immutable executor journal artifacts.
+- Phase 2.30 exposed executor journal append/list/verify/summary through `watch/spot-ops.sh`.
+- Executor journal verification and summary paths validated successfully.
+- Executor journal remains append-only, audit-only, and non-mutating by policy.
+- Latest validation passed at `2026-05-07T15:39:40Z` with `pass=19 warn=0 fail=0`.
 
 Recommended scope:
-- define a go/no-go readiness checkpoint for future live backup work
-- aggregate proof from executor preflight, backup-binding contract, manifest contract, and manifest dry-run lanes
-- verify all known summaries are clean
-- verify all failure-path harnesses pass
-- produce checkpoint artifact only
-- preserve dry-run only behavior
-- require all execution/mutation flags false
+- define spot-core mediated Codex task API design
+- preserve proposal/patch-only behavior
+- require executor contracts before task journaling
+- require journal entries before future apply review
+- keep Spot Core as policy/apply authority
 - no service restarts
 - no config writes
 - no network mutation
 - no live backup creation
 - no live backup binding
 - no real checksum generation over live files
-- no executor dispatch
+- no executor dispatch outside the existing proposal/patch-only lane
 
 Do not enable mutation plugins until a future reviewed slice explicitly implements:
 - backup binding
