@@ -1,0 +1,33 @@
+{
+  "worker": "spot-worker-03",
+  "ip": "192.168.10.13",
+  "status": "active",
+  "primary_role": "coding",
+  "capabilities": [
+    "coding",
+    "ollama",
+    "cuda",
+    "codex_runner",
+    "tool_exec",
+    "repo_sandbox"
+  ],
+  "models": [
+    "qwen2.5-coder:7b",
+    "codellama:7b",
+    "deepseek-coder:6.7b",
+    "qwen2.5:14b"
+  ],
+  "executor": {
+    "codex_enabled": true,
+    "runner_path": "/home/ogre/starfleet-codex/scripts/codex-runner.sh",
+    "mode": "worktree_patch_only",
+    "live_write_allowed": false,
+    "service_restart_allowed": false,
+    "requires_spot_core_apply": true
+  },
+  "safety": {
+    "backup_required_before_mutation": true,
+    "direct_live_mutation_allowed": false,
+    "network_mutation_allowed": false
+  }
+}
