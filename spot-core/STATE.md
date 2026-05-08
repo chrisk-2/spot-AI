@@ -8,7 +8,7 @@ Primary routing ownership intact.
 Git tree clean at last checkpoint.
 
 Current commit:
-- 3976f67 codex: add immutable executor journal
+- e549460 codex: add non-mutating task artifact layer
 
 Validation baseline:
 - spot validate: PASS
@@ -30,11 +30,11 @@ Known condition:
 
 PHASE 2 — BUILD SPOT CONTROLLED AUTONOMY
 
-Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.30
+Status: ACTIVE, NON-MUTATING CONTROL STACK BASELINE THROUGH PHASE 2.31
 
 Immediate next active step while waiting for worker-04 GPU hardware:
 
-PHASE 2.30 — IMMUTABLE EXECUTOR JOURNAL
+PHASE 2.31 — NON-MUTATING TASK ARTIFACT LAYER
 
 Goal:
 - Continue completing Phase 2 control-plane work.
@@ -56,6 +56,11 @@ Current safety posture:
 - executor journal append/list/verify/summary active
 - executor journal remains audit-only
 - executor journal cannot trigger execution or mutation
+- non-mutating task artifact layer active
+- task create/list/show/verify/summary active
+- task artifacts remain proposal-only
+- task artifacts cannot independently trigger execution or mutation
+
 ---
 
 ## COMPLETED PHASE 2 SLICES
@@ -86,6 +91,8 @@ Current safety posture:
 - Phase 2.27 — Backup artifact manifest dry-run operator surface
 - Phase 2.28 — Backup artifact manifest dry-run summary/failure validation
 - Phase 2.30 — Immutable executor journal
+- Phase 2.31 — Non-mutating task artifact layer
+
 ---
 
 ## CURRENT CONTROL STACK
@@ -122,6 +129,7 @@ Current non-executing control chain:
 28. Backup artifact manifest dry-run operator surface/summary
 29. Backup artifact manifest dry-run failure-path validation
 30. Immutable executor journal
+31. Non-mutating task artifact layer
 
 This is a control and audit stack only.
 It does not dispatch plugins.
@@ -131,6 +139,9 @@ It does not enable autonomous execution.
 It records executor contract verification/task events only.
 It does not trigger execution from journal events.
 It does not modify live runtime files.
+Task artifacts represent proposed work only.
+Task artifacts are not execution authorization.
+Task artifacts cannot independently dispatch workers or apply runtime changes.
 
 ---
 
@@ -234,28 +245,28 @@ Do not promote worker-05 to automatic routing just because worker-04 hardware ch
 
 Next active Phase 2 work:
 
-PHASE 2.31 — CODEX TASK API DESIGN CHECKPOINT
+PHASE 2.32 — TASK REVIEW / LIFECYCLE CHECKPOINT
 
 Completed since last state checkpoint:
-- Phase 2.30 added immutable executor journal artifacts.
-- Phase 2.30 exposed executor journal append/list/verify/summary through `watch/spot-ops.sh`.
-- Executor journal verification and summary paths validated successfully.
-- Executor journal remains append-only, audit-only, and non-mutating by policy.
-- Latest validation passed at `2026-05-07T15:39:40Z` with `pass=19 warn=0 fail=0`.
+- Phase 2.31 added non-mutating task artifact schema and utility.
+- Phase 2.31 exposed task create/list/show/verify/summary through `watch/spot-ops.sh`.
+- Task artifact journaling linkage validated successfully.
+- Task artifacts remain proposal-only and non-mutating by policy.
+- Latest validation passed at `2026-05-08T00:01:24Z` with `pass=19 warn=0 fail=0`.
 
 Recommended scope:
-- define spot-core mediated Codex task API design
-- preserve proposal/patch-only behavior
-- require executor contracts before task journaling
-- require journal entries before future apply review
-- keep Spot Core as policy/apply authority
+- add explicit task review lifecycle
+- add reviewed/rejected state handling
+- preserve proposal-only behavior
+- preserve immutable journaling
+- preserve Spot Core apply authority
 - no service restarts
 - no config writes
 - no network mutation
 - no live backup creation
 - no live backup binding
-- no real checksum generation over live files
-- no executor dispatch outside the existing proposal/patch-only lane
+- no executor dispatch
+- no autonomous apply
 
 Do not enable mutation plugins until a future reviewed slice explicitly implements:
 - backup binding
@@ -264,6 +275,7 @@ Do not enable mutation plugins until a future reviewed slice explicitly implemen
 - rollback contract
 - append-only action logs
 - explicit plugin allowlist
+- supervised apply review
 
 ---
 
@@ -379,10 +391,10 @@ Worker-specific notes:
 ## Phase 2 Closeout Direction
 
 Current Phase 2 status:
-- Phase 2.1 through Phase 2.29 are complete and non-mutating.
-- Phase 2.29 readiness gate returned GO_FOR_DESIGN_REVIEW_ONLY.
+- Phase 2.1 through Phase 2.31 are complete and non-mutating.
+- Executor contracts, immutable journaling, and non-mutating task artifacts are operational.
 - Live backup creation remains forbidden until a separate reviewed design slice is completed.
-- Current next autonomy lane is design-only: live backup creation design review.
+- Current next autonomy lane is Phase 2.32 task review/lifecycle design.
 - Before deeper autonomy work, align fleet hardware documentation and onboard worker-06 / worker-07 safely.
 
 Immediate priority order:
@@ -402,7 +414,7 @@ Phase 2 must not proceed to live backup creation implementation until:
 - operator approval flow is explicit.
 ---
 
-## 2026-05-07 — Codex Executor Capability Registry Checkpoint
+## HISTORICAL CHECKPOINT ARCHIVE — 2026-05-07
 
 Status:
 - PASS
@@ -456,10 +468,8 @@ Design direction:
   - restricted network mutation
   - explicit execution policy
 
-Next planned lane:
-1. Executor contract design
-2. Capability-aware scheduling
-3. Immutable operation journal
-4. spot-core mediated Codex task API
-5. Validation-gated live apply workflow
-6. Controlled autonomous remediation review
+Next planned lane at archive checkpoint time:
+1. Validation-gated live apply workflow
+2. Controlled task review lifecycle
+3. Capability-aware scheduling refinement
+4. Controlled autonomous remediation review
