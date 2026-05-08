@@ -15,6 +15,7 @@ CAPABILITIES_SCRIPT="${CAPABILITIES_SCRIPT:-${BASE_DIR}/spot-capabilities.sh}"
 EXECUTOR_CONTRACT_SCRIPT="${EXECUTOR_CONTRACT_SCRIPT:-${BASE_DIR}/spot-executor-contract.sh}"
 EXECUTOR_CONTRACT_FAILURE_TEST_SCRIPT="${EXECUTOR_CONTRACT_FAILURE_TEST_SCRIPT:-${BASE_DIR}/spot-executor-contract-failure-test.sh}"
 EXECUTOR_JOURNAL_SCRIPT="${EXECUTOR_JOURNAL_SCRIPT:-${BASE_DIR}/spot-executor-journal.sh}"
+TASK_SCRIPT="${TASK_SCRIPT:-${BASE_DIR}/spot-task.sh}"
 FLEET_STATUS_FILE="${FLEET_STATUS_FILE:-${STATE_DIR}/fleet-status.json}"
 AUDIT_SUMMARY_FILE="${AUDIT_SUMMARY_FILE:-${STATE_DIR}/routing-audit-summary.json}"
 AUDIT_FILE="${AUDIT_FILE:-${STATE_DIR}/routing-audit.jsonl}"
@@ -121,6 +122,16 @@ Operator commands:
                            Verify immutable executor journal integrity
   executor-journal-summary
                            Summarize immutable executor journal state
+  task-create <task.json>
+                           Create non-mutating task artifact
+  tasks [count]
+                           List task artifacts
+  show-task <task-id|file>
+                           Show task artifact
+  verify-task <task-id|file>
+                           Verify task artifact
+  task-summary
+                           Summarize task artifacts
   capabilities            List worker capability registry
   capability <worker>      Show one worker capability manifest
   find-capability <name>   Find workers with a capability
@@ -778,6 +789,26 @@ cmd_executor_journal_verify() {
 
 cmd_executor_journal_summary() {
   "$EXECUTOR_JOURNAL_SCRIPT" summary
+}
+
+cmd_task_create() {
+  "$TASK_SCRIPT" create "$@"
+}
+
+cmd_tasks() {
+  "$TASK_SCRIPT" list "$@"
+}
+
+cmd_show_task() {
+  "$TASK_SCRIPT" show "$@"
+}
+
+cmd_verify_task() {
+  "$TASK_SCRIPT" verify "$@"
+}
+
+cmd_task_summary() {
+  "$TASK_SCRIPT" summary
 }
 
 cmd_capabilities() {
@@ -1696,6 +1727,11 @@ main() {
     executor-journal-list) cmd_executor_journal_list "$@" ;;
     executor-journal-verify) cmd_executor_journal_verify "$@" ;;
     executor-journal-summary) cmd_executor_journal_summary "$@" ;;
+    task-create)          cmd_task_create "$@" ;;
+    tasks)                cmd_tasks "$@" ;;
+    show-task)            cmd_show_task "$@" ;;
+    verify-task)          cmd_verify_task "$@" ;;
+    task-summary)         cmd_task_summary "$@" ;;
     capabilities)                   cmd_capabilities "$@" ;;
     capability)         cmd_capability "$@" ;;
     find-capability)    cmd_find_capability "$@" ;;

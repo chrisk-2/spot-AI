@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+
+  "required_fields": [
+    "task_id",
+    "created_ts",
+    "executor_type",
+    "mode",
+    "risk_class",
+    "requested_by",
+    "target_scope",
+    "contract_file",
+    "journal_required",
+    "requires_spot_core_apply",
+    "mutation_allowed",
+    "execution_allowed",
+    "network_mutation_allowed",
+    "service_restart_allowed",
+    "status"
+  ],
+
+  "allowed_executor_types": [
+    "codex"
+  ],
+
+  "allowed_modes": [
+    "proposal_only"
+  ],
+
+  "allowed_risk_classes": [
+    "read_only"
+  ],
+
+  "allowed_statuses": [
+    "pending_review",
+    "reviewed",
+    "rejected",
+    "completed"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "task_id": "TASK-20260508-000001",
+  "created_ts": "2026-05-08T00:10:00Z",
+
+  "executor_type": "codex",
+  "mode": "proposal_only",
+  "risk_class": "read_only",
+
+  "requested_by": "operator",
+
+  "target_scope": [
+    "watch/",
+    "spot-core/"
+  ],
+
+  "contract_file": "watch/contracts/examples/codex-readonly-example.json",
+
+  "journal_required": true,
+  "requires_spot_core_apply": true,
+
+  "mutation_allowed": false,
+  "execution_allowed": false,
+  "network_mutation_allowed": false,
+  "service_restart_allowed": false,
+
+  "status": "pending_review"
+}
