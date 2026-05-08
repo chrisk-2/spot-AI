@@ -580,3 +580,57 @@ Next recommended lane:
 6. Add daily cron/systemd timer.
 7. Commit retention tooling.
 
+---
+
+## 2026-05-08 monitor snapshot retention checkpoint
+
+Snapshot retention pruning was implemented and validated.
+
+New artifact:
+- `watch/prune-monitor-snapshots.sh`
+
+Retention policy:
+- Keep all monitor snapshots for the most recent 2 days.
+- Keep hourly representatives through day 14.
+- Keep daily representatives through day 60.
+- Delete monitor snapshots older than day 60.
+
+Dry-run result:
+- scanned=1944
+- kept=905
+- deleted=1039
+- dry_run=1
+
+Live prune result:
+- scanned=1944
+- kept=905
+- deleted=1039
+- dry_run=0
+
+Automation:
+- Daily cron installed:
+  - `17 3 * * * /home/ogre/spot-stack/watch/prune-monitor-snapshots.sh >> /home/ogre/spot-stack/watch/logs/prune-monitor-snapshots.cron.log 2>&1`
+
+Validation after prune:
+- Host validation:
+  - pass=20
+  - warn=0
+  - fail=0
+  - RESULT: PASS
+- MCP/operator validation:
+  - pass=19
+  - warn=1
+  - fail=0
+  - RESULT: PASS
+- Remaining MCP/operator warning:
+  - secret regression skipped because git is unavailable inside the MCP/container validation path.
+
+Git checkpoint:
+- Commit pushed:
+  - `254e932 watch: add monitor snapshot retention pruning`
+
+Operational conclusion:
+- Snapshot bloat is now controlled.
+- Active routing and backup visibility remained healthy after prune.
+- Next recommended action is a final checkpoint/save attempt and then resume the Phase 2 controlled-autonomy lane.
+
