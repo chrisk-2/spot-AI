@@ -19,6 +19,8 @@ Usage:
   spot-task.sh show <task-id|file>
   spot-task.sh verify <task-id|file>
   spot-task.sh review <task-id|file>
+  spot-task.sh approve <task-id|file> <reviewer>
+  spot-task.sh revoke-approval <task-id|file>
   spot-task.sh reject <task-id|file>
   spot-task.sh complete <task-id|file>
   spot-task.sh summary
@@ -211,8 +213,64 @@ cmd_set_status() {
   jq . "$file"
 }
 
+cmd_set_approval() {
+  need jq
+
+  local approval_status="${1:-}"
+  local reviewer="${2:-}"
+  local event="${3:-}"
+  local input="${4:-}"
+
+  [[ -n "$approval_status" ]] || { echo "ERROR: approval status required" >&2; exit 2; }
+  [[ -n "$event" ]] || { echo "ERROR: journal event required" >&2; exit 2; }
+
+  local file
+  file="$(resolve_task_file "$input")"
+
+  cmd_verify "$file" >/dev/null
+
+  local ts
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  jq \
+    --arg approval_status "$approval_status" \
+    --arg reviewer "$reviewer" \
+    --arg ts "$ts" \
+    '
+      .approval_status = $approval_status
+      | .approved_by = (if $reviewer == "" then null else $reviewer end)
+      | .approved_ts = (if $reviewer == "" then null else $ts end)
+    ' "$file" > "${file}.tmp"
+
+  mv "${file}.tmp" "$file"
+
+  cmd_verify "$file" >/dev/null
+
+  "$EXECUTOR_JOURNAL_SCRIPT" append \
+    "$event" \
+    "$(jq -r '.contract_file' "$file")" >/dev/null
+
+  jq . "$file"
+}
+
 cmd_review() {
   cmd_set_status reviewed task_reviewed "${1:-}"
+}
+
+cmd_approve() {
+  local input="${1:-}"
+  local reviewer="${2:-}"
+
+  [[ -n "$reviewer" ]] || {
+    echo "ERROR: reviewer required" >&2
+    exit 2
+  }
+
+  cmd_set_approval approved "$reviewer" task_approved "$input"
+}
+
+cmd_revoke_approval() {
+  cmd_set_approval not_approved "" task_approval_revoked "${1:-}"
 }
 
 cmd_reject() {
@@ -233,7 +291,7 @@ cmd_list() {
   find "$PENDING_DIR" -maxdepth 1 -type f -name '*.json' \
     | sort \
     | tail -n "$count" \
-    | xargs -r jq -r '[.task_id,.status,.executor_type,.risk_class] | @tsv' \
+    | xargs -r jq -r '[.task_id,.status,.approval_status,.executor_type,.risk_class] | @tsv' \
     | column -t -s $'\t'
 }
 
@@ -263,6 +321,13 @@ cmd_summary() {
               count: length
             })
         ),
+        by_approval_status: (
+          group_by(.approval_status)
+          | map({
+              approval_status: .[0].approval_status,
+              count: length
+            })
+        ),
         mutation_performed: false,
         execution_performed: false
       }
@@ -275,6 +340,8 @@ case "${1:-}" in
   show) shift; cmd_show "$@" ;;
   verify) shift; cmd_verify "$@" ;;
   review) shift; cmd_review "$@" ;;
+  approve) shift; cmd_approve "$@" ;;
+  revoke-approval) shift; cmd_revoke_approval "$@" ;;
   reject) shift; cmd_reject "$@" ;;
   complete) shift; cmd_complete "$@" ;;
   summary) cmd_summary ;;
