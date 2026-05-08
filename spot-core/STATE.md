@@ -634,3 +634,43 @@ Operational conclusion:
 - Active routing and backup visibility remained healthy after prune.
 - Next recommended action is a final checkpoint/save attempt and then resume the Phase 2 controlled-autonomy lane.
 
+---
+
+## 2026-05-08 Phase 2.33 approval-gate checkpoint
+
+Phase 2.33 added non-mutating approval-gate governance metadata to task artifacts.
+
+Completed:
+- Upgraded task schema to schema_version=2.
+- Added required approval metadata:
+  - approval_required
+  - approval_status
+  - approved_by
+  - approved_ts
+- Added allowed approval statuses:
+  - not_approved
+  - approved
+  - rejected
+- Added task_reviewed journal event support.
+- Verified reviewed task lifecycle journal append.
+- Preserved proposal_only mode.
+- Preserved mutation_allowed=false.
+- Preserved execution_allowed=false.
+- Preserved network_mutation_allowed=false.
+- Preserved service_restart_allowed=false.
+
+Validation:
+- task verify: PASS
+- executor journal verify: PASS
+- host fleet validation: pass=20 warn=0 fail=0 RESULT=PASS
+- MCP/operator validation: pass=19 warn=1 fail=0 RESULT=PASS
+- Remaining MCP/operator warning: git unavailable inside container validation path.
+
+Operational conclusion:
+- Approval metadata is governance-only.
+- Approval does not authorize execution.
+- No autonomous apply path was introduced.
+- No routing, service, network, or backup mutation was performed.
+
+"
+}
