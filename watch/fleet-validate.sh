@@ -233,6 +233,19 @@ check_worker_backup_freshness() {
   done
 }
 
+check_backup_metadata_visibility() {
+  local count
+  count="$(find /mnt/collective/backups \
+    -path '/mnt/collective/backups/spot-worker-*/worker-config/*/metadata.json' \
+    -type f 2>/dev/null | wc -l | tr -d ' ')"
+
+  if (( count >= 4 )); then
+    pass "backup metadata visibility count=${count}"
+  else
+    warn "backup metadata visibility unexpectedly low count=${count}"
+  fi
+}
+
 main() {
   log "=== SPOT FLEET VALIDATION ==="
   log "timestamp: $(ts)"
@@ -248,6 +261,7 @@ main() {
   if [[ -n "${ADMIN_TOKEN:-}" ]]; then check_admin_validate_endpoint || true; check_admin_read_file_endpoint || true; fi
   [[ "$SMOKE_MODE" -eq 1 ]] && smoke_quarantine_cycle "$SMOKE_WORKER" || info 'smoke mode skipped'
   check_worker_backup_freshness
+  check_backup_metadata_visibility
   log
   log "=== SUMMARY ==="
   log "pass=${PASS_COUNT} warn=${WARN_COUNT} fail=${FAIL_COUNT}"
