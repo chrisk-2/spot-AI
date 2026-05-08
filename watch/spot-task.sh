@@ -18,6 +18,9 @@ Usage:
   spot-task.sh list [count]
   spot-task.sh show <task-id|file>
   spot-task.sh verify <task-id|file>
+  spot-task.sh review <task-id|file>
+  spot-task.sh reject <task-id|file>
+  spot-task.sh complete <task-id|file>
   spot-task.sh summary
 USAGE
 }
@@ -180,6 +183,45 @@ cmd_create() {
   jq . "$out_file"
 }
 
+cmd_set_status() {
+  need jq
+
+  local new_status="${1:-}"
+  local event="${2:-}"
+  local input="${3:-}"
+
+  [[ -n "$new_status" ]] || { echo "ERROR: status required" >&2; exit 2; }
+  [[ -n "$event" ]] || { echo "ERROR: journal event required" >&2; exit 2; }
+
+  local file
+  file="$(resolve_task_file "$input")"
+
+  cmd_verify "$file" >/dev/null
+
+  jq --arg status "$new_status" '.status = $status' "$file" > "${file}.tmp"
+  mv "${file}.tmp" "$file"
+
+  cmd_verify "$file" >/dev/null
+
+  "$EXECUTOR_JOURNAL_SCRIPT" append \
+    "$event" \
+    "$(jq -r '.contract_file' "$file")" >/dev/null
+
+  jq . "$file"
+}
+
+cmd_review() {
+  cmd_set_status reviewed contract_verified "${1:-}"
+}
+
+cmd_reject() {
+  cmd_set_status rejected task_rejected "${1:-}"
+}
+
+cmd_complete() {
+  cmd_set_status completed task_completed "${1:-}"
+}
+
 cmd_list() {
   need jq
 
@@ -231,6 +273,9 @@ case "${1:-}" in
   list) shift; cmd_list "$@" ;;
   show) shift; cmd_show "$@" ;;
   verify) shift; cmd_verify "$@" ;;
+  review) shift; cmd_review "$@" ;;
+  reject) shift; cmd_reject "$@" ;;
+  complete) shift; cmd_complete "$@" ;;
   summary) cmd_summary ;;
   -h|--help|help|"") usage ;;
   *)
