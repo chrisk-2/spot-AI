@@ -473,3 +473,25 @@ Next planned lane at archive checkpoint time:
 2. Controlled task review lifecycle
 3. Capability-aware scheduling refinement
 4. Controlled autonomous remediation review
+
+## 2026-05-08 worker-02 hardware replacement
+
+- Old spot-worker-02 Dell Precision T3610 retired.
+- Former spot-worker-06 hardware promoted to spot-worker-02.
+- New spot-worker-02 live at 192.168.10.11.
+- Hostname verified as spot-worker-02.
+- GPU stack verified:
+  - NVIDIA TITAN Xp 12GB
+  - Quadro M4000 8GB
+- Current RAM: 16GB DDR3 desktop; planned upgrade to 32GB later.
+- Utility ownership preserved:
+  - utility -> spot-worker-02
+- Fleet validation PASS at 2026-05-08T13:58:14Z:
+  - pass=18
+  - warn=1
+  - fail=0
+- Remaining warning:
+  - backup freshness for spot-worker-02 exceeded threshold after replacement.
+- Known cleanup:
+  - fleet-watch.sh has malformed JSON behavior when required utility models are missing.
+  - Worker model restore fixed live state, but watcher should be patched later.
