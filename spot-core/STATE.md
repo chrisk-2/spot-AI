@@ -495,3 +495,24 @@ Next planned lane at archive checkpoint time:
 - Known cleanup:
   - fleet-watch.sh has malformed JSON behavior when required utility models are missing.
   - Worker model restore fixed live state, but watcher should be patched later.
+
+## 2026-05-08 inventory offline-node clarification
+
+Latest inventory refresh produced expected unreachable warnings for non-active nodes:
+
+- spot-worker-05: offline, waiting for parts.
+- spot-worker-07: offline, waiting for parts.
+- sentinel-core: intentionally offline at this time.
+- spot-worker-06: former identity consumed into promoted spot-worker-02 replacement hardware.
+
+These are not active fleet incidents. Current active routed workers remain:
+
+- spot-worker-01: general
+- spot-worker-02: utility
+- spot-worker-03: coding
+- spot-worker-04: heavy
+
+Fleet validation remained clean after inventory refresh:
+- pass=19
+- warn=0
+- fail=0
