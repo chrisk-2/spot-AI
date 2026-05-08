@@ -41,7 +41,7 @@ cmd_append() {
   [[ -x "$CONTRACT_VERIFIER" ]] || { echo "ERROR: verifier not executable: $CONTRACT_VERIFIER" >&2; exit 2; }
 
   case "$event_type" in
-    contract_verified|task_proposed|task_rejected|task_completed|task_failed) ;;
+    contract_verified|task_proposed|task_reviewed|task_rejected|task_completed|task_failed) ;;
     *)
       echo "ERROR: event_type not allowed: $event_type" >&2
       exit 2
@@ -51,7 +51,7 @@ cmd_append() {
   init_journal
 
   local verified checksum ts
-  verified="$("$CONTRACT_VERIFIER" verify "$contract_file")"
+  verified="$($CONTRACT_VERIFIER verify "$contract_file")"
   checksum="$(sha256sum "$contract_file" | awk '{print $1}')"
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 

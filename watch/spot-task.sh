@@ -127,6 +127,7 @@ cmd_verify() {
   verify_allowed_value "$file" "mode" "allowed_modes"
   verify_allowed_value "$file" "risk_class" "allowed_risk_classes"
   verify_allowed_value "$file" "status" "allowed_statuses"
+  verify_allowed_value "$file" "approval_status" "allowed_approval_statuses"
 
   verify_false_flag "$file" "mutation_allowed"
   verify_false_flag "$file" "execution_allowed"
@@ -211,7 +212,7 @@ cmd_set_status() {
 }
 
 cmd_review() {
-  cmd_set_status reviewed contract_verified "${1:-}"
+  cmd_set_status reviewed task_reviewed "${1:-}"
 }
 
 cmd_reject() {

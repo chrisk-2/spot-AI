@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
 
   "required_fields": [
     "task_id",
@@ -16,7 +16,11 @@
     "execution_allowed",
     "network_mutation_allowed",
     "service_restart_allowed",
-    "status"
+    "status",
+    "approval_required",
+    "approval_status",
+    "approved_by",
+    "approved_ts"
   ],
 
   "allowed_executor_types": [
@@ -36,5 +40,11 @@
     "reviewed",
     "rejected",
     "completed"
+  ],
+
+  "allowed_approval_statuses": [
+    "not_approved",
+    "approved",
+    "rejected"
   ]
 }

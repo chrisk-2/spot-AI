@@ -16,5 +16,9 @@
   "execution_allowed": false,
   "network_mutation_allowed": false,
   "service_restart_allowed": false,
-  "status": "reviewed"
+  "status": "reviewed",
+  "approval_required": true,
+  "approval_status": "not_approved",
+  "approved_by": null,
+  "approved_ts": null
 }
