@@ -308,7 +308,7 @@ Hardware metadata checkpoint:
 - Worker-05 RAM was upgraded from 16GB to 32GB, but worker-05 remains standby/manual-only unless explicitly promoted in a later reviewed slice.
 - Worker-02 is the Dell Precision chassis with Quadro M4000 8GB + GTX 1060 6GB.
 - Worker-02 PSU/GPU power constraints block the planned installation of worker-04's former 16GB GPU; worker-02 remains on the existing 8GB + 6GB layout unless replaced.
-- Worker-02 numeric CUDA indexing is unreliable for pinning; use GPU UUIDs if pinning is needed.
+- Worker-02 numeric CUDA indexing is unreliable for pinning; use GPU UUID if pinning is needed.
 ## Starfleet Fleet Layout Update — 7 Worker Target
 
 Current target layout after hardware shuffle:
@@ -672,5 +672,49 @@ Operational conclusion:
 - No autonomous apply path was introduced.
 - No routing, service, network, or backup mutation was performed.
 
-"
-}
+---
+
+## 2026-05-08 Phase 2.34 approval command semantics checkpoint
+
+Phase 2.34 added non-mutating approval command semantics to task artifacts.
+
+Completed:
+- Added task approval command:
+  - `watch/spot-task.sh approve <task-id|file> <reviewer>`
+- Added task approval revoke command:
+  - `watch/spot-task.sh revoke-approval <task-id|file>`
+- Added approval summary grouping by approval_status.
+- Added approval status display to task listing.
+- Added immutable journal events:
+  - task_approved
+  - task_approval_revoked
+- Verified approval metadata update:
+  - approval_status=approved
+  - approved_by=ogre
+  - approved_ts populated
+- Verified approval revoke metadata reset:
+  - approval_status=not_approved
+  - approved_by=null
+  - approved_ts=null
+
+Validation:
+- approval command: PASS
+- revoke approval command: PASS
+- executor journal verify: PASS
+- host fleet validation after approval: pass=20 warn=0 fail=0 RESULT=PASS
+- MCP/operator validation after revoke: pass=19 warn=1 fail=0 RESULT=PASS
+- Remaining MCP/operator warning: git unavailable inside container validation path.
+
+Operational conclusion:
+- Approval is auditable governance metadata only.
+- Approval does not authorize execution.
+- Revoke removes approval metadata without changing task review status.
+- No executor dispatch path was introduced.
+- No autonomous apply path was introduced.
+- No routing, service, network, or backup mutation was performed.
+
+Next recommended lane:
+- Phase 2.35 — approval-state verifier / policy guardrails.
+- Enforce that approved tasks still cannot execute while mode remains proposal_only.
+- Add explicit checks proving approval_status=approved does not alter execution_allowed=false or mutation_allowed=false.
+
