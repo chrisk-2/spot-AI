@@ -516,3 +516,67 @@ Fleet validation remained clean after inventory refresh:
 - pass=19
 - warn=0
 - fail=0
+
+---
+
+## 2026-05-08 backup visibility / MCP validation hardening checkpoint
+
+Current live status:
+- Spot status: ALL SYSTEMS NOMINAL.
+- Core: OK.
+- Active workers:
+  - spot-worker-01: general, OK.
+  - spot-worker-02: utility, OK.
+  - spot-worker-03: coding, OK.
+  - spot-worker-04: heavy, OK.
+- Routing audit: 20 primary, 0 fallback, 0 violations.
+
+Validation state:
+- Host validation:
+  - pass=20
+  - warn=0
+  - fail=0
+  - RESULT: PASS
+- MCP/operator validation:
+  - pass=19
+  - warn=1
+  - fail=0
+  - RESULT: PASS
+- Remaining MCP/operator warning:
+  - secret regression skipped because git is unavailable inside the MCP/container validation path.
+  - This is non-fatal and separate from fleet health.
+
+Resolved issue:
+- MCP/operator validation previously reported missing backup metadata for active workers.
+- Host filesystem showed current backup metadata under:
+  - /mnt/collective/backups/spot-worker-*/worker-config/<timestamp>/metadata.json
+- The spot-core container had a stale/incomplete bind-mounted view of /mnt/collective/backups.
+- `docker compose down && docker compose up -d` refreshed the container mount namespace and restored backup metadata visibility.
+
+Validator hardening:
+- Added `check_backup_metadata_visibility()` to `watch/fleet-validate.sh`.
+- The validator now warns if backup metadata visibility count is unexpectedly low.
+- Current backup metadata visibility count:
+  - count=225
+- This guards against future stale NFS/bind-mount namespace drift.
+
+Operational conclusion:
+- Backup generation is healthy.
+- Backup verification is coherent across host and MCP/operator surfaces.
+- Routing ownership remains intact.
+- Inventory/CMDB refresh remains valid.
+- Expected offline nodes remain non-incidents:
+  - spot-worker-05 waiting for parts.
+  - spot-worker-07 waiting for parts.
+  - sentinel-core offline at this time.
+  - spot-worker-06 identity consumed into promoted spot-worker-02 hardware.
+
+Next recommended lane:
+1. Commit `watch/fleet-validate.sh`.
+2. Add monitor snapshot retention pruning.
+3. Dry-run prune.
+4. Live prune.
+5. Revalidate.
+6. Add daily cron/systemd timer.
+7. Commit retention tooling.
+
