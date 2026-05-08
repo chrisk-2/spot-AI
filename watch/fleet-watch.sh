@@ -305,7 +305,7 @@ eligible = (
     and len(alerts) == 0
 )
 
-print(json.dumps(alerts), str(quarantined).lower(), str(eligible).lower())
+print(json.dumps(alerts, separators=(",", ":")), str(quarantined).lower(), str(eligible).lower())
 PY
 )"
 
@@ -339,7 +339,14 @@ PY
   echo "}"
 } > "$TMP_FILE"
 
-mv "$TMP_FILE" "$STATE_FILE"
+if ! python3 -m json.tool "$TMP_FILE" >/dev/null 2>&1; then
+  echo "ALERT fleet_status_invalid_json" | tee -a "$LOG_FILE"
+  cat "$TMP_FILE" > "${STATE_FILE}.bad.$(date -u +%Y%m%dT%H%M%SZ)"
+  rm -f "$TMP_FILE"
+  exit 1
+fi
+
+mv -f "$TMP_FILE" "$STATE_FILE"
 
 # --- DNS AUTO-REMEDIATION (SAFE POST-PROCESS) ---
 if (( ${#DNS_FIX_QUEUE[@]} > 0 )); then
