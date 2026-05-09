@@ -16,6 +16,7 @@ EXECUTOR_CONTRACT_SCRIPT="${EXECUTOR_CONTRACT_SCRIPT:-${BASE_DIR}/spot-executor-
 EXECUTOR_CONTRACT_FAILURE_TEST_SCRIPT="${EXECUTOR_CONTRACT_FAILURE_TEST_SCRIPT:-${BASE_DIR}/spot-executor-contract-failure-test.sh}"
 EXECUTOR_JOURNAL_SCRIPT="${EXECUTOR_JOURNAL_SCRIPT:-${BASE_DIR}/spot-executor-journal.sh}"
 TASK_SCRIPT="${TASK_SCRIPT:-${BASE_DIR}/spot-task.sh}"
+GOVERNANCE_VERIFY_SCRIPT="${GOVERNANCE_VERIFY_SCRIPT:-${BASE_DIR}/spot-governance-verify.sh}"
 FLEET_STATUS_FILE="${FLEET_STATUS_FILE:-${STATE_DIR}/fleet-status.json}"
 AUDIT_SUMMARY_FILE="${AUDIT_SUMMARY_FILE:-${STATE_DIR}/routing-audit-summary.json}"
 AUDIT_FILE="${AUDIT_FILE:-${STATE_DIR}/routing-audit.jsonl}"
@@ -133,6 +134,7 @@ Operator commands:
   task-summary
                            Summarize task artifacts
   capabilities            List worker capability registry
+  governance               Verify governance chain integrity
   capability <worker>      Show one worker capability manifest
   find-capability <name>   Find workers with a capability
   validate                 Run scripted fleet validation
@@ -809,6 +811,10 @@ cmd_verify_task() {
 
 cmd_task_summary() {
   "$TASK_SCRIPT" summary
+}
+
+cmd_governance() {
+  "$GOVERNANCE_VERIFY_SCRIPT"
 }
 
 cmd_capabilities() {
@@ -1727,14 +1733,15 @@ main() {
     executor-journal-list) cmd_executor_journal_list "$@" ;;
     executor-journal-verify) cmd_executor_journal_verify "$@" ;;
     executor-journal-summary) cmd_executor_journal_summary "$@" ;;
-    task-create)          cmd_task_create "$@" ;;
-    tasks)                cmd_tasks "$@" ;;
-    show-task)            cmd_show_task "$@" ;;
-    verify-task)          cmd_verify_task "$@" ;;
-    task-summary)         cmd_task_summary "$@" ;;
-    capabilities)                   cmd_capabilities "$@" ;;
-    capability)         cmd_capability "$@" ;;
-    find-capability)    cmd_find_capability "$@" ;;
+    task-create)         cmd_task_create "$@" ;;
+    tasks)               cmd_tasks "$@" ;;
+    show-task)           cmd_show_task "$@" ;;
+    verify-task)         cmd_verify_task "$@" ;;
+    task-summary)        cmd_task_summary "$@" ;;
+    governance)          cmd_governance "$@" ;;
+    capabilities)        cmd_capabilities "$@" ;;
+    capability)          cmd_capability "$@" ;;
+    find-capability)     cmd_find_capability "$@" ;;
     validate)            cmd_validate "$@" ;;
     validate-smoke)      cmd_validate_smoke "$@" ;;
     smoke)               cmd_validate_smoke "$@" ;;

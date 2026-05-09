@@ -108,9 +108,9 @@ run_role_route_checks() {
   local before_lines=0
   [[ -f "$AUDIT_FILE" ]] && before_lines="$(wc -l < "$AUDIT_FILE")"
   check_role_route general spot-worker-01 || true
+  check_role_route utility spot-worker-02 || true
   check_role_route coding spot-worker-03 || true
   check_role_route heavy spot-worker-04 || true
-  check_role_route utility spot-worker-02 || true
   local after_lines=0
   [[ -f "$AUDIT_FILE" ]] && after_lines="$(wc -l < "$AUDIT_FILE")"
   ROUTE_CHECK_BEFORE_LINES="$before_lines"
@@ -262,7 +262,20 @@ main() {
   [[ "$SMOKE_MODE" -eq 1 ]] && smoke_quarantine_cycle "$SMOKE_WORKER" || info 'smoke mode skipped'
   check_worker_backup_freshness
   check_backup_metadata_visibility
-  log
+  log "CHECK: governance integrity"
+
+  if /home/ogre/spot-stack/watch/spot-governance-verify.sh >/tmp/spot-governance-verify.out 2>/tmp/spot-governance-verify.err; then
+    pass "governance integrity"
+  else
+    fail "governance integrity"
+
+    [[ -f /tmp/spot-governance-verify.out ]] && \
+      cat /tmp/spot-governance-verify.out
+
+    [[ -f /tmp/spot-governance-verify.err ]] && \
+      cat /tmp/spot-governance-verify.err >&2
+  fi
+    log
   log "=== SUMMARY ==="
   log "pass=${PASS_COUNT} warn=${WARN_COUNT} fail=${FAIL_COUNT}"
   [[ "$FAIL_COUNT" -gt 0 ]] && { echo "RESULT: FAIL"; exit 1; } || { echo "RESULT: PASS"; exit 0; }
