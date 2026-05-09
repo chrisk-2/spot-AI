@@ -16,6 +16,13 @@
       "qwen2.5:14b"
     ],
     "spot-worker-04": [
+      "qwen3:32b",
+      "qwen2.5-coder:32b",
+      "qwen2.5:14b"
+    ],
+    "spot-worker-06": [
+      "deepseek-r1:32b",
+      "qwen2.5-coder:32b",
       "qwen2.5:14b"
     ]
   },
@@ -24,25 +31,27 @@
     "spot-worker-01": 2000,
     "spot-worker-02": 1000,
     "spot-worker-03": 1500,
-    "spot-worker-04": 2000
+    "spot-worker-04": 2000,
+    "spot-worker-06": 2000
   },
   "required_gpu_counts": {
     "spot-worker-01": 1,
     "spot-worker-02": 2,
     "spot-worker-03": 2,
-    "spot-worker-04": 1
+    "spot-worker-04": 1,
+    "spot-worker-06": 1
   },
-"routing_remediation": {
-  "enabled": true,
-  "audit_limit": 200,
-  "min_violations": 1,
-  "quarantine_seconds": 1800,
-  "auto_unquarantine": true,
-  "fallback_note_threshold": 1,
-  "fallback_degraded_threshold": 3,
-  "fallback_escalate_threshold": 5,
-  "degraded_clear_runs": 2,
-  "degraded_clear_max_fallbacks": 0,
-  "fallback_recent_window_sec": 300
+  "routing_remediation": {
+    "enabled": true,
+    "audit_limit": 200,
+    "min_violations": 1,
+    "quarantine_seconds": 1800,
+    "auto_unquarantine": true,
+    "fallback_note_threshold": 1,
+    "fallback_degraded_threshold": 3,
+    "fallback_escalate_threshold": 5,
+    "degraded_clear_runs": 2,
+    "degraded_clear_max_fallbacks": 0,
+    "fallback_recent_window_sec": 300
   }
 }
