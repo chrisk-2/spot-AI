@@ -5,9 +5,9 @@
       "llama3.1:8b"
     ],
     "spot-worker-02": [
+      "mistral:7b",
       "bge-m3:latest",
-      "nomic-embed-text:latest",
-      "phi3.5:latest"
+      "nomic-embed-text:latest"
     ],
     "spot-worker-03": [
       "qwen2.5-coder:7b",
