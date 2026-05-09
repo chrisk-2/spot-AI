@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
 
   "required_fields": [
     "task_id",
@@ -46,5 +46,15 @@
     "not_approved",
     "approved",
     "rejected"
-  ]
+  ],
+
+  "locked_policy": {
+    "mode": "proposal_only",
+    "risk_class": "read_only",
+    "execution_allowed": false,
+    "mutation_allowed": false,
+    "network_mutation_allowed": false,
+    "service_restart_allowed": false,
+    "requires_spot_core_apply": true
+  }
 }

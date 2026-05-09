@@ -12,7 +12,7 @@ ROADMAP_FILE="$REPO/ROADMAP.md"
 
 backup_status() {
     header "WORKER BACKUP STATUS"
-    for h in spot-worker-01 spot-worker-02 spot-worker-03 spot-worker-04; do
+    for h in spot-worker-01 spot-worker-02 spot-worker-03 spot-worker-04 spot-worker-06; do
         p="/mnt/collective/backups/$h/worker-config/latest/metadata.json"
         if [ ! -f "$p" ]; then
             snap=$(find "/mnt/collective/backups/$h/worker-config" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | grep -E '^[0-9]{8}T[0-9]{6}Z$' | sort | tail -n 1 || true)
