@@ -1,0 +1,8 @@
+{
+  "ledger_initialized": true,
+  "policy_state": "proposal_only_locked",
+  "last_hash": "sha256:898607129fc5274edc972d7271c5770485243f4e42ef02b3d844d652634da1b4",
+  "records": 2,
+  "mutation_performed": false,
+  "execution_performed": false
+}
