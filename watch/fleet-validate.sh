@@ -181,7 +181,7 @@ check_secret_regression() {
   local matches_file="$TMPDIR/secret-regression.matches"
   (
     cd "$repo_root"
-    git grep -n -E 'SPOTCORE_ADMIN_API_TOKEN[[:space:]]*[:=][[:space:]]*["'\''"]?[A-Za-z0-9_./+-]{16,}' -- \
+    git grep -n -E 'SPOTCORE_ADMIN_API_TOKEN[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9_./+-]{16,}' -- \
       ':!*.env' \
       ':!*.pyc' \
       ':!*__pycache__*' \
@@ -210,13 +210,11 @@ smoke_quarantine_cycle() {
 }
 
 check_worker_backup_freshness() {
-  local max_age_hours
-  local max_age_sec
-  local now
+  local max_age_hours max_age_sec now workers worker meta snap raw epoch age_sec age_hours
   max_age_hours="${SPOT_BACKUP_MAX_AGE_HOURS:-8}"
   max_age_sec=$((max_age_hours * 3600))
   now="$(date -u +%s)"
-  local workers="spot-worker-01 spot-worker-02 spot-worker-03 spot-worker-04" worker meta raw epoch age_sec age_hours
+  workers="spot-worker-01 spot-worker-02 spot-worker-03 spot-worker-04 spot-worker-06"
   for worker in $workers; do
     meta="/mnt/collective/backups/${worker}/worker-config/latest/metadata.json"
     if [[ ! -f "$meta" ]]; then
@@ -238,12 +236,7 @@ check_backup_metadata_visibility() {
   count="$(find /mnt/collective/backups \
     -path '/mnt/collective/backups/spot-worker-*/worker-config/*/metadata.json' \
     -type f 2>/dev/null | wc -l | tr -d ' ')"
-
-  if (( count >= 4 )); then
-    pass "backup metadata visibility count=${count}"
-  else
-    warn "backup metadata visibility unexpectedly low count=${count}"
-  fi
+  if (( count >= 4 )); then pass "backup metadata visibility count=${count}"; else warn "backup metadata visibility unexpectedly low count=${count}"; fi
 }
 
 main() {
@@ -268,14 +261,10 @@ main() {
     pass "governance integrity"
   else
     fail "governance integrity"
-
-    [[ -f /tmp/spot-governance-verify.out ]] && \
-      cat /tmp/spot-governance-verify.out
-
-    [[ -f /tmp/spot-governance-verify.err ]] && \
-      cat /tmp/spot-governance-verify.err >&2
+    [[ -f /tmp/spot-governance-verify.out ]] && cat /tmp/spot-governance-verify.out
+    [[ -f /tmp/spot-governance-verify.err ]] && cat /tmp/spot-governance-verify.err >&2
   fi
-    log
+  log
   log "=== SUMMARY ==="
   log "pass=${PASS_COUNT} warn=${WARN_COUNT} fail=${FAIL_COUNT}"
   [[ "$FAIL_COUNT" -gt 0 ]] && { echo "RESULT: FAIL"; exit 1; } || { echo "RESULT: PASS"; exit 0; }
