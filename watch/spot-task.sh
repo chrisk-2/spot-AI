@@ -18,6 +18,7 @@ Usage:
   spot-task.sh list [count]
   spot-task.sh show <task-id|file>
   spot-task.sh verify <task-id|file>
+  spot-task.sh approval-guard <task-id|file>
   spot-task.sh review <task-id|file>
   spot-task.sh approve <task-id|file> <reviewer>
   spot-task.sh revoke-approval <task-id|file>
@@ -153,6 +154,66 @@ cmd_verify() {
     }'
 }
 
+cmd_approval_guard() {
+  need jq
+
+  local input="${1:-}"
+  local file
+
+  file="$(resolve_task_file "$input")"
+
+  cmd_verify "$file" >/dev/null
+
+  local violations
+
+  violations="$(
+    jq -r '
+      [
+        if .execution_allowed != false then "execution_allowed must remain false" else empty end,
+        if .mutation_allowed != false then "mutation_allowed must remain false" else empty end,
+        if .network_mutation_allowed != false then "network_mutation_allowed must remain false" else empty end,
+        if .service_restart_allowed != false then "service_restart_allowed must remain false" else empty end,
+        if .mode != "proposal_only" then "mode must remain proposal_only" else empty end,
+        if .risk_class != "read_only" then "risk_class must remain read_only" else empty end,
+        if .requires_spot_core_apply != true then "requires_spot_core_apply must remain true" else empty end
+      ] | .[]
+    ' "$file"
+  )"
+
+  if [[ -n "$violations" ]]; then
+    jq -n \
+      --arg file "$file" \
+      --arg violations "$violations" \
+      '{
+        ok: false,
+        guard: "approval-state",
+        file: $file,
+        violations: ($violations | split("\n") | map(select(length > 0)))
+      }'
+    exit 1
+  fi
+
+  jq -n \
+    --arg file "$file" \
+    --arg approval_status "$(jq -r '.approval_status' "$file")" \
+    '{
+      ok: true,
+      guard: "approval-state",
+      file: $file,
+      approval_status: $approval_status,
+      execution_allowed: false,
+      mutation_allowed: false,
+      network_mutation_allowed: false,
+      service_restart_allowed: false,
+      mode: "proposal_only",
+      risk_class: "read_only",
+      requires_spot_core_apply: true,
+      execution_blocked: true,
+      mutation_blocked: true,
+      policy_state: "proposal_only_locked"
+    }'
+}
+
 cmd_create() {
   need jq
 
@@ -250,6 +311,14 @@ cmd_set_approval() {
     "$event" \
     "$(jq -r '.contract_file' "$file")" >/dev/null
 
+  if [[ "$approval_status" == "approved" ]]; then
+    "${BASE_DIR}/spot-approval-ledger.sh" append \
+      "$(jq -r '.task_id' "$file")" \
+      "${reviewer:-operator}" \
+      approved \
+      approved >/dev/null
+  fi
+
   jq . "$file"
 }
 
@@ -339,6 +408,7 @@ case "${1:-}" in
   list) shift; cmd_list "$@" ;;
   show) shift; cmd_show "$@" ;;
   verify) shift; cmd_verify "$@" ;;
+  approval-guard) shift; cmd_approval_guard "$@" ;;
   review) shift; cmd_review "$@" ;;
   approve) shift; cmd_approve "$@" ;;
   revoke-approval) shift; cmd_revoke_approval "$@" ;;

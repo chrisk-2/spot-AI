@@ -70,6 +70,7 @@ cmd_append() {
       append_only: true,
       journal_version: 1,
       journal_mode: "append_only_audit",
+      policy_state: "proposal_only_locked",
       mutation_performed: false,
       execution_performed: false,
       service_restart_performed: false,
@@ -130,6 +131,19 @@ cmd_verify() {
       failures=$((failures + 1))
     fi
 
+    if [[ "$(echo "$line" | jq -r '.policy_state // "proposal_only_locked"')" != "proposal_only_locked" ]]; then
+      echo "FAIL: line ${line_no}: invalid policy_state"
+      failures=$((failures + 1))
+    fi
+
+    case "$(echo "$line" | jq -r '.event_type')" in
+      contract_verified|task_proposed|task_reviewed|task_approved|task_approval_revoked|task_rejected|task_completed|task_failed) ;;
+      *)
+        echo "FAIL: line ${line_no}: forbidden event_type"
+        failures=$((failures + 1))
+        ;;
+    esac
+
     for field in mutation_performed execution_performed service_restart_performed network_mutation_performed live_write_performed; do
       if [[ "$(echo "$line" | jq -r ".${field}")" != "false" ]]; then
         echo "FAIL: line ${line_no}: ${field} not false"
@@ -144,6 +158,7 @@ cmd_verify() {
       verified: true,
       journal_file: $file,
       lines_checked: $lines,
+      policy_state: "proposal_only_locked",
       mutation_performed: false,
       execution_performed: false
     }'
