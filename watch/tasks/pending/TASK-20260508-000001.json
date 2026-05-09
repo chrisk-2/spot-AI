@@ -9,7 +9,7 @@
     "watch/",
     "spot-core/"
   ],
-  "contract_file": "watch/contracts/examples/codex-readonly-example.json",
+  "contract_file": "/home/ogre/spot-stack/watch/contracts/examples/codex-readonly-example.json",
   "journal_required": true,
   "requires_spot_core_apply": true,
   "mutation_allowed": false,
@@ -18,7 +18,7 @@
   "service_restart_allowed": false,
   "status": "reviewed",
   "approval_required": true,
-  "approval_status": "not_approved",
-  "approved_by": null,
-  "approved_ts": null
+  "approval_status": "approved",
+  "approved_by": "operator",
+  "approved_ts": "2026-05-08T23:23:12Z"
 }
