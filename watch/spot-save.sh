@@ -88,6 +88,7 @@ READ IN THIS ORDER NEXT CHAT:
 5. /home/ogre/spot-stack/Spot_Autonomy_Policy
 6. /home/ogre/spot-stack/HANDOFF-SPOT-INTEGRATION.md
 7. /home/ogre/spot-stack/HANDOFF-CODEX-INTEGRATION.md
+8. /spot-stack/spot-core/spot-ui-01-dashboard-design.md
 
 NEXT CHAT DIRECTIVE:
 - Read referenced files silently.
