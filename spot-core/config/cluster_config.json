@@ -35,7 +35,7 @@
       {"worker": "spot-worker-04", "model": "qwen3:32b", "reason": "heavy_primary"},
       {"worker": "spot-worker-06", "model": "qwen2.5-coder:32b", "reason": "premium_reasoning_secondary"},
       {"worker": "spot-worker-01", "model": "llama3.1:8b", "reason": "general_primary"},
-      {"worker": "spot-worker-02", "model": "phi3.5:latest", "reason": "utility_primary"}
+      {"worker": "spot-worker-02", "model": "mistral:7b", "reason": "utility_primary"}
     ]
   },
   "penalty_policy": {"cooldown_sec": 120, "quarantine_after_failures": 3, "quarantine_window_sec": 600, "quarantine_sec": 1800},
@@ -75,11 +75,33 @@
       "secondary_roles": ["watcher"],
       "max_total": 2,
       "class_limits": {"general": 0, "heavy": 0, "coding": 0, "utility": 2, "watcher": 2},
-      "installed_models": ["bge-m3:latest", "nomic-embed-text:latest", "phi3.5:latest"],
-      "gpu_routes": {
-        "gpu0": {"label": "TITAN Xp 12GB", "max_total": 1, "classes": ["utility", "watcher"], "model_limits": {"bge-m3:latest": 1, "nomic-embed-text:latest": 1, "phi3.5:latest": 1}, "model_preferences": {"utility": ["phi3.5:latest", "bge-m3:latest", "nomic-embed-text:latest"], "watcher": ["phi3.5:latest"]}},
-        "gpu1": {"label": "Quadro M4000 8GB", "max_total": 1, "classes": ["utility", "watcher"], "model_limits": {"bge-m3:latest": 1, "nomic-embed-text:latest": 1, "phi3.5:latest": 1}, "model_preferences": {"utility": ["phi3.5:latest", "bge-m3:latest", "nomic-embed-text:latest"], "watcher": ["phi3.5:latest"]}}
-      },
+      "installed_models": ["mistral:7b", "bge-m3:latest", "nomic-embed-text:latest"],
+"gpu_routes": {
+  "gpu0": {
+    "label": "TITAN Xp 12GB",
+    "max_total": 1,
+    "classes": ["utility"],
+    "model_limits": {
+      "mistral:7b": 1
+    },
+    "model_preferences": {
+      "utility": ["mistral:7b"]
+    }
+  },
+  "gpu1": {
+    "label": "Quadro M4000 8GB",
+    "max_total": 1,
+    "classes": ["utility", "watcher"],
+    "model_limits": {
+      "bge-m3:latest": 1,
+      "nomic-embed-text:latest": 1
+    },
+    "model_preferences": {
+      "utility": ["bge-m3:latest", "nomic-embed-text:latest"],
+      "watcher": ["bge-m3:latest"]
+    }
+  }
+},
       "burst_gpu_routes": {}
     },
     "spot-worker-03": {
