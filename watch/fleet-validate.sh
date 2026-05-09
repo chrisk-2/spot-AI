@@ -104,13 +104,38 @@ check_role_route() {
   [[ "$actual_worker" == "$expected_worker" ]] && pass "${role} -> ${actual_worker}" || { fail "${role} -> ${actual_worker} (expected ${expected_worker})"; return 1; }
 }
 
+check_worker_registered() {
+  local worker="$1" role="$2" required_models_json="$3"
+  local ping="$TMPDIR/fleet-ping-${worker}.json" code_file="$TMPDIR/fleet-ping-${worker}.http"
+
+  fetch_fleet_ping "$ping" "$code_file" || { fail "${worker} fleet/ping request failed"; return 1; }
+  [[ "$(<"$code_file")" =~ ^2 ]] || { fail "${worker} fleet/ping bad HTTP"; return 1; }
+
+  jq -e --arg worker "$worker" --arg role "$role" '
+    .[$worker].ok == true and
+    .[$worker].eligible == true and
+    .[$worker].quarantined == false and
+    .[$worker].primary_role == $role
+  ' "$ping" >/dev/null 2>&1 \
+    && pass "${worker} registered as ${role} and eligible" \
+    || { fail "${worker} not registered/eligible as ${role}"; return 1; }
+
+  jq -e --arg worker "$worker" --argjson required "$required_models_json" '
+    (.[$worker].installed_models // []) as $models |
+    all($required[]; . as $m | $models | index($m))
+  ' "$ping" >/dev/null 2>&1 \
+    && pass "${worker} required models present" \
+    || { fail "${worker} missing required models"; return 1; }
+}
+
 run_role_route_checks() {
   local before_lines=0
   [[ -f "$AUDIT_FILE" ]] && before_lines="$(wc -l < "$AUDIT_FILE")"
   check_role_route general spot-worker-01 || true
-  check_role_route utility spot-worker-02 || true
+  check_worker_registered spot-worker-02 utility '["mistral:7b","bge-m3:latest","nomic-embed-text:latest"]'
   check_role_route coding spot-worker-03 || true
   check_role_route heavy spot-worker-04 || true
+  check_worker_registered spot-worker-06 reasoning '["deepseek-r1:32b","qwen2.5-coder:32b","qwen2.5:14b"]' || true
   local after_lines=0
   [[ -f "$AUDIT_FILE" ]] && after_lines="$(wc -l < "$AUDIT_FILE")"
   ROUTE_CHECK_BEFORE_LINES="$before_lines"
