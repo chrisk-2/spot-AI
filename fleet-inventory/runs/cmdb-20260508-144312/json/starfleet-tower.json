@@ -1,0 +1,119 @@
+{
+  "identity": {
+    "hostname": "starfleet-tower",
+    "reported_hostname": "starfleet-tower",
+    "ip": "192.168.30.5",
+    "category": "SECTION 31",
+    "switch_port": "13",
+    "description": "Homarr / Portainer / Uptime Kuma / Glances / Netdata",
+    "reachable": true,
+    "collected_at": "2026-05-08T14:43:31+00:00"
+  },
+  "system": {
+    "os": "Ubuntu 22.04.5 LTS",
+    "kernel": "5.15.0-176-generic",
+    "uptime": "up 1 week, 1 day, 18 hours, 27 minutes",
+    "vendor": "",
+    "product": "",
+    "board_vendor": "",
+    "board_product": "",
+    "bios_version": "",
+    "bios_date": ""
+  },
+  "cpu": {
+    "model": "Intel(R) Core(TM) i5-3427U CPU @ 1.80GHz",
+    "threads": "4",
+    "cores_per_socket": "2",
+    "sockets": "1"
+  },
+  "memory": {
+    "total": "7.6Gi",
+    "used": "947Mi",
+    "available": "6.4Gi",
+    "swap_total": "4.0Gi",
+    "swap_used": "0B",
+    "devices": []
+  },
+  "network": {
+    "primary_ip": "192.168.30.5",
+    "all_ips": "192.168.30.5 172.17.0.1",
+    "default_route": "192.168.30.1 via enp2s0",
+    "nic_brief": [
+      "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
+      "enp1s0 DOWN 00:e8:4c:68:5e:24 <BROADCAST,MULTICAST> ",
+      "enp2s0 UP 00:e8:4c:68:5e:25 <BROADCAST,MULTICAST,UP,LOWER_UP> ",
+      "wlp3s0 DOWN 6c:88:14:8a:e9:9c <BROADCAST,MULTICAST> ",
+      "docker0 UP e6:58:6e:f1:25:1d <BROADCAST,MULTICAST,UP,LOWER_UP> ",
+      "veth16db96f@if2 UP 96:20:a9:0b:15:e8 <BROADCAST,MULTICAST,UP,LOWER_UP> ",
+      "veth7564acf@if2 UP 3e:31:8d:17:d1:ea <BROADCAST,MULTICAST,UP,LOWER_UP> ",
+      "vethe5e6e88@if2 UP 4a:a3:49:79:b9:e6 <BROADCAST,MULTICAST,UP,LOWER_UP> ",
+      "vethfaec09b@if2 UP c2:62:9f:24:79:0d <BROADCAST,MULTICAST,UP,LOWER_UP> ",
+      "veth1d1aa26@if2 UP 22:cb:11:d0:83:6d <BROADCAST,MULTICAST,UP,LOWER_UP> "
+    ],
+    "nic_speeds": [
+      "docker0=10000"
+    ],
+    "dns": [
+      "Global: 192.168.60.10",
+      "Link 2 (enp1s0):",
+      "Link 3 (enp2s0): 192.168.60.10 192.168.60.20",
+      "Link 4 (wlp3s0):",
+      "Link 5 (docker0):",
+      "Link 6 (veth16db96f):",
+      "Link 7 (veth7564acf):",
+      "Link 8 (vethe5e6e88):",
+      "Link 9 (vethfaec09b):",
+      "Link 10 (veth1d1aa26):"
+    ]
+  },
+  "storage": {
+    "disks": [
+      "loop0 63.8M loop ",
+      "loop1 63.9M loop ",
+      "loop2 91.7M loop ",
+      "loop3 91.7M loop ",
+      "loop4 48.4M loop ",
+      "loop5 49.3M loop ",
+      "sda 119.2G disk MT-128 9110207801213"
+    ],
+    "filesystems": [
+      "tmpfs /run 784M 1.8M 782M 1%",
+      "/dev/mapper/ubuntu--vg-ubuntu--lv / 58G 16G 40G 28%",
+      "tmpfs /dev/shm 3.9G 0 3.9G 0%",
+      "tmpfs /run/lock 5.0M 0 5.0M 0%",
+      "/dev/sda2 /boot 2.0G 259M 1.6G 15%",
+      "tmpfs /run/user/1000 784M 4.0K 784M 1%"
+    ],
+    "nvme_health": []
+  },
+  "gpu": {
+    "summary": [],
+    "topology": []
+  },
+  "services": {
+    "failed_count": "0",
+    "failed_names": "",
+    "ssh_active": "active",
+    "ollama_active": "inactive",
+    "docker_version": "Docker version 29.3.1, build c2be9cc",
+    "docker_running": "netdata,homarr,glances,portainer,uptime-kuma",
+    "python_version": "Python 3.10.12",
+    "tools": [
+      "curl=yes",
+      "jq=yes",
+      "git=yes",
+      "docker=yes",
+      "nvidia-smi=no",
+      "ollama=no",
+      "sensors=no",
+      "nvme=no"
+    ]
+  },
+  "ollama": {
+    "version": "",
+    "models": []
+  },
+  "thermal": {
+    "temps": []
+  }
+}

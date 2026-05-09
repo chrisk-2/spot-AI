@@ -1,0 +1,104 @@
+{
+  "identity": {
+    "hostname": "starfleet-core",
+    "reported_hostname": "starfleet-core",
+    "ip": "192.168.60.20",
+    "category": "INFRASTRUCTURE",
+    "switch_port": "21",
+    "description": "NPM + UniFi + Secondary DNS + NTP",
+    "reachable": true,
+    "collected_at": "2026-05-08T14:43:29+00:00"
+  },
+  "system": {
+    "os": "Ubuntu 24.04.4 LTS",
+    "kernel": "6.8.0-110-generic",
+    "uptime": "up 1 week, 4 days, 1 hour, 55 minutes",
+    "vendor": "",
+    "product": "",
+    "board_vendor": "",
+    "board_product": "",
+    "bios_version": "",
+    "bios_date": ""
+  },
+  "cpu": {
+    "model": "Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz",
+    "threads": "4",
+    "cores_per_socket": "4",
+    "sockets": "1"
+  },
+  "memory": {
+    "total": "7.6Gi",
+    "used": "2.9Gi",
+    "available": "4.8Gi",
+    "swap_total": "4.0Gi",
+    "swap_used": "0B",
+    "devices": []
+  },
+  "network": {
+    "primary_ip": "192.168.60.20",
+    "all_ips": "192.168.60.20 172.18.0.1 172.19.0.1 172.17.0.1",
+    "default_route": "192.168.60.1 via enp0s31f6",
+    "nic_brief": [
+      "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
+      "enp0s31f6 UP d8:9e:f3:7f:40:66 <BROADCAST,MULTICAST,UP,LOWER_UP> ",
+      "wlp2s0 DOWN 7c:76:35:56:93:d9 <BROADCAST,MULTICAST> ",
+      "br-59d43f40c141 DOWN 2a:3d:db:f3:a1:42 <NO-CARRIER,BROADCAST,MULTICAST,UP> ",
+      "br-d618b5a990bd UP e2:ba:47:d3:c0:32 <BROADCAST,MULTICAST,UP,LOWER_UP> ",
+      "docker0 DOWN 4e:db:ed:8f:ba:74 <NO-CARRIER,BROADCAST,MULTICAST,UP> ",
+      "vethcc177c7@if2 UP 5e:db:dd:b4:14:95 <BROADCAST,MULTICAST,UP,LOWER_UP> "
+    ],
+    "nic_speeds": [
+      "br-59d43f40c141=-1"
+    ],
+    "dns": []
+  },
+  "storage": {
+    "disks": [
+      "nvme0n1 3.6T disk SSD 4TB 000399"
+    ],
+    "filesystems": [
+      "tmpfs /run 781M 1.7M 779M 1%",
+      "efivarfs /sys/firmware/efi/efivars 256K 126K 126K 50%",
+      "/dev/mapper/ubuntu--vg-ubuntu--lv / 98G 17G 77G 19%",
+      "tmpfs /dev/shm 3.9G 168K 3.9G 1%",
+      "tmpfs /run/lock 5.0M 0 5.0M 0%",
+      "/dev/nvme0n1p2 /boot 2.0G 201M 1.6G 11%",
+      "/dev/nvme0n1p1 /boot/efi 1.1G 6.2M 1.1G 1%",
+      "tmpfs /run/user/1001 781M 80K 781M 1%",
+      "tmpfs /run/user/1000 781M 12K 781M 1%"
+    ],
+    "nvme_health": [
+      "/dev/nvme0n1|"
+    ]
+  },
+  "gpu": {
+    "summary": [],
+    "topology": []
+  },
+  "services": {
+    "failed_count": "0",
+    "failed_names": "",
+    "ssh_active": "active",
+    "ollama_active": "inactive",
+    "docker_version": "Docker version 29.3.1, build c2be9cc",
+    "docker_running": "npm",
+    "python_version": "Python 3.12.3",
+    "tools": [
+      "curl=yes",
+      "jq=yes",
+      "git=yes",
+      "docker=yes",
+      "nvidia-smi=no",
+      "ollama=no",
+      "sensors=no",
+      "nvme=no"
+    ]
+  },
+  "ollama": {
+    "version": "",
+    "models": []
+  },
+  "thermal": {
+    "temps": []
+  }
+}

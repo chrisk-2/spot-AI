@@ -1,0 +1,144 @@
+{
+  "identity": {
+    "hostname": "spot-worker-04",
+    "reported_hostname": "spot-worker-04",
+    "ip": "192.168.10.14",
+    "category": "ENGINEERING",
+    "switch_port": "8",
+    "description": "Worker node",
+    "reachable": true,
+    "collected_at": "2026-05-08T14:43:17+00:00"
+  },
+  "system": {
+    "os": "Ubuntu 24.04.4 LTS",
+    "kernel": "6.8.0-111-generic",
+    "uptime": "up 2 days, 19 hours, 31 minutes",
+    "vendor": "",
+    "product": "",
+    "board_vendor": "",
+    "board_product": "",
+    "bios_version": "",
+    "bios_date": ""
+  },
+  "cpu": {
+    "model": "13th Gen Intel(R) Core(TM) i7-13700KF",
+    "threads": "24",
+    "cores_per_socket": "16",
+    "sockets": "1"
+  },
+  "memory": {
+    "total": "62Gi",
+    "used": "2.1Gi",
+    "available": "60Gi",
+    "swap_total": "8.0Gi",
+    "swap_used": "0B",
+    "devices": []
+  },
+  "network": {
+    "primary_ip": "192.168.10.14",
+    "all_ips": "192.168.10.14",
+    "default_route": "192.168.10.1 via enp5s0",
+    "nic_brief": [
+      "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
+      "enp5s0 UP d8:43:ae:1f:88:2b <BROADCAST,MULTICAST,UP,LOWER_UP> ",
+      "wlo1 DOWN 90:09:df:0d:0e:ad <BROADCAST,MULTICAST> "
+    ],
+    "nic_speeds": [
+      "enp5s0=1000"
+    ],
+    "dns": [
+      "Global:",
+      "Link 2 (enp5s0): 192.168.60.10 192.168.60.20",
+      "Link 3 (wlo1):"
+    ]
+  },
+  "storage": {
+    "disks": [
+      "nvme0n1 465.8G disk WD_BLACK SN770 500GB 23513C805087",
+      "nvme1n1 465.8G disk CT500P310SSD8 25184FFADF8C"
+    ],
+    "filesystems": [
+      "tmpfs /run 6.3G 1.8M 6.3G 1%",
+      "efivarfs /sys/firmware/efi/efivars 256K 124K 128K 50%",
+      "/dev/mapper/ubuntu--vg-ubuntu--lv / 98G 36G 58G 39%",
+      "tmpfs /dev/shm 32G 0 32G 0%",
+      "tmpfs /run/lock 5.0M 0 5.0M 0%",
+      "/dev/nvme0n1p2 /boot 2.0G 201M 1.6G 11%",
+      "/dev/nvme1n1p1 /mnt/ai-data 458G 2.1G 433G 1%",
+      "/dev/nvme0n1p1 /boot/efi 1.1G 6.2M 1.1G 1%",
+      "192.168.50.10:/volume1/docker /mnt/collective 2.7T 13G 2.6T 1%",
+      "tmpfs /run/user/1000 6.3G 20K 6.3G 1%"
+    ],
+    "nvme_health": [
+      "/dev/nvme0n1|",
+      "/dev/nvme1n1|"
+    ]
+  },
+  "gpu": {
+    "summary": [
+      "0, Quadro P6000, 24576, 14801, 9637, 580.126.09, 26, 8.90, 250.00, 1, 16, 86.02.1D.00.01"
+    ],
+    "topology": [
+      " \u001b[4mGPU0 CPU Affinity NUMA Affinity GPU NUMA ID\u001b[0m",
+      "GPU0 X 0-23 0 N/A",
+      "Legend:",
+      " X = Self",
+      " SYS = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)",
+      " NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node",
+      " PHB = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)",
+      " PXB = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)",
+      " PIX = Connection traversing at most a single PCIe bridge",
+      " NV# = Connection traversing a bonded set of # NVLinks"
+    ]
+  },
+  "services": {
+    "failed_count": "0",
+    "failed_names": "",
+    "ssh_active": "active",
+    "ollama_active": "active",
+    "docker_version": "",
+    "docker_running": "",
+    "python_version": "Python 3.12.3",
+    "tools": [
+      "curl=yes",
+      "jq=yes",
+      "git=yes",
+      "docker=no",
+      "nvidia-smi=yes",
+      "ollama=yes",
+      "sensors=yes",
+      "nvme=yes"
+    ]
+  },
+  "ollama": {
+    "version": "ollama version is 0.20.6",
+    "models": [
+      "qwen2.5:14b 9.0 GB"
+    ]
+  },
+  "thermal": {
+    "temps": [
+      "temp1:            N/A  ",
+      "Composite:    +31.9\u00b0C  (low  = -40.1\u00b0C, high = +83.8\u00b0C)",
+      "temp1:        +27.8\u00b0C  ",
+      "Package id 0:  +30.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 0:        +28.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 4:        +28.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 8:        +27.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 12:       +26.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 16:       +28.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 20:       +22.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 24:       +28.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 28:       +28.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 32:       +30.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 33:       +30.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 34:       +30.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 35:       +30.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 36:       +27.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 37:       +27.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 38:       +27.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Core 39:       +27.0\u00b0C  (high = +80.0\u00b0C, crit = +100.0\u00b0C)",
+      "Composite:    +26.9\u00b0C  (low  =  -5.2\u00b0C, high = +82.8\u00b0C)"
+    ]
+  }
+}

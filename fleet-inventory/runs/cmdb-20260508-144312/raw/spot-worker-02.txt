@@ -1,0 +1,45 @@
+COLLECTED_AT=2026-05-08T14:43:15+00:00
+HOSTNAME=spot-worker-02
+HOSTNAMECTL=spot-worker-02
+OS=Ubuntu 24.04.4 LTS
+KERNEL=6.8.0-111-generic
+UPTIME=up 57 minutes
+CPU_MODEL=Intel(R) Core(TM) i5-4570 CPU @ 3.20GHz
+CPU_THREADS=4
+CPU_CORES=4
+CPU_SOCKETS=1
+RAM_TOTAL=15Gi
+RAM_USED=1.1Gi
+RAM_AVAILABLE=14Gi
+SWAP_TOTAL=4.0Gi
+SWAP_USED=0B
+DMI_SYSTEM_VENDOR=
+DMI_SYSTEM_PRODUCT=
+DMI_BOARD_VENDOR=
+DMI_BOARD_PRODUCT=
+DMI_BIOS_VERSION=
+DMI_BIOS_DATE=
+MEMORY_DEVICES=
+PRIMARY_IP=192.168.10.11
+ALL_IPS=192.168.10.11
+DEFAULT_ROUTE=192.168.10.1 via enp3s0
+NIC_BRIEF=lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ;enp3s0 UP d8:cb:8a:3e:94:fa <BROADCAST,MULTICAST,UP,LOWER_UP> 
+NIC_SPEEDS=enp3s0=1000
+;
+DNS=Global:;Link 2 (enp3s0): 192.168.60.10 192.168.60.20
+DISKS=sda 119.2G disk LITEONIT LCS-128 S0C41178Z1ZSVB153583;sdb 465.8G disk WDC WD5000LPLX-2 WD-WXJ1A57RPE6Z
+FILESYSTEMS=tmpfs /run 1.6G 1.5M 1.6G 1%;efivarfs /sys/firmware/efi/efivars 128K 39K 85K 32%;/dev/mapper/ubuntu--vg-ubuntu--lv / 57G 21G 34G 38%;tmpfs /dev/shm 7.8G 0 7.8G 0%;tmpfs /run/lock 5.0M 0 5.0M 0%;/dev/sda2 /boot 2.0G 105M 1.7G 6%;/dev/sda1 /boot/efi 1.1G 6.2M 1.1G 1%;192.168.50.10:/volume1/docker /mnt/collective 2.7T 13G 2.6T 1%;tmpfs /run/user/1000 1.6G 20K 1.6G 1%
+NVME_HEALTH=
+GPU_QUERY=0, NVIDIA TITAN Xp, 12288, 3831, 8351, 580.142, 31, 17.29, 250.00, 1, 16, 86.02.3D.00.01;1, Quadro M4000, 8192, 5, 8110, 580.142, 33, 10.51, 120.00, 1, 4, 84.04.88.00.06
+GPU_TOPO= [4mGPU0 GPU1 CPU Affinity NUMA Affinity GPU NUMA ID[0m;GPU0 X PHB 0-3 0 N/A;GPU1 PHB X 0-3 0 N/A;;Legend:;; X = Self; SYS = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI); NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node; PHB = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU); PXB = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge); PIX = Connection traversing at most a single PCIe bridge; NV# = Connection traversing a bonded set of # NVLinks
+FAILED_SERVICES=0
+FAILED_SERVICE_NAMES=
+SSH_ACTIVE=active
+OLLAMA_ACTIVE=active
+OLLAMA_VERSION=ollama version is 0.23.1
+OLLAMA_MODELS=mistral:7b 4.4 GB;phi3.5:latest 2.2 GB;bge-m3:latest 1.2 GB;nomic-embed-text:latest 274 MB
+DOCKER_VERSION=
+DOCKER_RUNNING=
+PYTHON_VERSION=Python 3.12.3
+TOOLS=curl=yes;jq=yes;git=yes;docker=no;nvidia-smi=yes;ollama=yes;sensors=no;nvme=no;
+TEMPS=

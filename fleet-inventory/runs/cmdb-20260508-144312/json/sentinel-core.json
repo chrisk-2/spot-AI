@@ -1,0 +1,26 @@
+{
+  "identity": {
+    "hostname": "sentinel-core",
+    "reported_hostname": "sentinel-core",
+    "ip": "192.168.1.3",
+    "category": "HOUSE",
+    "switch_port": "",
+    "description": "Proxmox host",
+    "reachable": false,
+    "collected_at": "2026-05-08T14:43:32+00:00"
+  },
+  "system": {},
+  "cpu": {},
+  "memory": {},
+  "network": {},
+  "storage": {},
+  "gpu": {
+    "summary": [],
+    "topology": []
+  },
+  "services": {},
+  "ollama": {
+    "models": []
+  },
+  "thermal": {}
+}

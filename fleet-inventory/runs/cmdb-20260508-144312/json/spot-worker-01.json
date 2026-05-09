@@ -1,0 +1,133 @@
+{
+  "identity": {
+    "hostname": "spot-worker-01",
+    "reported_hostname": "spot-worker-01",
+    "ip": "192.168.10.10",
+    "category": "ENGINEERING",
+    "switch_port": "5",
+    "description": "Worker node",
+    "reachable": true,
+    "collected_at": "2026-05-08T14:43:13+00:00"
+  },
+  "system": {
+    "os": "Ubuntu 22.04.5 LTS",
+    "kernel": "5.15.0-176-generic",
+    "uptime": "up 1 week, 4 days, 2 hours, 4 minutes",
+    "vendor": "",
+    "product": "",
+    "board_vendor": "",
+    "board_product": "",
+    "bios_version": "",
+    "bios_date": ""
+  },
+  "cpu": {
+    "model": "AMD EPYC 4245P 6-Core Processor",
+    "threads": "12",
+    "cores_per_socket": "6",
+    "sockets": "1"
+  },
+  "memory": {
+    "total": "30Gi",
+    "used": "1.4Gi",
+    "available": "28Gi",
+    "swap_total": "8.0Gi",
+    "swap_used": "0B",
+    "devices": []
+  },
+  "network": {
+    "primary_ip": "192.168.10.10",
+    "all_ips": "192.168.10.10",
+    "default_route": "192.168.10.1 via enp4s0",
+    "nic_brief": [
+      "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
+      "enp4s0 UP d8:43:ae:a9:c2:4c <BROADCAST,MULTICAST,UP,LOWER_UP> ",
+      "enp5s0 DOWN d8:43:ae:a9:c2:4d <BROADCAST,MULTICAST> "
+    ],
+    "nic_speeds": [
+      "enp4s0=100"
+    ],
+    "dns": [
+      "Global:",
+      "Link 2 (enp4s0): 192.168.60.10 192.168.60.20",
+      "Link 3 (enp5s0):"
+    ]
+  },
+  "storage": {
+    "disks": [
+      "loop0 63.8M loop ",
+      "loop1 63.8M loop ",
+      "loop2 74M loop ",
+      "loop3 74M loop ",
+      "loop4 66.8M loop ",
+      "loop5 66.8M loop ",
+      "loop6 151.4M loop ",
+      "loop7 91.7M loop ",
+      "loop8 91.7M loop ",
+      "loop9 48.4M loop ",
+      "loop10 49.3M loop ",
+      "loop11 4.4M loop ",
+      "nvme0n1 1.8T disk WD_BLACK SN770 2TB 231522800663"
+    ],
+    "filesystems": [
+      "tmpfs /run 3.1G 1.7M 3.1G 1%",
+      "/dev/mapper/ubuntu--vg-ubuntu--lv / 1.8T 106G 1.7T 7%",
+      "tmpfs /dev/shm 16G 0 16G 0%",
+      "tmpfs /run/lock 5.0M 4.0K 5.0M 1%",
+      "/dev/nvme0n1p2 /boot 2.0G 432M 1.4G 24%",
+      "/dev/nvme0n1p1 /boot/efi 1.1G 6.1M 1.1G 1%",
+      "192.168.50.10:/volume1/docker /mnt/collective 2.7T 13G 2.6T 1%",
+      "tmpfs /run/user/1000 3.1G 8.0K 3.1G 1%"
+    ],
+    "nvme_health": [
+      "/dev/nvme0n1|"
+    ]
+  },
+  "gpu": {
+    "summary": [
+      "0, NVIDIA GeForce RTX 3060, 12288, 1, 12043, 535.288.01, 42, 37.94, 170.00, 4, 16, 94.06.25.00.80"
+    ],
+    "topology": [
+      " \u001b[4mGPU0 CPU Affinity NUMA Affinity GPU NUMA ID\u001b[0m",
+      "GPU0 X 0-11 0 N/A",
+      "Legend:",
+      " X = Self",
+      " SYS = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)",
+      " NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node",
+      " PHB = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)",
+      " PXB = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)",
+      " PIX = Connection traversing at most a single PCIe bridge",
+      " NV# = Connection traversing a bonded set of # NVLinks"
+    ]
+  },
+  "services": {
+    "failed_count": "1",
+    "failed_names": "\u25cf",
+    "ssh_active": "active",
+    "ollama_active": "active",
+    "docker_version": "",
+    "docker_running": "",
+    "python_version": "Python 3.10.12",
+    "tools": [
+      "curl=yes",
+      "jq=yes",
+      "git=yes",
+      "docker=no",
+      "nvidia-smi=yes",
+      "ollama=yes",
+      "sensors=no",
+      "nvme=no"
+    ]
+  },
+  "ollama": {
+    "version": "ollama version is 0.18.2",
+    "models": [
+      "qwen2.5-coder:7b 4.7 GB",
+      "qwen2.5:14b 9.0 GB",
+      "llama3.1:8b 4.9 GB",
+      "mistral:7b 4.4 GB"
+    ]
+  },
+  "thermal": {
+    "temps": []
+  }
+}

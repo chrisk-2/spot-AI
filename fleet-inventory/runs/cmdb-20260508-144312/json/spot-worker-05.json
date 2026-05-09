@@ -1,0 +1,26 @@
+{
+  "identity": {
+    "hostname": "spot-worker-05",
+    "reported_hostname": "spot-worker-05",
+    "ip": "192.168.10.15",
+    "category": "ENGINEERING",
+    "switch_port": "",
+    "description": "Worker node",
+    "reachable": false,
+    "collected_at": "2026-05-08T14:43:25+00:00"
+  },
+  "system": {},
+  "cpu": {},
+  "memory": {},
+  "network": {},
+  "storage": {},
+  "gpu": {
+    "summary": [],
+    "topology": []
+  },
+  "services": {},
+  "ollama": {
+    "models": []
+  },
+  "thermal": {}
+}

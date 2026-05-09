@@ -1,0 +1,45 @@
+COLLECTED_AT=2026-05-08T14:43:13+00:00
+HOSTNAME=spot-worker-01
+HOSTNAMECTL=spot-worker-01
+OS=Ubuntu 22.04.5 LTS
+KERNEL=5.15.0-176-generic
+UPTIME=up 1 week, 4 days, 2 hours, 4 minutes
+CPU_MODEL=AMD EPYC 4245P 6-Core Processor
+CPU_THREADS=12
+CPU_CORES=6
+CPU_SOCKETS=1
+RAM_TOTAL=30Gi
+RAM_USED=1.4Gi
+RAM_AVAILABLE=28Gi
+SWAP_TOTAL=8.0Gi
+SWAP_USED=0B
+DMI_SYSTEM_VENDOR=
+DMI_SYSTEM_PRODUCT=
+DMI_BOARD_VENDOR=
+DMI_BOARD_PRODUCT=
+DMI_BIOS_VERSION=
+DMI_BIOS_DATE=
+MEMORY_DEVICES=
+PRIMARY_IP=192.168.10.10
+ALL_IPS=192.168.10.10
+DEFAULT_ROUTE=192.168.10.1 via enp4s0
+NIC_BRIEF=lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ;enp4s0 UP d8:43:ae:a9:c2:4c <BROADCAST,MULTICAST,UP,LOWER_UP> ;enp5s0 DOWN d8:43:ae:a9:c2:4d <BROADCAST,MULTICAST> 
+NIC_SPEEDS=enp4s0=100
+;enp5s0=unknown;
+DNS=Global:;Link 2 (enp4s0): 192.168.60.10 192.168.60.20;Link 3 (enp5s0):
+DISKS=loop0 63.8M loop ;loop1 63.8M loop ;loop2 74M loop ;loop3 74M loop ;loop4 66.8M loop ;loop5 66.8M loop ;loop6 151.4M loop ;loop7 91.7M loop ;loop8 91.7M loop ;loop9 48.4M loop ;loop10 49.3M loop ;loop11 4.4M loop ;nvme0n1 1.8T disk WD_BLACK SN770 2TB 231522800663
+FILESYSTEMS=tmpfs /run 3.1G 1.7M 3.1G 1%;/dev/mapper/ubuntu--vg-ubuntu--lv / 1.8T 106G 1.7T 7%;tmpfs /dev/shm 16G 0 16G 0%;tmpfs /run/lock 5.0M 4.0K 5.0M 1%;/dev/nvme0n1p2 /boot 2.0G 432M 1.4G 24%;/dev/nvme0n1p1 /boot/efi 1.1G 6.1M 1.1G 1%;192.168.50.10:/volume1/docker /mnt/collective 2.7T 13G 2.6T 1%;tmpfs /run/user/1000 3.1G 8.0K 3.1G 1%
+NVME_HEALTH=/dev/nvme0n1|;
+GPU_QUERY=0, NVIDIA GeForce RTX 3060, 12288, 1, 12043, 535.288.01, 42, 37.94, 170.00, 4, 16, 94.06.25.00.80
+GPU_TOPO= [4mGPU0 CPU Affinity NUMA Affinity GPU NUMA ID[0m;GPU0 X 0-11 0 N/A;;Legend:;; X = Self; SYS = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI); NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node; PHB = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU); PXB = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge); PIX = Connection traversing at most a single PCIe bridge; NV# = Connection traversing a bonded set of # NVLinks
+FAILED_SERVICES=1
+FAILED_SERVICE_NAMES=●
+SSH_ACTIVE=active
+OLLAMA_ACTIVE=active
+OLLAMA_VERSION=ollama version is 0.18.2
+OLLAMA_MODELS=qwen2.5-coder:7b 4.7 GB;qwen2.5:14b 9.0 GB;llama3.1:8b 4.9 GB;mistral:7b 4.4 GB
+DOCKER_VERSION=
+DOCKER_RUNNING=
+PYTHON_VERSION=Python 3.10.12
+TOOLS=curl=yes;jq=yes;git=yes;docker=no;nvidia-smi=yes;ollama=yes;sensors=no;nvme=no;
+TEMPS=

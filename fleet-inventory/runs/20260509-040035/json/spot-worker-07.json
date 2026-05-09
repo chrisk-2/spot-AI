@@ -1,0 +1,9 @@
+{
+  "hostname": "spot-worker-07",
+  "ip": "192.168.10.17",
+  "category": "ENGINEERING",
+  "switch_port": "",
+  "description": "Heavy secondary candidate",
+  "reachable": false,
+  "collected_at": "2026-05-09T04:00:49+00:00"
+}
