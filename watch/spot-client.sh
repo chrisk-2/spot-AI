@@ -272,7 +272,13 @@ def meta(name, default=""):
     return m.group(1).strip() if m else default
 
 def section(name):
-    m = re.search(rf'^{re.escape(name)}\s*\n(?P<body>.*?)(?=\n[A-Z_]+\s*\n|\Z)', text, re.M | re.S)
+    # Accept both plain headers:
+    #   FILES_AFFECTED
+    # and Markdown-bold headers:
+    #   **FILES_AFFECTED**
+    header = rf'(?:\*\*)?{re.escape(name)}(?:\*\*)?'
+    next_header = r'(?:\*\*)?[A-Z_]+(?:\*\*)?'
+    m = re.search(rf'^{header}\s*\n(?P<body>.*?)(?=\n{next_header}\s*\n|\Z)', text, re.M | re.S)
     return m.group('body').strip() if m else ""
 
 def bullets(body):
@@ -300,17 +306,16 @@ approved = meta("approved_utc", "unknown")
 risk = clean_risk(section("RISK_CLASS") or meta("risk_class"))
 targets = bullets(section("FILES_AFFECTED"))
 if not targets:
-    targets = ["/home/ogre/spot-stack/spot-core/config/cluster_config.json"]
-default_validations = [
-    "python3 -m json.tool /home/ogre/spot-stack/spot-core/config/cluster_config.json >/dev/null",
-    "spot validate",
-    'spot ask "show worker latency"',
-    'spot ask "what is the current fleet status"',
-    'spot ask "show current routing audit"',
-]
+    print("ERROR: approved proposal has no FILES_AFFECTED section; apply plan blocked", file=sys.stderr)
+    sys.exit(2)
+
 proposal_validations = bullets(section("VALIDATION_COMMANDS"))
+if not proposal_validations:
+    print("ERROR: approved proposal has no VALIDATION_COMMANDS section; apply plan blocked", file=sys.stderr)
+    sys.exit(2)
+
 validations = []
-for item in default_validations + proposal_validations:
+for item in proposal_validations:
     if item not in validations:
         validations.append(item)
 rollback = bullets(section("ROLLBACK")) or ["Use the verified pre-change Spot Core backup artifact generated immediately before any future mutation."]
@@ -475,16 +480,13 @@ validations = section("PRECHECK_VALIDATION")
 if not validations:
     fail.append("PRECHECK_VALIDATION section missing or empty")
 else:
-    required = [
-        "python3 -m json.tool /home/ogre/spot-stack/spot-core/config/cluster_config.json >/dev/null",
-        "spot validate",
+    forbidden_validation_terms = [
+        "/home/ogre/spot-stack/spot-core/config/cluster_config.json",
         'spot ask "show worker latency"',
-        'spot ask "what is the current fleet status"',
-        'spot ask "show current routing audit"',
     ]
-    for cmd in required:
-        if cmd not in validations:
-            fail.append(f"required validation missing: {cmd}")
+    for term in forbidden_validation_terms:
+        if term in validations and term not in section("TARGET_FILES"):
+            fail.append(f"validation references unrelated target/context: {term}")
 
 if not section("POST_APPLY_VALIDATION"):
     fail.append("POST_APPLY_VALIDATION section missing or empty")
@@ -593,16 +595,16 @@ for raw in targets.splitlines():
         fail.append(f"target file missing: {target}")
 
 validations = section("PRECHECK_VALIDATION")
-required_validations = [
-    "python3 -m json.tool /home/ogre/spot-stack/spot-core/config/cluster_config.json >/dev/null",
-    "spot validate",
-    'spot ask "show worker latency"',
-    'spot ask "what is the current fleet status"',
-    'spot ask "show current routing audit"',
-]
-for cmd in required_validations:
-    if cmd not in validations:
-        fail.append(f"required validation missing: {cmd}")
+if not validations:
+    fail.append("PRECHECK_VALIDATION section missing or empty")
+else:
+    forbidden_validation_terms = [
+        "/home/ogre/spot-stack/spot-core/config/cluster_config.json",
+        'spot ask "show worker latency"',
+    ]
+    for term in forbidden_validation_terms:
+        if term in validations and term not in section("TARGET_FILES"):
+            fail.append(f"validation references unrelated target/context: {term}")
 
 if "Spot Core must create and verify a pre-change backup" not in text:
     fail.append("backup-first requirement missing")
@@ -911,16 +913,16 @@ for name in required_sections:
         fail.append(f"{name} section missing or empty")
 
 validations = section("PRECHECK_VALIDATION")
-required_validations = [
-    "python3 -m json.tool /home/ogre/spot-stack/spot-core/config/cluster_config.json >/dev/null",
-    "spot validate",
-    'spot ask "show worker latency"',
-    'spot ask "what is the current fleet status"',
-    'spot ask "show current routing audit"',
-]
-for cmd in required_validations:
-    if cmd not in validations:
-        fail.append(f"required validation missing: {cmd}")
+if not validations:
+    fail.append("PRECHECK_VALIDATION section missing or empty")
+else:
+    forbidden_validation_terms = [
+        "/home/ogre/spot-stack/spot-core/config/cluster_config.json",
+        'spot ask "show worker latency"',
+    ]
+    for term in forbidden_validation_terms:
+        if term in validations and term not in section("TARGET_FILES"):
+            fail.append(f"validation references unrelated target/context: {term}")
 
 policy = section("POLICY_GATES")
 for phrase in [
