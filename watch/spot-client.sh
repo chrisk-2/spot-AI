@@ -3349,10 +3349,59 @@ spot-ops.service
 EOF
 return "$bad"; }
 
-cmd_propose(){ need_cmd jq; need_cmd curl; local role="auto" json_out=false save=false args=(); while [[ $# -gt 0 ]]; do case "$1" in --role) role="${2:-}"; shift 2;; --json) json_out=true; shift;; --save) save=true; shift;; -h|--help) usage; exit 0;; --) shift; args+=("$@"); break;; *) args+=("$1"); shift;; esac; done; local task="$(join_prompt "${args[@]}")"; [[ -n "$task" ]] || { echo "ERROR: task required" >&2; exit 2; }; local mem related prompt result body; mem="$(memory_context_for_prompt "$task" || true)"; related="$(proposal_context_for_task "$task" || true)"; prompt="You are Spot proposal mode. Do not apply changes. Durable memory context and related historical engineering artifacts may be provided below. You must incorporate them when relevant unless contradicted by live telemetry. Avoid duplicating already-approved plans when a related approved proposal exists. Use exactly these section headers: SUMMARY, RISK_CLASS, FILES_AFFECTED, VALIDATION_COMMANDS, ROLLBACK, NEXT_SAFE_ACTION. Put 1-4 concrete bullets or lines under every section. Use canonical paths only. Use only allowed validation commands. Avoid every forbidden guess. Do not include DETAILS, PROPOSAL_CONTENT, sample JSON, or patch bodies unless explicitly asked.\n\n$(spot_context_block)\n\n${related}\n\nDURABLE_MEMORY_CONTEXT\n${mem}\n\nTASK: ${task}"; [[ "$role" == auto ]] && role="$(classify_role "$task")"; result="$(call_exec "$role" "" "$prompt")"; body="$(printf '%s
-' "$result"|jq -r '.response')"; proposal_guardrail_check "$body" || true; if [[ "$json_out" == true ]]; then printf '%s
-' "$result"|jq .; else printf '%s
-' "$body"; print_route "$result"; fi; [[ "$save" == true ]] && save_proposal "$task" "$role" "$result" "$body"; }
+cmd_propose(){
+  need_cmd jq
+  need_cmd curl
+
+  local role="auto" json_out=false save=false use_memory=true use_related=true args=()
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --role) role="${2:-}"; shift 2;;
+      --json) json_out=true; shift;;
+      --save) save=true; shift;;
+      --no-memory) use_memory=false; shift;;
+      --no-related) use_related=false; shift;;
+      -h|--help) usage; exit 0;;
+      --) shift; args+=("$@"); break;;
+      *) args+=("$1"); shift;;
+    esac
+  done
+
+  local task="$(join_prompt "${args[@]}")"
+  [[ -n "$task" ]] || { echo "ERROR: task required" >&2; exit 2; }
+
+  local mem="" related="" prompt result body
+  [[ "$use_memory" == true ]] && mem="$(memory_context_for_prompt "$task" || true)"
+  [[ "$use_related" == true ]] && related="$(proposal_context_for_task "$task" || true)"
+
+  prompt="You are Spot proposal mode. Do not apply changes. Durable memory context and related historical engineering artifacts may be provided below only when enabled. You must incorporate provided context when relevant unless contradicted by live telemetry. If no context is provided, use only the current task and live Spot context. Avoid duplicating already-approved plans when a related approved proposal exists. Use exactly these section headers: SUMMARY, RISK_CLASS, FILES_AFFECTED, VALIDATION_COMMANDS, ROLLBACK, NEXT_SAFE_ACTION. Put 1-4 concrete bullets or lines under every section. Use canonical paths only. Use only allowed validation commands. Avoid every forbidden guess. Do not include DETAILS, PROPOSAL_CONTENT, sample JSON, or patch bodies unless explicitly asked.
+
+$(spot_context_block)
+
+${related}
+
+DURABLE_MEMORY_CONTEXT
+${mem}
+
+TASK: ${task}"
+
+  [[ "$role" == auto ]] && role="$(classify_role "$task")"
+
+  result="$(call_exec "$role" "" "$prompt")"
+  body="$(printf '%s\n' "$result" | jq -r '.response')"
+
+  proposal_guardrail_check "$body" || true
+
+  if [[ "$json_out" == true ]]; then
+    printf '%s\n' "$result" | jq .
+  else
+    printf '%s\n' "$body"
+    print_route "$result"
+  fi
+
+  [[ "$save" == true ]] && save_proposal "$task" "$role" "$result" "$body"
+}
 
 cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOSAL_DIR" -maxdepth 1 -type f -name 'P-*.md' -printf '%T@ %f
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
