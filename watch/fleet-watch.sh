@@ -30,7 +30,6 @@ declare -A HOST_IPS=(
   ["spot-worker-06"]="192.168.10.16"
   ["spot-ui-01"]="192.168.10.12"
   ["starfleet-tower"]="192.168.30.5"
-  ["unimatrix6"]="192.168.50.10"
   ["starfleet-core"]="192.168.60.20"
   ["dns-core"]="192.168.60.10"
 )
@@ -44,7 +43,6 @@ HOSTS=(
   "spot-worker-06"
   "spot-ui-01"
   "starfleet-tower"
-  "unimatrix6"
   "starfleet-core"
   "dns-core"
 )
@@ -62,7 +60,11 @@ ssh_quick() {
   local host="$1"; shift
   local target="$host"
   if [[ -n "${HOST_IPS[$host]:-}" ]]; then target="ogre@${HOST_IPS[$host]}"; fi
-  ssh -o BatchMode=yes -o ConnectTimeout=5 "$target" "$@"
+  ssh -i "$HOME/.ssh/spot_fleet" \
+  -o IdentitiesOnly=yes \
+  -o BatchMode=yes \
+  -o ConnectTimeout=5 \
+  "$target" "$@"
 }
 
 check_http() { curl -fsS --max-time 5 "$1" >/dev/null 2>&1; }
