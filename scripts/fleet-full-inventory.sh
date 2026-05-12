@@ -18,7 +18,6 @@ HOSTS=(
   "spot-worker-04|192.168.10.14|ENGINEERING|8|Worker node"
   "spot-worker-05|192.168.10.15|ENGINEERING||Visual / render node"
   "spot-worker-06|192.168.10.16|ENGINEERING||Utility prime candidate"
-  "spot-worker-07|192.168.10.17|ENGINEERING||Heavy secondary candidate"
 )
 
 STATIC_CSV="$RUN_DIR/starfleet-network-map.csv"
@@ -36,7 +35,6 @@ ENGINEERING,192.168.10.x,192.168.10.13,spot-worker-03,6,Worker node,w03-gpu0-gtx
 ENGINEERING,192.168.10.x,192.168.10.14,spot-worker-04,8,Worker node,w04-gpu0-p6000 (24g),
 ENGINEERING,192.168.10.x,192.168.10.15,spot-worker-05,,Visual / render node,w05-gpu0-titan-xp (12g),
 ENGINEERING,192.168.10.x,192.168.10.16,spot-worker-06,,Utility prime candidate,pending,
-ENGINEERING,192.168.10.x,192.168.10.17,spot-worker-07,,Heavy secondary candidate,w07-gpu0-p6000 (24g),
 SECTION 31,192.168.30.x,192.168.30.5,starfleet-tower,13,Homarr / Portainer / Uptime Kuma / Glances / Netdata,,
 UNIMATRIX,192.168.50.x,192.168.50.10,unimatrix6,,NAS / Storage,,
 HOUSE,192.168.1.x,192.168.1.131,UniFi Switch,,Network switch,,
