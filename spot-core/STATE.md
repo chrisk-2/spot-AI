@@ -718,3 +718,85 @@ Next recommended lane:
 - Enforce that approved tasks still cannot execute while mode remains proposal_only.
 - Add explicit checks proving approval_status=approved does not alter execution_allowed=false or mutation_allowed=false.
 
+
+---
+
+## 2026-05-12 Phase 2 Spot UI / durable SSH checkpoint
+
+Current commit:
+- 66b8021 Phase 2: fix spot-ui readiness backup and risk validation
+
+Recent commits completed:
+- 42510b0 Phase 2: add proposal for generate-patch naming drift
+- 8ac7fbd Phase 2: add proposal for durable Spot Core SSH bootstrap
+- c37f244 Phase 2: make Spot Core SSH bootstrap durable
+- 66b8021 Phase 2: fix spot-ui readiness backup and risk validation
+
+Current live status:
+- Repo clean after commit 66b8021.
+- Spot Core healthy.
+- Governance verified consistent.
+- policy_state: proposal_only_locked.
+- mutation_performed=false.
+- execution_performed=false.
+- /admin/read-file PASS after durable SSH bootstrap fix.
+- spot-worker-02 backup freshness fixed.
+- worker-06 remains physically offline; ignore until monitor/physical check.
+
+Validation:
+- bash watch/spot-governance-verify.sh PASS.
+- spot validate at 2026-05-12T00:08:11Z:
+  - pass=22
+  - warn=1
+  - fail=1
+- Remaining expected issue:
+  - FAIL: spot-worker-06 not registered/eligible as reasoning
+  - WARN: spot-worker-06 backup freshness age=56h threshold=8h
+
+Durable SSH bootstrap fix:
+- docker-compose.yml now copies /host-ssh/spot_fleet into /root/.ssh/spot_fleet.
+- It creates /root/.ssh/config with:
+  - IdentityFile /root/.ssh/spot_fleet
+  - IdentitiesOnly yes
+  - UserKnownHostsFile /root/.ssh/known_hosts
+- Recreate test passed:
+  - docker compose up -d --force-recreate spot-core
+  - /health OK
+  - container SSH to spot-worker-01 READ_OK
+  - /admin/read-file returned HTTP 200
+
+Spot UI Phase 2 fixes:
+- Patched watch/spot-ui-risk.json.jq so jq -n -f watch/spot-ui-risk.json.jq passes standalone validation.
+- Patched watch/spot-ui-readiness.sh so backup lookup falls back from missing/broken latest/metadata.json symlinks to newest timestamped backup directory.
+- Render smoke passed:
+  - bash watch/spot-ui-readiness.sh > operator-readiness.json
+  - jq . operator-readiness.json
+  - SPOT_UI_READINESS_JSON=... SPOT_UI_JSON=/var/www/html/spot/spot.json bash watch/spot-ui-render-html.sh > spot.html
+  - grep -q "Spot UI Cockpit" spot.html
+  - render_smoke=PASS
+
+Known Spot UI readiness state:
+- Readiness improved from FAIL to WARN.
+- backups.workers_ok=true for spot-worker-01 through spot-worker-04.
+- Remaining readiness WARN causes:
+  - validation.fresh=false due stale watch/state/operator-validation.json.
+  - self_heal.checks.backups_ok=false appears from self-heal’s separate backup check, not the fixed readiness backup path.
+
+Open items:
+1. worker-06 physical recovery/boot issue.
+2. Refresh or fix operator validation stamp path so Spot UI readiness no longer sees stale validation.
+3. Investigate self-heal backup check still reporting backups_ok=false despite readiness/validator backup PASS.
+4. Continue spot-ui-01 operator UI lane; renderers currently smoke-test clean.
+5. Optional: apply/fix generate-patch naming drift in CLI help/source later; proposal/apply-plan artifacts already exist.
+
+Operational guardrails:
+- No git add .
+- Keep worker roles unchanged:
+  - general -> spot-worker-01
+  - utility -> spot-worker-02
+  - coding -> spot-worker-03
+  - heavy -> spot-worker-04
+- Do not change routing ownership until explicitly approved.
+- worker-06 remains offline/physical-blocked.
+- No network/firewall/DNS/DHCP/VLAN mutation authorized.
+- No autonomous execution path enabled.
