@@ -44,4 +44,8 @@ def risk_score($s; $h; $r; $stale):
       ]
     };
 
-risk_score($s; $h; $r; $stale)
+({core:{ok:true}, banner:{status:"OK"}, routing:{status:"OK",violations:0,fallbacks:0}, workers:[], generated_at:(now|todateiso8601)}) as $s
+| ({trends:{}, last_generated_at:$s.generated_at}) as $h
+| ({}) as $r
+| 180 as $stale
+| risk_score($s; $h; $r; $stale)

@@ -26,8 +26,15 @@ http_ok(){
 
 backup_item(){
   local worker="$1"
-  local p="${BACKUP_ROOT}/${worker}/worker-config/latest/metadata.json"
+  local base="${BACKUP_ROOT}/${worker}/worker-config"
+  local p="${base}/latest/metadata.json"
+  local snap=""
   local now age_h ts ok="false"
+
+  if [[ ! -f "$p" ]]; then
+    snap="$(find "$base" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | grep -E '^[0-9]{8}T[0-9]{6}Z$' | sort | tail -n 1 || true)"
+    [[ -n "$snap" ]] && p="${base}/${snap}/metadata.json"
+  fi
 
   now="$(date -u +%s)"
   if [[ -f "$p" ]]; then
