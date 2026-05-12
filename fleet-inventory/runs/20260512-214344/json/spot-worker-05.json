@@ -1,0 +1,9 @@
+{
+  "hostname": "spot-worker-05",
+  "ip": "192.168.10.15",
+  "category": "ENGINEERING",
+  "switch_port": "",
+  "description": "Visual / render node",
+  "reachable": false,
+  "collected_at": "2026-05-12T21:43:57+00:00"
+}
