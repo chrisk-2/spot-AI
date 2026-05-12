@@ -314,8 +314,28 @@ if not proposal_validations:
     print("ERROR: approved proposal has no VALIDATION_COMMANDS section; apply plan blocked", file=sys.stderr)
     sys.exit(2)
 
+FORBIDDEN_VALIDATION_PATTERNS = [
+    r'(^|\\s)(mkdir|touch|chmod|chown|rm|mv|cp|tee)(\\s|$)',
+    r'(^|\\s)(systemctl|service)(\\s|$)',
+    r'(^|\\s)docker\\s+compose(\\s|$)',
+    r'(^|\\s)sed\\s+-i(\\s|$)',
+    r'(^|\\s)cat\\s+.*>',
+    r'(^|\\s)echo\\s+.*>',
+    r'>|>>|\\||;|&&|\\|\\|',
+]
+
+def validation_command_is_safe(cmd):
+    stripped = cmd.strip()
+    for pattern in FORBIDDEN_VALIDATION_PATTERNS:
+        if re.search(pattern, stripped):
+            return False
+    return True
+
 validations = []
 for item in proposal_validations:
+    if not validation_command_is_safe(item):
+        print(f"ERROR: unsafe validation command in approved proposal; apply plan blocked: {item}", file=sys.stderr)
+        sys.exit(2)
     if item not in validations:
         validations.append(item)
 rollback = bullets(section("ROLLBACK")) or ["Use the verified pre-change Spot Core backup artifact generated immediately before any future mutation."]
