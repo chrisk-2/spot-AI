@@ -61,12 +61,13 @@ CONFIG_MTIME: float | None = None
 
 LOGGER = logging.getLogger("spotcore.app")
 
-ROLE = Literal["heavy", "coding", "general", "utility", "watcher"]
+ROLE = Literal["heavy", "coding", "general", "utility", "watcher", "reasoning"]
 ROLE_OWNERS: dict[str, str] = {
     "general": "spot-worker-01",
     "utility": "spot-worker-02",
     "coding": "spot-worker-03",
     "heavy": "spot-worker-04",
+    "reasoning": "spot-worker-06"
 }
 
 
@@ -1119,6 +1120,19 @@ def score_candidate(cfg: dict[str, Any], worker_name: str, gpu_lane: str, role: 
     status = worker_status(worker_name)
     weights = cfg.get("score_weights", {})
     score = 1000.0
+    prefs = (
+        cfg["workers"]
+        .get(worker_name, {})
+        .get("gpu_routes", {})
+        .get(gpu_lane, {})
+        .get("model_preferences", {})
+        .get(role, [])
+    )
+
+    if model in prefs:
+        pref_index = prefs.index(model)
+        pref_bonus = max(0, (len(prefs) - pref_index)) * 120
+        score += pref_bonus
     rp = role_priority(cfg, role)
     if worker_name in rp:
         score += max(0, (len(rp) - rp.index(worker_name))) * float(weights.get("role_rank_bonus", 30))
