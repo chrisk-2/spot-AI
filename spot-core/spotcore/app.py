@@ -1021,10 +1021,9 @@ def append_routing_audit(payload: dict[str, Any]) -> None:
 
 def installed_models_for_worker(worker_name: str, cfg: dict[str, Any]) -> set[str]:
     status = worker_status(worker_name)
-    watcher_models = watcher_installed_models(status)
-    if watcher_models:
-        return set(watcher_models)
-    return set(cfg["workers"].get(worker_name, {}).get("installed_models", []))
+    watcher_models = set(watcher_installed_models(status))
+    config_models = set(cfg["workers"].get(worker_name, {}).get("installed_models", []))
+    return watcher_models | config_models
 
 
 def is_worker_healthy(worker_name: str, cfg: dict[str, Any]) -> tuple[bool, str]:
@@ -1097,6 +1096,44 @@ def higher_priority_waiting(cfg: dict[str, Any], priority: str) -> bool:
     return any(WAITING_REQUESTS.get(p, 0) > 0 for p in order[:idx])
 
 
+def classify_request_tier(req: ExecRequest) -> tuple[str, str | None]:
+    text = req.prompt.lower()
+
+    if req.role == "reasoning":
+        return ("reasoning", "role_reasoning")
+
+    if len(req.prompt) >= 4000:
+        return ("premium", "prompt_length")
+
+    premium_markers = [
+        "deep analysis",
+        "architecture",
+        "architect",
+        "design review",
+        "root cause",
+        "multi-step",
+        "compare options",
+        "tradeoff",
+        "risk analysis",
+        "migration plan",
+        "roadmap",
+        "full plan",
+        "large context",
+        "complex",
+    ]
+
+    for marker in premium_markers:
+        if marker in text:
+            return ("premium", f"marker:{marker}")
+
+    if req.model:
+        model = req.model.lower()
+        if "32b" in model or "30b" in model or "24b" in model or "deepseek-r1" in model:
+            return ("premium", "explicit_model")
+
+    return ("normal", None)
+
+
 def prompt_needs_premium_model(req: ExecRequest) -> bool:
     text = req.prompt.lower()
     if req.role == "reasoning":
@@ -1138,10 +1175,19 @@ def select_preferred_models(
     if req is not None and prompt_needs_premium_model(req):
         premium = [
             m for m in prefs
-            if ":32b" in m or "32b" in m or "deepseek-r1" in m
+            if ":32b" in m or "32b" in m or "30b" in m or "24b" in m or "deepseek-r1" in m
         ]
         if premium:
-            return premium if not allow_fallback else premium + [m for m in prefs if m not in premium]
+            preferred_premium = sorted(
+                premium,
+                key=lambda m: (
+                    0 if "30b" in m else
+                    1 if "32b" in m else
+                    2 if "24b" in m else
+                    3
+                ),
+            )
+            return [preferred_premium[0]] if not allow_fallback else preferred_premium + [m for m in prefs if m not in preferred_premium]
 
     return prefs
 
@@ -1276,13 +1322,15 @@ def gather_candidates(cfg: dict[str, Any], req: ExecRequest, use_burst: bool) ->
     workers = role_priority(cfg, req.role)
 
     owner_worker = role_owner(req.role)
-    if not req.worker and owner_worker in workers:
-        owner_state = evaluate_owner_state(cfg, req, owner_worker)
-        if owner_state.get("owner_healthy") is True and owner_state.get("owner_admissible") is True:
-            workers = [owner_worker]
-
     if req.worker:
         workers = [req.worker]
+    elif owner_worker in workers:
+        if not req.allow_fallback:
+            workers = [owner_worker]
+        else:
+            owner_state = evaluate_owner_state(cfg, req, owner_worker)
+            if owner_state.get("owner_healthy") is True and owner_state.get("owner_admissible") is True:
+                workers = [owner_worker]
     for worker_name in workers:
         if worker_name not in cfg["workers"]:
             failures.append({"worker": worker_name, "reason": "unknown_worker", "stage": "candidate"})
@@ -2999,6 +3047,7 @@ async def exec_route(req: ExecRequest) -> ExecResult:
     initial_choice = dict(chosen)
     final_choice = dict(chosen)
     embed_mode = is_embed_request(req.role, chosen["model"])
+    request_tier, premium_reason = classify_request_tier(req)
 
     try:
         if embed_mode:
@@ -3026,6 +3075,9 @@ async def exec_route(req: ExecRequest) -> ExecResult:
                 "failures_seen": failures[-20:],
                 "retry_events": retry_events[-20:],
                 "penalty": current_penalty(final_choice["worker"]),
+                "request_tier": request_tier,
+                "premium_escalated": request_tier in ("premium", "reasoning"),
+                "premium_reason": premium_reason,
                 "routing_audit": routing_audit,
             }
         )
@@ -3074,6 +3126,9 @@ async def exec_route(req: ExecRequest) -> ExecResult:
             "prompt_eval_count": data.get("prompt_eval_count"),
             "eval_count": data.get("eval_count"),
             "retry_events": retry_events,
+            "request_tier": request_tier,
+            "premium_escalated": request_tier in ("premium", "reasoning"),
+            "premium_reason": premium_reason,
             "routing_audit": routing_audit,
         },
     )
@@ -3092,6 +3147,9 @@ async def exec_route(req: ExecRequest) -> ExecResult:
             "failures_seen": failures[-20:],
             "retry_events": retry_events[-20:],
             "latency": worker_latency_summary(final_choice["worker"]),
+            "request_tier": request_tier,
+            "premium_escalated": request_tier in ("premium", "reasoning"),
+            "premium_reason": premium_reason,
             "routing_audit": routing_audit,
         }
     )
