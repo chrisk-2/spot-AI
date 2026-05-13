@@ -104,6 +104,11 @@ EOF
 main() {
     cd "$REPO" || exit 1
 
+    if [[ -x "$REPO/watch/spot-handoff.sh" ]]; then
+        header "GENERATING RUNTIME HANDOFF"
+        "$REPO/watch/spot-handoff.sh"
+    fi
+
     require_file "$HANDOFF_FILE"
     require_file "$STATE_FILE"
     require_file "$ROADMAP_FILE"
