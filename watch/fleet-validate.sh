@@ -135,7 +135,16 @@ run_role_route_checks() {
   check_worker_registered spot-worker-02 utility '["mistral:7b","bge-m3:latest","nomic-embed-text:latest"]'
   check_role_route coding spot-worker-03 || true
   check_role_route heavy spot-worker-04 || true
-  check_worker_registered spot-worker-06 reasoning '["deepseek-r1:32b","qwen2.5-coder:32b","qwen2.5:14b"]' || true
+  local reasoning_ping="$TMPDIR/reasoning-quarantine.json"
+  local reasoning_code="$TMPDIR/reasoning-quarantine.http"
+
+  fetch_fleet_ping "$reasoning_ping" "$reasoning_code" || true
+
+  if jq -e '.["spot-worker-06"].quarantined == true' "$reasoning_ping" >/dev/null 2>&1; then
+    warn "spot-worker-06 reasoning lane quarantined; skipping eligibility check"
+  else
+    check_worker_registered spot-worker-06 reasoning '["deepseek-r1:32b","qwen2.5-coder:32b","qwen2.5:14b"]' || true
+  fi
   local after_lines=0
   [[ -f "$AUDIT_FILE" ]] && after_lines="$(wc -l < "$AUDIT_FILE")"
   ROUTE_CHECK_BEFORE_LINES="$before_lines"
