@@ -1097,6 +1097,31 @@ def higher_priority_waiting(cfg: dict[str, Any], priority: str) -> bool:
     return any(WAITING_REQUESTS.get(p, 0) > 0 for p in order[:idx])
 
 
+def prompt_needs_premium_model(req: ExecRequest) -> bool:
+    text = req.prompt.lower()
+    if req.role == "reasoning":
+        return True
+    if len(req.prompt) >= 4000:
+        return True
+    premium_markers = [
+        "deep analysis",
+        "architecture",
+        "architect",
+        "design review",
+        "root cause",
+        "multi-step",
+        "compare options",
+        "tradeoff",
+        "risk analysis",
+        "migration plan",
+        "roadmap",
+        "full plan",
+        "large context",
+        "complex",
+    ]
+    return any(marker in text for marker in premium_markers)
+
+
 def select_preferred_models(
     cfg: dict[str, Any],
     worker_name: str,
@@ -1104,10 +1129,20 @@ def select_preferred_models(
     role: str,
     requested_model: str | None,
     allow_fallback: bool,
+    req: ExecRequest | None = None,
 ) -> list[str]:
     prefs = list(cfg["workers"][worker_name]["gpu_routes"][gpu_lane].get("model_preferences", {}).get(role, []))
     if requested_model:
         return [requested_model] + [m for m in prefs if m != requested_model] if allow_fallback else [requested_model]
+
+    if req is not None and prompt_needs_premium_model(req):
+        premium = [
+            m for m in prefs
+            if ":32b" in m or "32b" in m or "deepseek-r1" in m
+        ]
+        if premium:
+            return premium if not allow_fallback else premium + [m for m in prefs if m not in premium]
+
     return prefs
 
 
@@ -1276,7 +1311,7 @@ def gather_candidates(cfg: dict[str, Any], req: ExecRequest, use_burst: bool) ->
                     }
                 )
                 continue
-            models = select_preferred_models(cfg, worker_name, gpu_lane, req.role, req.model, req.allow_fallback)
+            models = select_preferred_models(cfg, worker_name, gpu_lane, req.role, req.model, req.allow_fallback, req=req)
             if not models:
                 failures.append(
                     {
@@ -1536,7 +1571,7 @@ def evaluate_owner_state(cfg: dict[str, Any], req: ExecRequest, owner_worker: st
             lane_reasons: list[str] = []
             lane_found = False
             for gpu_lane in cfg["workers"][owner_worker]["gpu_routes"].keys():
-                models = select_preferred_models(cfg, owner_worker, gpu_lane, req.role, req.model, req.allow_fallback)
+                models = select_preferred_models(cfg, owner_worker, gpu_lane, req.role, req.model, req.allow_fallback, req=req)
                 if not models:
                     lane_reasons.append("no_model_preferences")
                     continue
