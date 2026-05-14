@@ -15,6 +15,7 @@ services:
       - ./:/home/ogre/spot-stack:rw
     env_file:
       - ./spot-core/.env
+      - /home/ogre/.config/spot-core/openai.env
     environment:
       SPOTCORE_CONFIG: /srv/spot-core/config/cluster_config.json
       SPOTCORE_WATCH_STATE: /srv/watch/state/fleet-status.json

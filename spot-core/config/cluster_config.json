@@ -411,6 +411,55 @@
         }
       },
       "burst_gpu_routes": {}
+    },
+    "spot-worker-05": {
+      "base_url": "http://192.168.10.15:11434",
+      "primary_role": "standby",
+      "secondary_roles": [
+        "heavy",
+        "reasoning"
+      ],
+      "routing_enabled": false,
+      "max_total": 1,
+      "class_limits": {
+        "general": 0,
+        "heavy": 1,
+        "coding": 0,
+        "utility": 0,
+        "watcher": 0,
+        "reasoning": 1
+      },
+      "installed_models": [
+        "llama3.1:8b",
+        "qwen2.5:14b",
+        "qwen2.5-coder:14b",
+        "qwen2.5:32b"
+      ],
+      "gpu_routes": {
+        "gpu0": {
+          "label": "Tesla P100 16GB",
+          "max_total": 1,
+          "classes": [
+            "heavy",
+            "reasoning"
+          ],
+          "model_limits": {
+            "qwen2.5:14b": 1,
+            "qwen2.5-coder:14b": 1,
+            "qwen2.5:32b": 1
+          },
+          "model_preferences": {
+            "heavy": [
+              "qwen2.5:32b",
+              "qwen2.5:14b"
+            ],
+            "reasoning": [
+              "qwen2.5:32b"
+            ]
+          }
+        }
+      },
+      "burst_gpu_routes": {}
     }
   },
   "providers": {
@@ -420,7 +469,7 @@
       "default": true
     },
     "openai": {
-      "enabled": false,
+      "enabled": true,
       "type": "openai",
       "api_key_env": "OPENAI_API_KEY",
       "default_model": "gpt-4.1-mini"
@@ -461,54 +510,5 @@
     "currency": "USD",
     "local_request_cost_usd": 0.0,
     "log_estimates": true
-  },
-  "spot-worker-05": {
-    "base_url": "http://192.168.10.15:11434",
-    "primary_role": "standby",
-    "secondary_roles": [
-      "heavy",
-      "reasoning"
-    ],
-    "routing_enabled": false,
-    "max_total": 1,
-    "class_limits": {
-      "general": 0,
-      "heavy": 1,
-      "coding": 0,
-      "utility": 0,
-      "watcher": 0,
-      "reasoning": 1
-    },
-    "installed_models": [
-      "llama3.1:8b",
-      "qwen2.5:14b",
-      "qwen2.5-coder:14b",
-      "qwen2.5:32b"
-    ],
-    "gpu_routes": {
-      "gpu0": {
-        "label": "Tesla P100 16GB",
-        "max_total": 1,
-        "classes": [
-          "heavy",
-          "reasoning"
-        ],
-        "model_limits": {
-          "qwen2.5:14b": 1,
-          "qwen2.5-coder:14b": 1,
-          "qwen2.5:32b": 1
-        },
-        "model_preferences": {
-          "heavy": [
-            "qwen2.5:32b",
-            "qwen2.5:14b"
-          ],
-          "reasoning": [
-            "qwen2.5:32b"
-          ]
-        }
-      }
-    },
-    "burst_gpu_routes": {}
   }
 }
