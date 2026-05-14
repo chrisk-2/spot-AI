@@ -11,6 +11,10 @@ BACKUP_BINDING_CONTRACT_SCRIPT="${BACKUP_BINDING_CONTRACT_SCRIPT:-${BASE_DIR}/sp
 BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT="${BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT:-${BASE_DIR}/spot-backup-artifact-manifest-contract.sh}"
 BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT="${BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT:-${BASE_DIR}/spot-backup-artifact-manifest-dry-run.sh}"
 READINESS_GATE_CHECKPOINT_SCRIPT="${READINESS_GATE_CHECKPOINT_SCRIPT:-${BASE_DIR}/spot-readiness-gate-checkpoint.sh}"
+CODEX_PROPOSAL_CONTRACT_SCRIPT="${CODEX_PROPOSAL_CONTRACT_SCRIPT:-${BASE_DIR}/spot-codex-proposal-contract.sh}"
+CODEX_PROPOSAL_FAILURE_TEST_SCRIPT="${CODEX_PROPOSAL_FAILURE_TEST_SCRIPT:-${BASE_DIR}/spot-codex-proposal-contract-failure-test.sh}"
+OPENAI_PROVIDER_CONTRACT_SCRIPT="${OPENAI_PROVIDER_CONTRACT_SCRIPT:-${BASE_DIR}/spot-openai-provider-contract.sh}"
+OPENAI_PROVIDER_FAILURE_TEST_SCRIPT="${OPENAI_PROVIDER_FAILURE_TEST_SCRIPT:-${BASE_DIR}/spot-openai-provider-contract-failure-test.sh}"
 VALIDATOR="${VALIDATOR:-${BASE_DIR}/fleet-validate.sh}"
 CAPABILITIES_SCRIPT="${CAPABILITIES_SCRIPT:-${BASE_DIR}/spot-capabilities.sh}"
 EXECUTOR_CONTRACT_SCRIPT="${EXECUTOR_CONTRACT_SCRIPT:-${BASE_DIR}/spot-executor-contract.sh}"
@@ -115,6 +119,30 @@ Operator commands:
                            Show Phase 2.29 readiness gate checkpoint
   verify-readiness-gate <id|file>
                            Verify Phase 2.29 readiness gate checkpoint
+  codex-proposal-contract
+                           Create Codex proposal-only governance contract
+  codex-proposal-contracts [count]
+                           List Codex proposal-only governance contracts
+  show-codex-proposal-contract <id|file>
+                           Show Codex proposal-only governance contract
+  verify-codex-proposal-contract <id|file>
+                           Verify Codex proposal-only governance contract
+  codex-proposal-contract-summary
+                           Summarize Codex proposal-only governance contracts
+  codex-proposal-contract-failure-test
+                           Verify unsafe Codex proposal contracts are rejected
+  openai-provider-contract
+                           Create OpenAI provider governance contract
+  openai-provider-contracts [count]
+                           List OpenAI provider governance contracts
+  show-openai-provider-contract <id|file>
+                           Show OpenAI provider governance contract
+  verify-openai-provider-contract <id|file>
+                           Verify OpenAI provider governance contract
+  openai-provider-contract-summary
+                           Summarize OpenAI provider governance contracts
+  openai-provider-contract-failure-test
+                           Verify unsafe OpenAI provider contracts are rejected
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -242,6 +270,8 @@ Examples:
   $(basename "$0") backup-artifact-manifest-dry-run-summary
   $(basename "$0") readiness-gates
   $(basename "$0") verify-readiness-gate READINESS-GATE-CHECKPOINT-YYYYMMDD-HHMMSS
+  $(basename "$0") codex-proposal-contract-summary
+  $(basename "$0") openai-provider-contract-summary
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -703,6 +733,78 @@ cmd_verify_readiness_gate() {
   need_cmd bash
   need_file "$READINESS_GATE_CHECKPOINT_SCRIPT"
   bash "$READINESS_GATE_CHECKPOINT_SCRIPT" verify "$@"
+}
+
+cmd_codex_proposal_contract() {
+  need_cmd bash
+  need_file "$CODEX_PROPOSAL_CONTRACT_SCRIPT"
+  bash "$CODEX_PROPOSAL_CONTRACT_SCRIPT" create "$@"
+}
+
+cmd_codex_proposal_contracts() {
+  need_cmd bash
+  need_file "$CODEX_PROPOSAL_CONTRACT_SCRIPT"
+  bash "$CODEX_PROPOSAL_CONTRACT_SCRIPT" list "$@"
+}
+
+cmd_show_codex_proposal_contract() {
+  need_cmd bash
+  need_file "$CODEX_PROPOSAL_CONTRACT_SCRIPT"
+  bash "$CODEX_PROPOSAL_CONTRACT_SCRIPT" show "$@"
+}
+
+cmd_verify_codex_proposal_contract() {
+  need_cmd bash
+  need_file "$CODEX_PROPOSAL_CONTRACT_SCRIPT"
+  bash "$CODEX_PROPOSAL_CONTRACT_SCRIPT" verify "$@"
+}
+
+cmd_codex_proposal_contract_summary() {
+  need_cmd bash
+  need_file "$CODEX_PROPOSAL_CONTRACT_SCRIPT"
+  bash "$CODEX_PROPOSAL_CONTRACT_SCRIPT" summary "$@"
+}
+
+cmd_codex_proposal_contract_failure_test() {
+  need_cmd bash
+  need_file "$CODEX_PROPOSAL_FAILURE_TEST_SCRIPT"
+  bash "$CODEX_PROPOSAL_FAILURE_TEST_SCRIPT" run "$@"
+}
+
+cmd_openai_provider_contract() {
+  need_cmd bash
+  need_file "$OPENAI_PROVIDER_CONTRACT_SCRIPT"
+  bash "$OPENAI_PROVIDER_CONTRACT_SCRIPT" create "$@"
+}
+
+cmd_openai_provider_contracts() {
+  need_cmd bash
+  need_file "$OPENAI_PROVIDER_CONTRACT_SCRIPT"
+  bash "$OPENAI_PROVIDER_CONTRACT_SCRIPT" list "$@"
+}
+
+cmd_show_openai_provider_contract() {
+  need_cmd bash
+  need_file "$OPENAI_PROVIDER_CONTRACT_SCRIPT"
+  bash "$OPENAI_PROVIDER_CONTRACT_SCRIPT" show "$@"
+}
+
+cmd_verify_openai_provider_contract() {
+  need_cmd bash
+  need_file "$OPENAI_PROVIDER_CONTRACT_SCRIPT"
+  bash "$OPENAI_PROVIDER_CONTRACT_SCRIPT" verify "$@"
+}
+
+cmd_openai_provider_contract_summary() {
+  need_cmd bash
+  need_file "$OPENAI_PROVIDER_CONTRACT_SCRIPT"
+  bash "$OPENAI_PROVIDER_CONTRACT_SCRIPT" summary "$@"
+}
+
+cmd_openai_provider_contract_failure_test() {
+  need_cmd bash
+  need_file "$OPENAI_PROVIDER_FAILURE_TEST_SCRIPT"
+  bash "$OPENAI_PROVIDER_FAILURE_TEST_SCRIPT" run "$@"
 }
 
 cmd_status_json() {
@@ -1760,6 +1862,18 @@ main() {
     readiness-gates)     cmd_readiness_gates "$@" ;;
     show-readiness-gate) cmd_show_readiness_gate "$@" ;;
     verify-readiness-gate) cmd_verify_readiness_gate "$@" ;;
+    codex-proposal-contract) cmd_codex_proposal_contract "$@" ;;
+    codex-proposal-contracts) cmd_codex_proposal_contracts "$@" ;;
+    show-codex-proposal-contract) cmd_show_codex_proposal_contract "$@" ;;
+    verify-codex-proposal-contract) cmd_verify_codex_proposal_contract "$@" ;;
+    codex-proposal-contract-summary) cmd_codex_proposal_contract_summary "$@" ;;
+    codex-proposal-contract-failure-test) cmd_codex_proposal_contract_failure_test "$@" ;;
+    openai-provider-contract) cmd_openai_provider_contract "$@" ;;
+    openai-provider-contracts) cmd_openai_provider_contracts "$@" ;;
+    show-openai-provider-contract) cmd_show_openai_provider_contract "$@" ;;
+    verify-openai-provider-contract) cmd_verify_openai_provider_contract "$@" ;;
+    openai-provider-contract-summary) cmd_openai_provider_contract_summary "$@" ;;
+    openai-provider-contract-failure-test) cmd_openai_provider_contract_failure_test "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;

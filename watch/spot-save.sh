@@ -204,3 +204,6 @@ main() {
 }
 
 main "$@"
+
+
+spot validate

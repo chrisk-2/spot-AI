@@ -1,1 +1,514 @@
-{"health_policy":{"blocking_alerts":["service_down","ssh_down","gpu_missing"]},"priority_order":["reasoning","heavy","coding","general","utility","watcher"],"role_priority":{"heavy":["spot-worker-04","spot-worker-01"],"coding":["spot-worker-03"],"general":["spot-worker-01"],"utility":["spot-worker-02"],"watcher":["spot-worker-02"],"reasoning":["spot-worker-06","spot-worker-04"]},"queue_policy":{"queue_wait_ms":2500,"queue_poll_ms":200,"burst_after_ms":500,"per_role":{"heavy":{"queue_wait_ms":2500,"queue_poll_ms":200,"burst_after_ms":700},"coding":{"queue_wait_ms":1800,"queue_poll_ms":200,"burst_after_ms":600},"general":{"queue_wait_ms":1200,"queue_poll_ms":150,"burst_after_ms":300},"utility":{"queue_wait_ms":1000,"queue_poll_ms":150,"burst_after_ms":1200},"watcher":{"queue_wait_ms":500,"queue_poll_ms":100,"burst_after_ms":5000},"reasoning":{"queue_wait_ms":2500,"queue_poll_ms":200,"burst_after_ms":700}}},"warm_model_policy":{"enabled":true,"tick_seconds":45,"refresh_seconds":240,"keep_alive":"5m","warm_seconds":3600,"evict_enabled":true,"history_lines":500,"max_recent_targets":5,"recent_roles":["coding","heavy","general","utility"],"targets":[{"worker":"spot-worker-03","model":"qwen2.5-coder:7b","reason":"codex_primary"},{"worker":"spot-worker-04","model":"qwen2.5:14b","reason":"heavy_primary_stable_validator_safe"},{"worker":"spot-worker-06","model":"qwen2.5-coder:32b","reason":"premium_reasoning_secondary"},{"worker":"spot-worker-01","model":"llama3.1:8b","reason":"general_primary"},{"worker":"spot-worker-02","model":"mistral:7b","reason":"utility_primary"}]},"penalty_policy":{"cooldown_sec":120,"quarantine_after_failures":3,"quarantine_window_sec":600,"quarantine_sec":1800},"score_weights":{"role_rank_bonus":30,"gpu_free_ratio_bonus":200,"load_penalty":18,"worker_active_penalty":25,"lane_active_penalty":45,"model_active_penalty":60,"warm_model_bonus":80,"latency_bonus":8,"penalty_box_penalty":500,"burst_penalty":125,"degraded_worker_penalty":180,"degraded_fallback_step_penalty":20},"retry_policy":{"same_worker_retries":1,"alternate_worker_retries":2,"retryable_errors":["ConnectError","ReadTimeout","RemoteProtocolError","HTTPStatusError"]},"workers":{"spot-worker-01":{"base_url":"http://192.168.10.10:11434","primary_role":"general","secondary_roles":["heavy"],"max_total":1,"class_limits":{"general":1,"heavy":1,"coding":0,"utility":0,"watcher":0},"installed_models":["mistral:7b","llama3.1:8b","qwen2.5-coder:7b","qwen2.5:14b"],"gpu_routes":{"gpu0":{"label":"RTX 3060 12GB","max_total":1,"classes":["general","heavy"],"model_limits":{"llama3.1:8b":1,"mistral:7b":1,"qwen2.5-coder:7b":1,"qwen2.5:14b":1},"model_preferences":{"general":["llama3.1:8b","mistral:7b"],"heavy":["qwen2.5:14b"]}}},"burst_gpu_routes":{}},"spot-worker-02":{"base_url":"http://192.168.10.11:11434","primary_role":"utility","secondary_roles":["watcher"],"max_total":2,"class_limits":{"general":0,"heavy":0,"coding":0,"utility":2,"watcher":2},"installed_models":["mistral:7b","bge-m3:latest","nomic-embed-text:latest"],"gpu_routes":{"gpu0":{"label":"TITAN Xp 12GB","max_total":1,"classes":["utility"],"model_limits":{"mistral:7b":1},"model_preferences":{"utility":["mistral:7b"]}},"gpu1":{"label":"Quadro M4000 8GB","max_total":1,"classes":["utility","watcher"],"model_limits":{"bge-m3:latest":1,"nomic-embed-text:latest":1},"model_preferences":{"utility":["bge-m3:latest","nomic-embed-text:latest"],"watcher":["bge-m3:latest"]}}},"burst_gpu_routes":{}},"spot-worker-03":{"base_url":"http://192.168.10.13:11434","primary_role":"coding","secondary_roles":["heavy"],"max_total":2,"class_limits":{"general":0,"heavy":1,"coding":2,"utility":0,"watcher":0},"installed_models":["qwen2.5:14b","qwen2.5-coder:7b","codellama:7b","deepseek-coder:6.7b"],"gpu_routes":{"gpu0":{"label":"GTX 1070 8GB","max_total":1,"classes":["coding"],"model_limits":{"qwen2.5-coder:7b":1,"codellama:7b":1,"deepseek-coder:6.7b":1},"model_preferences":{"coding":["qwen2.5-coder:7b","deepseek-coder:6.7b","codellama:7b"]}},"gpu1":{"label":"RTX 3060 12GB","max_total":1,"classes":["coding","heavy"],"model_limits":{"qwen2.5-coder:7b":1,"qwen2.5:14b":1},"model_preferences":{"coding":["qwen2.5-coder:7b"],"heavy":["qwen2.5:14b"]}}},"burst_gpu_routes":{"gpu1":{"classes":["coding"]}}},"spot-worker-04":{"base_url":"http://192.168.10.14:11434","primary_role":"heavy","secondary_roles":[],"max_total":1,"class_limits":{"general":0,"heavy":1,"coding":0,"utility":0,"watcher":0},"installed_models":["qwen2.5:14b","mistral-small:24b","qwen3:30b-a3b","gemma3:27b"],"gpu_routes":{"gpu0":{"label":"Quadro P6000 24GB","max_total":1,"classes":["heavy"],"model_limits":{"qwen3:32b":1,"qwen2.5-coder:32b":1,"qwen2.5:14b":1},"model_preferences":{"heavy":["qwen2.5:14b","mistral-small:24b","qwen3:30b-a3b"]}}},"burst_gpu_routes":{}},"spot-worker-06":{"base_url":"http://192.168.10.16:11434","primary_role":"reasoning","secondary_roles":["heavy"],"max_total":1,"class_limits":{"general":0,"heavy":1,"coding":0,"utility":0,"watcher":0,"reasoning":1},"installed_models":["deepseek-r1:32b","qwen2.5-coder:32b","qwen2.5:14b"],"gpu_routes":{"gpu0":{"label":"Quadro P6000 24GB","max_total":1,"classes":["reasoning","heavy"],"model_limits":{"deepseek-r1:32b":1,"qwen2.5-coder:32b":1,"qwen2.5:14b":1},"model_preferences":{"heavy":["qwen2.5-coder:32b","deepseek-r1:32b","qwen2.5:14b"],"reasoning":["deepseek-r1:32b","qwen2.5-coder:32b","qwen2.5:14b"]}}},"burst_gpu_routes":{}}},"providers":{"local_ollama":{"enabled":true,"type":"ollama","default":true},"openai":{"enabled":false,"type":"openai","api_key_env":"OPENAI_API_KEY","default_model":"gpt-4.1-mini"}},"cloud_policy":{"default":"deny","roles":{"general":{"openai_fallback":"allow"},"coding":{"openai_fallback":"allow","send_repo_context":"approval_required"},"heavy":{"openai_fallback":"allow"},"reasoning":{"openai_fallback":"allow"},"utility":{"openai_fallback":"deny"},"watcher":{"openai_fallback":"deny"},"network_ops":{"openai_fallback":"deny"},"secrets":{"openai_fallback":"deny"}}},"cost_tracking":{"enabled":true,"currency":"USD","local_request_cost_usd":0.0,"log_estimates":true}}
+{
+  "health_policy": {
+    "blocking_alerts": [
+      "service_down",
+      "ssh_down",
+      "gpu_missing"
+    ]
+  },
+  "priority_order": [
+    "reasoning",
+    "heavy",
+    "coding",
+    "general",
+    "utility",
+    "watcher"
+  ],
+  "role_priority": {
+    "heavy": [
+      "spot-worker-04",
+      "spot-worker-01"
+    ],
+    "coding": [
+      "spot-worker-03"
+    ],
+    "general": [
+      "spot-worker-01"
+    ],
+    "utility": [
+      "spot-worker-02"
+    ],
+    "watcher": [
+      "spot-worker-02"
+    ],
+    "reasoning": [
+      "spot-worker-06",
+      "spot-worker-04"
+    ]
+  },
+  "queue_policy": {
+    "queue_wait_ms": 2500,
+    "queue_poll_ms": 200,
+    "burst_after_ms": 500,
+    "per_role": {
+      "heavy": {
+        "queue_wait_ms": 2500,
+        "queue_poll_ms": 200,
+        "burst_after_ms": 700
+      },
+      "coding": {
+        "queue_wait_ms": 1800,
+        "queue_poll_ms": 200,
+        "burst_after_ms": 600
+      },
+      "general": {
+        "queue_wait_ms": 1200,
+        "queue_poll_ms": 150,
+        "burst_after_ms": 300
+      },
+      "utility": {
+        "queue_wait_ms": 1000,
+        "queue_poll_ms": 150,
+        "burst_after_ms": 1200
+      },
+      "watcher": {
+        "queue_wait_ms": 500,
+        "queue_poll_ms": 100,
+        "burst_after_ms": 5000
+      },
+      "reasoning": {
+        "queue_wait_ms": 2500,
+        "queue_poll_ms": 200,
+        "burst_after_ms": 700
+      }
+    }
+  },
+  "warm_model_policy": {
+    "enabled": true,
+    "tick_seconds": 45,
+    "refresh_seconds": 240,
+    "keep_alive": "5m",
+    "warm_seconds": 3600,
+    "evict_enabled": true,
+    "history_lines": 500,
+    "max_recent_targets": 5,
+    "recent_roles": [
+      "coding",
+      "heavy",
+      "general",
+      "utility"
+    ],
+    "targets": [
+      {
+        "worker": "spot-worker-03",
+        "model": "qwen2.5-coder:7b",
+        "reason": "codex_primary"
+      },
+      {
+        "worker": "spot-worker-04",
+        "model": "qwen2.5:14b",
+        "reason": "heavy_primary_stable_validator_safe"
+      },
+      {
+        "worker": "spot-worker-06",
+        "model": "qwen2.5-coder:32b",
+        "reason": "premium_reasoning_secondary"
+      },
+      {
+        "worker": "spot-worker-01",
+        "model": "llama3.1:8b",
+        "reason": "general_primary"
+      },
+      {
+        "worker": "spot-worker-02",
+        "model": "mistral:7b",
+        "reason": "utility_primary"
+      }
+    ]
+  },
+  "penalty_policy": {
+    "cooldown_sec": 120,
+    "quarantine_after_failures": 3,
+    "quarantine_window_sec": 600,
+    "quarantine_sec": 1800
+  },
+  "score_weights": {
+    "role_rank_bonus": 30,
+    "gpu_free_ratio_bonus": 200,
+    "load_penalty": 18,
+    "worker_active_penalty": 25,
+    "lane_active_penalty": 45,
+    "model_active_penalty": 60,
+    "warm_model_bonus": 80,
+    "latency_bonus": 8,
+    "penalty_box_penalty": 500,
+    "burst_penalty": 125,
+    "degraded_worker_penalty": 180,
+    "degraded_fallback_step_penalty": 20
+  },
+  "retry_policy": {
+    "same_worker_retries": 1,
+    "alternate_worker_retries": 2,
+    "retryable_errors": [
+      "ConnectError",
+      "ReadTimeout",
+      "RemoteProtocolError",
+      "HTTPStatusError"
+    ]
+  },
+  "workers": {
+    "spot-worker-01": {
+      "base_url": "http://192.168.10.10:11434",
+      "primary_role": "general",
+      "secondary_roles": [
+        "heavy"
+      ],
+      "max_total": 1,
+      "class_limits": {
+        "general": 1,
+        "heavy": 1,
+        "coding": 0,
+        "utility": 0,
+        "watcher": 0
+      },
+      "installed_models": [
+        "mistral:7b",
+        "llama3.1:8b",
+        "qwen2.5-coder:7b",
+        "qwen2.5:14b"
+      ],
+      "gpu_routes": {
+        "gpu0": {
+          "label": "RTX 3060 12GB",
+          "max_total": 1,
+          "classes": [
+            "general",
+            "heavy"
+          ],
+          "model_limits": {
+            "llama3.1:8b": 1,
+            "mistral:7b": 1,
+            "qwen2.5-coder:7b": 1,
+            "qwen2.5:14b": 1
+          },
+          "model_preferences": {
+            "general": [
+              "llama3.1:8b",
+              "mistral:7b"
+            ],
+            "heavy": [
+              "qwen2.5:14b"
+            ]
+          }
+        }
+      },
+      "burst_gpu_routes": {}
+    },
+    "spot-worker-02": {
+      "base_url": "http://192.168.10.11:11434",
+      "primary_role": "utility",
+      "secondary_roles": [
+        "watcher"
+      ],
+      "max_total": 2,
+      "class_limits": {
+        "general": 0,
+        "heavy": 0,
+        "coding": 0,
+        "utility": 2,
+        "watcher": 2
+      },
+      "installed_models": [
+        "mistral:7b",
+        "bge-m3:latest",
+        "nomic-embed-text:latest"
+      ],
+      "gpu_routes": {
+        "gpu0": {
+          "label": "TITAN Xp 12GB",
+          "max_total": 1,
+          "classes": [
+            "utility"
+          ],
+          "model_limits": {
+            "mistral:7b": 1
+          },
+          "model_preferences": {
+            "utility": [
+              "mistral:7b"
+            ]
+          }
+        },
+        "gpu1": {
+          "label": "Quadro M4000 8GB",
+          "max_total": 1,
+          "classes": [
+            "utility",
+            "watcher"
+          ],
+          "model_limits": {
+            "bge-m3:latest": 1,
+            "nomic-embed-text:latest": 1
+          },
+          "model_preferences": {
+            "utility": [
+              "bge-m3:latest",
+              "nomic-embed-text:latest"
+            ],
+            "watcher": [
+              "bge-m3:latest"
+            ]
+          }
+        }
+      },
+      "burst_gpu_routes": {}
+    },
+    "spot-worker-03": {
+      "base_url": "http://192.168.10.13:11434",
+      "primary_role": "coding",
+      "secondary_roles": [
+        "heavy"
+      ],
+      "max_total": 2,
+      "class_limits": {
+        "general": 0,
+        "heavy": 1,
+        "coding": 2,
+        "utility": 0,
+        "watcher": 0
+      },
+      "installed_models": [
+        "qwen2.5:14b",
+        "qwen2.5-coder:7b",
+        "codellama:7b",
+        "deepseek-coder:6.7b"
+      ],
+      "gpu_routes": {
+        "gpu0": {
+          "label": "GTX 1070 8GB",
+          "max_total": 1,
+          "classes": [
+            "coding"
+          ],
+          "model_limits": {
+            "qwen2.5-coder:7b": 1,
+            "codellama:7b": 1,
+            "deepseek-coder:6.7b": 1
+          },
+          "model_preferences": {
+            "coding": [
+              "qwen2.5-coder:7b",
+              "deepseek-coder:6.7b",
+              "codellama:7b"
+            ]
+          }
+        },
+        "gpu1": {
+          "label": "RTX 3060 12GB",
+          "max_total": 1,
+          "classes": [
+            "coding",
+            "heavy"
+          ],
+          "model_limits": {
+            "qwen2.5-coder:7b": 1,
+            "qwen2.5:14b": 1
+          },
+          "model_preferences": {
+            "coding": [
+              "qwen2.5-coder:7b"
+            ],
+            "heavy": [
+              "qwen2.5:14b"
+            ]
+          }
+        }
+      },
+      "burst_gpu_routes": {
+        "gpu1": {
+          "classes": [
+            "coding"
+          ]
+        }
+      }
+    },
+    "spot-worker-04": {
+      "base_url": "http://192.168.10.14:11434",
+      "primary_role": "heavy",
+      "secondary_roles": [],
+      "max_total": 1,
+      "class_limits": {
+        "general": 0,
+        "heavy": 1,
+        "coding": 0,
+        "utility": 0,
+        "watcher": 0
+      },
+      "installed_models": [
+        "qwen2.5:14b",
+        "mistral-small:24b",
+        "qwen3:30b-a3b",
+        "gemma3:27b"
+      ],
+      "gpu_routes": {
+        "gpu0": {
+          "label": "Quadro P6000 24GB",
+          "max_total": 1,
+          "classes": [
+            "heavy"
+          ],
+          "model_limits": {
+            "qwen3:32b": 1,
+            "qwen2.5-coder:32b": 1,
+            "qwen2.5:14b": 1
+          },
+          "model_preferences": {
+            "heavy": [
+              "qwen2.5:14b",
+              "mistral-small:24b",
+              "qwen3:30b-a3b"
+            ]
+          }
+        }
+      },
+      "burst_gpu_routes": {}
+    },
+    "spot-worker-06": {
+      "base_url": "http://192.168.10.16:11434",
+      "primary_role": "reasoning",
+      "secondary_roles": [
+        "heavy"
+      ],
+      "max_total": 1,
+      "class_limits": {
+        "general": 0,
+        "heavy": 1,
+        "coding": 0,
+        "utility": 0,
+        "watcher": 0,
+        "reasoning": 1
+      },
+      "installed_models": [
+        "deepseek-r1:32b",
+        "qwen2.5-coder:32b",
+        "qwen2.5:14b"
+      ],
+      "gpu_routes": {
+        "gpu0": {
+          "label": "Quadro P6000 24GB",
+          "max_total": 1,
+          "classes": [
+            "reasoning",
+            "heavy"
+          ],
+          "model_limits": {
+            "deepseek-r1:32b": 1,
+            "qwen2.5-coder:32b": 1,
+            "qwen2.5:14b": 1
+          },
+          "model_preferences": {
+            "heavy": [
+              "qwen2.5-coder:32b",
+              "deepseek-r1:32b",
+              "qwen2.5:14b"
+            ],
+            "reasoning": [
+              "deepseek-r1:32b",
+              "qwen2.5-coder:32b",
+              "qwen2.5:14b"
+            ]
+          }
+        }
+      },
+      "burst_gpu_routes": {}
+    }
+  },
+  "providers": {
+    "local_ollama": {
+      "enabled": true,
+      "type": "ollama",
+      "default": true
+    },
+    "openai": {
+      "enabled": false,
+      "type": "openai",
+      "api_key_env": "OPENAI_API_KEY",
+      "default_model": "gpt-4.1-mini"
+    }
+  },
+  "cloud_policy": {
+    "default": "deny",
+    "roles": {
+      "general": {
+        "openai_fallback": "allow"
+      },
+      "coding": {
+        "openai_fallback": "allow",
+        "send_repo_context": "approval_required"
+      },
+      "heavy": {
+        "openai_fallback": "allow"
+      },
+      "reasoning": {
+        "openai_fallback": "allow"
+      },
+      "utility": {
+        "openai_fallback": "deny"
+      },
+      "watcher": {
+        "openai_fallback": "deny"
+      },
+      "network_ops": {
+        "openai_fallback": "deny"
+      },
+      "secrets": {
+        "openai_fallback": "deny"
+      }
+    }
+  },
+  "cost_tracking": {
+    "enabled": true,
+    "currency": "USD",
+    "local_request_cost_usd": 0.0,
+    "log_estimates": true
+  },
+  "spot-worker-05": {
+    "base_url": "http://192.168.10.15:11434",
+    "primary_role": "standby",
+    "secondary_roles": [
+      "heavy",
+      "reasoning"
+    ],
+    "routing_enabled": false,
+    "max_total": 1,
+    "class_limits": {
+      "general": 0,
+      "heavy": 1,
+      "coding": 0,
+      "utility": 0,
+      "watcher": 0,
+      "reasoning": 1
+    },
+    "installed_models": [
+      "llama3.1:8b",
+      "qwen2.5:14b",
+      "qwen2.5-coder:14b",
+      "qwen2.5:32b"
+    ],
+    "gpu_routes": {
+      "gpu0": {
+        "label": "Tesla P100 16GB",
+        "max_total": 1,
+        "classes": [
+          "heavy",
+          "reasoning"
+        ],
+        "model_limits": {
+          "qwen2.5:14b": 1,
+          "qwen2.5-coder:14b": 1,
+          "qwen2.5:32b": 1
+        },
+        "model_preferences": {
+          "heavy": [
+            "qwen2.5:32b",
+            "qwen2.5:14b"
+          ],
+          "reasoning": [
+            "qwen2.5:32b"
+          ]
+        }
+      }
+    },
+    "burst_gpu_routes": {}
+  }
+}

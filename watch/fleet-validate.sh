@@ -248,7 +248,7 @@ check_worker_backup_freshness() {
   max_age_hours="${SPOT_BACKUP_MAX_AGE_HOURS:-8}"
   max_age_sec=$((max_age_hours * 3600))
   now="$(date -u +%s)"
-  workers="spot-worker-01 spot-worker-02 spot-worker-03 spot-worker-04 spot-worker-06"
+  workers="spot-worker-01 spot-worker-02 spot-worker-03 spot-worker-04 spot-worker-05 spot-worker-06"
   for worker in $workers; do
     meta="/mnt/collective/backups/${worker}/worker-config/latest/metadata.json"
     if [[ ! -f "$meta" ]]; then
