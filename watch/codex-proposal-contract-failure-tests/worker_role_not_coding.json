@@ -1,0 +1,42 @@
+{
+  "schema": "spot.codex_proposal_contract.v1",
+  "phase": "2.external-ai-governance",
+  "created_utc": "20260513-232849",
+  "client": "codex",
+  "target_worker": "spot-worker-03",
+  "worker_role": "heavy",
+  "mode": "proposal_only",
+  "contract_status": "active_non_mutating_governance",
+  "authority": {
+    "may_read_repo_context": true,
+    "may_generate_proposals": true,
+    "may_generate_patch_artifacts": true,
+    "may_request_validation": true,
+    "may_request_spot_core_apply": true,
+    "spot_core_is_apply_authority": true,
+    "operator_approval_required_for_apply": true
+  },
+  "hard_gates": {
+    "execution_allowed": false,
+    "mutation_allowed": false,
+    "mutation_performed": false,
+    "executor_dispatch_allowed": false,
+    "service_restart_allowed": false,
+    "config_write_allowed": false,
+    "network_mutation_allowed": false,
+    "backup_creation_allowed": false,
+    "backup_binding_active": false,
+    "backup_delete_allowed": false,
+    "backup_overwrite_allowed": false,
+    "unrestricted_shell_allowed": false,
+    "direct_filesystem_mutation_allowed": false,
+    "direct_admin_write_allowed": false,
+    "direct_service_restart_allowed": false,
+    "direct_network_mutation_allowed": false
+  },
+  "result": {
+    "ok": true,
+    "blocked": true,
+    "reason": "codex_governed_as_proposal_only_client_no_direct_mutation"
+  }
+}

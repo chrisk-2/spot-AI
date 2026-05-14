@@ -10,6 +10,7 @@ EXECUTOR_PREFLIGHT_SCRIPT="${EXECUTOR_PREFLIGHT_SCRIPT:-${BASE_DIR}/spot-executo
 BACKUP_BINDING_CONTRACT_SCRIPT="${BACKUP_BINDING_CONTRACT_SCRIPT:-${BASE_DIR}/spot-backup-binding-contract.sh}"
 BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT="${BACKUP_ARTIFACT_MANIFEST_CONTRACT_SCRIPT:-${BASE_DIR}/spot-backup-artifact-manifest-contract.sh}"
 BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT="${BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT:-${BASE_DIR}/spot-backup-artifact-manifest-dry-run.sh}"
+READINESS_GATE_CHECKPOINT_SCRIPT="${READINESS_GATE_CHECKPOINT_SCRIPT:-${BASE_DIR}/spot-readiness-gate-checkpoint.sh}"
 VALIDATOR="${VALIDATOR:-${BASE_DIR}/fleet-validate.sh}"
 CAPABILITIES_SCRIPT="${CAPABILITIES_SCRIPT:-${BASE_DIR}/spot-capabilities.sh}"
 EXECUTOR_CONTRACT_SCRIPT="${EXECUTOR_CONTRACT_SCRIPT:-${BASE_DIR}/spot-executor-contract.sh}"
@@ -106,6 +107,14 @@ Operator commands:
                            Verify simulated backup artifact manifest dry-run
   backup-artifact-manifest-dry-run-summary
                            Summarize simulated backup artifact manifest dry-runs
+  readiness-gate
+                           Create non-mutating Phase 2.29 readiness gate checkpoint
+  readiness-gates [count]
+                           List Phase 2.29 readiness gate checkpoints
+  show-readiness-gate <id|file>
+                           Show Phase 2.29 readiness gate checkpoint
+  verify-readiness-gate <id|file>
+                           Verify Phase 2.29 readiness gate checkpoint
   remember <type> <text>   Append durable memory entry
   memory [count]           Show recent durable memory entries
   recall <keyword>         Search durable memory entries
@@ -231,6 +240,8 @@ Examples:
   $(basename "$0") show-backup-artifact-manifest-dry-run BACKUP-ARTIFACT-MANIFEST-DRY-RUN-YYYYMMDD-HHMMSS-name
   $(basename "$0") verify-backup-artifact-manifest-dry-run BACKUP-ARTIFACT-MANIFEST-DRY-RUN-YYYYMMDD-HHMMSS-name
   $(basename "$0") backup-artifact-manifest-dry-run-summary
+  $(basename "$0") readiness-gates
+  $(basename "$0") verify-readiness-gate READINESS-GATE-CHECKPOINT-YYYYMMDD-HHMMSS
   $(basename "$0") remember fact "worker-02 has dual GPUs"
   $(basename "$0") memory
   $(basename "$0") recall worker-02
@@ -668,6 +679,30 @@ cmd_backup_artifact_manifest_dry_run_summary() {
   need_cmd bash
   need_file "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT"
   bash "$BACKUP_ARTIFACT_MANIFEST_DRY_RUN_SCRIPT" summary "$@"
+}
+
+cmd_readiness_gate() {
+  need_cmd bash
+  need_file "$READINESS_GATE_CHECKPOINT_SCRIPT"
+  bash "$READINESS_GATE_CHECKPOINT_SCRIPT" create "$@"
+}
+
+cmd_readiness_gates() {
+  need_cmd bash
+  need_file "$READINESS_GATE_CHECKPOINT_SCRIPT"
+  bash "$READINESS_GATE_CHECKPOINT_SCRIPT" list "$@"
+}
+
+cmd_show_readiness_gate() {
+  need_cmd bash
+  need_file "$READINESS_GATE_CHECKPOINT_SCRIPT"
+  bash "$READINESS_GATE_CHECKPOINT_SCRIPT" show "$@"
+}
+
+cmd_verify_readiness_gate() {
+  need_cmd bash
+  need_file "$READINESS_GATE_CHECKPOINT_SCRIPT"
+  bash "$READINESS_GATE_CHECKPOINT_SCRIPT" verify "$@"
 }
 
 cmd_status_json() {
@@ -1721,6 +1756,10 @@ main() {
     show-backup-artifact-manifest-dry-run) cmd_show_backup_artifact_manifest_dry_run "$@" ;;
     verify-backup-artifact-manifest-dry-run) cmd_verify_backup_artifact_manifest_dry_run "$@" ;;
     backup-artifact-manifest-dry-run-summary) cmd_backup_artifact_manifest_dry_run_summary "$@" ;;
+    readiness-gate)      cmd_readiness_gate "$@" ;;
+    readiness-gates)     cmd_readiness_gates "$@" ;;
+    show-readiness-gate) cmd_show_readiness_gate "$@" ;;
+    verify-readiness-gate) cmd_verify_readiness_gate "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;

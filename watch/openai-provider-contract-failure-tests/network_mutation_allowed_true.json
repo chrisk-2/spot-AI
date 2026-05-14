@@ -1,0 +1,49 @@
+{
+  "schema": "spot.openai_provider_contract.v1",
+  "phase": "2.external-ai-governance",
+  "created_utc": "20260513-235940",
+  "provider": "openai",
+  "mode": "external_ai_governance",
+  "tool_authority": "proposal_and_review_only",
+  "contract_status": "active_non_mutating_governance",
+  "review_scope": [
+    "proposal_review",
+    "patch_review",
+    "policy_review",
+    "validation_review",
+    "reasoning_assistance"
+  ],
+  "authority": {
+    "may_review_proposals": true,
+    "may_review_patch_artifacts": true,
+    "may_review_policy_compliance": true,
+    "may_review_validation_output": true,
+    "may_generate_recommendations": true,
+    "spot_core_is_apply_authority": true,
+    "operator_approval_required_for_apply": true
+  },
+  "hard_gates": {
+    "execution_allowed": false,
+    "mutation_allowed": false,
+    "mutation_performed": false,
+    "executor_dispatch_allowed": false,
+    "service_restart_allowed": false,
+    "config_write_allowed": false,
+    "network_mutation_allowed": true,
+    "backup_creation_allowed": false,
+    "backup_binding_active": false,
+    "backup_delete_allowed": false,
+    "backup_overwrite_allowed": false,
+    "unrestricted_shell_allowed": false,
+    "direct_apply_allowed": false,
+    "direct_admin_write_allowed": false,
+    "direct_service_restart_allowed": false,
+    "direct_network_mutation_allowed": false,
+    "direct_filesystem_mutation_allowed": false
+  },
+  "result": {
+    "ok": true,
+    "blocked": true,
+    "reason": "openai_provider_governed_as_proposal_and_review_only_no_direct_mutation"
+  }
+}
