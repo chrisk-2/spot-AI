@@ -56,3 +56,8 @@ htmlcov/
 *.env
 
 local-archive/
+
+watch/quarantine/
+watch/reports/
+*.bak
+*.pre-openai-*
