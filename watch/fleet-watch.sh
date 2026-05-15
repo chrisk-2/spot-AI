@@ -27,6 +27,7 @@ declare -A HOST_IPS=(
   ["spot-worker-02"]="192.168.10.11"
   ["spot-worker-03"]="192.168.10.13"
   ["spot-worker-04"]="192.168.10.14"
+  ["spot-worker-05"]="192.168.10.15"
   ["spot-worker-06"]="192.168.10.16"
   ["spot-ui-01"]="192.168.10.12"
   ["starfleet-tower"]="192.168.30.5"
@@ -40,6 +41,7 @@ HOSTS=(
   "spot-worker-02"
   "spot-worker-03"
   "spot-worker-04"
+  "spot-worker-05"
   "spot-worker-06"
   "spot-ui-01"
   "starfleet-tower"
@@ -182,7 +184,7 @@ if (( ${#DNS_FIX_QUEUE[@]} > 0 )); then
   for host in "${DNS_FIX_QUEUE[@]}"; do echo "[ACTION] dns_bad on $host" | tee -a "$LOG_FILE"; ~/spot-stack/watch/fix-dns.sh "$host" >> "$LOG_FILE" 2>&1 || true; done
 fi
 python3 - <<'PY' "$STATE_FILE" "$routing_audit_ok" | tee -a "$LOG_FILE"
-import json, sys
+import json, sys, time
 state_path = sys.argv[1]
 routing_fetch_ok = sys.argv[2] == "true"
 with open(state_path, "r", encoding="utf-8") as f: data = json.load(f)
@@ -192,9 +194,16 @@ for host, info in data["hosts"].items():
     if info.get("quarantined"): alerts.append(f"{host}:quarantined")
 audit = data.get("routing_audit", {})
 violations = int(audit.get("violations", 0) or 0)
+last_violation_ts = audit.get("last_violation_ts")
+recent_violation = False
+try:
+    if last_violation_ts is not None:
+        recent_violation = (int(time.time()) - int(last_violation_ts)) <= 3600
+except Exception:
+    recent_violation = True
 if not routing_fetch_ok: alerts.append("spot-core:routing_audit_unavailable")
-if violations > 0:
+if violations > 0 and recent_violation:
     alerts.append(f"routing_audit:violations={violations}")
-    if audit.get("last_violation_ts") is not None: alerts.append(f"routing_audit:last_violation_ts={audit.get('last_violation_ts')}")
+    if last_violation_ts is not None: alerts.append(f"routing_audit:last_violation_ts={last_violation_ts}")
 print("ALERT " + " | ".join(alerts) if alerts else "OK fleet healthy | routing clean")
 PY

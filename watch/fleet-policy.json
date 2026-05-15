@@ -16,9 +16,10 @@
       "qwen2.5:14b"
     ],
     "spot-worker-04": [
-      "qwen3:32b",
-      "qwen2.5-coder:32b",
-      "qwen2.5:14b"
+      "qwen2.5:14b",
+      "mistral-small:24b",
+      "qwen3:30b-a3b",
+      "gemma3:27b"
     ],
     "spot-worker-06": [
       "deepseek-r1:32b",

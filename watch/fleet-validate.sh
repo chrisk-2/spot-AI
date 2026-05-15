@@ -224,13 +224,16 @@ check_watch_health() {
 }
 
 check_secret_regression() {
-  command -v git >/dev/null 2>&1 || { warn "secret regression skipped: git unavailable"; return 0; }
-  local repo_root; repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-  [[ -n "$repo_root" ]] || { warn "secret regression skipped: no git repo"; return 0; }
-  local matches_file="$TMPDIR/secret-regression.matches"
+  local matches_file="$TMPDIR/secret-regression.txt"
+  local repo_root="/home/ogre/spot-stack"
+
+  if ! git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    warn "secret regression skipped: no git repo at $repo_root"
+    return 0
+  fi
+
   (
-    cd "$repo_root"
-    git grep -n -E 'SPOTCORE_ADMIN_API_TOKEN[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9_./+-]{16,}' -- \
+    git -C "$repo_root" grep -n -E 'SPOTCORE_ADMIN_API_TOKEN[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9_./+-]{16,}' -- \
       ':!*.env' \
       ':!*.pyc' \
       ':!*__pycache__*' \
@@ -238,7 +241,12 @@ check_secret_regression() {
       ':!watch/fleet-validate.sh' \
       || true
   ) > "$matches_file" 2>/dev/null
-  [[ ! -s "$matches_file" ]] && pass "secret regression clean" || { fail "secret regression: hardcoded SPOTCORE_ADMIN_API_TOKEN found"; cat "$matches_file"; return 1; }
+
+  [[ ! -s "$matches_file" ]] && pass "secret regression clean" || {
+    fail "secret regression: hardcoded SPOTCORE_ADMIN_API_TOKEN found"
+    cat "$matches_file"
+    return 1
+  }
 }
 
 fetch_fleet_ping() { http_json GET "${SPOT_BASE_URL}/fleet/ping" "" "$1" "$2"; }

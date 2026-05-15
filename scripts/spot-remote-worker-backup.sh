@@ -52,7 +52,7 @@ copy_remote_if_exists /etc/systemd/system/ollama.service.d etc/systemd/system/ol
 copy_remote_if_exists /etc/hostname etc/hostname
 copy_remote_if_exists /etc/hosts etc/hosts
 copy_remote_if_exists /etc/fstab etc/fstab
-copy_remote_if_exists /home/ogre/.ssh home/ogre/.ssh
+# Intentionally excluded: /home/ogre/.ssh contains sensitive key material and can hang remote checks.
 
 cat > "$ROOT/metadata.json" <<META
 {
