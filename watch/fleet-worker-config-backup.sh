@@ -45,20 +45,20 @@ backup_worker() {
 }
 META
     mv "$tmp" "$dest"
+    rm -rf "${root}/latest"
+    ln -s "$dest" "${root}/latest"
     log "WARN worker=${worker} ssh_unreachable metadata=${dest}/metadata.json"
     return 0
   fi
 
-  if timeout 45s ssh -o BatchMode=yes -o ConnectTimeout=8 "$worker" '
-      set -e
-      tar czf - \
-        /etc/hostname \
-        /etc/hosts \
-        /etc/ollama \
-        /etc/systemd/system \
-        /home/ogre/.ssh \
-        2>/dev/null
-    ' > "${tmp}/config.tar.gz"; then
+    if timeout 45s ssh -o BatchMode=yes -o ConnectTimeout=8 "$worker" '
+          tar czf - \
+            /etc/hostname \
+            /etc/hosts \
+            /etc/ollama \
+            /etc/systemd/system \
+            2>/dev/null || true
+        ' > "${tmp}/config.tar.gz"; then
     status="ok"
     error=""
   else
@@ -87,8 +87,12 @@ META
   fi
 }
 
-for worker in "${workers[@]}"; do
-  backup_worker "$worker"
-done
+    if [[ $# -gt 0 ]]; then
+      backup_worker "$1"
+    else
+      for worker in "${workers[@]}"; do
+        backup_worker "$worker"
+      done
+    fi
 
 log "DONE timestamp=${TS}"
