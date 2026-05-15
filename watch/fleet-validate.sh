@@ -135,6 +135,21 @@ run_role_route_checks() {
   check_worker_registered spot-worker-02 utility '["mistral:7b","bge-m3:latest","nomic-embed-text:latest"]'
   check_role_route coding spot-worker-03 || true
   check_role_route heavy spot-worker-04 || true
+    local review_ping="$TMPDIR/review-quarantine.json"
+  local review_code="$TMPDIR/review-quarantine.http"
+
+  fetch_fleet_ping "$review_ping" "$review_code" || true
+
+  if jq -e '.[\"spot-worker-05\"].quarantined == true' "$review_ping" >/dev/null 2>&1; then
+    warn "spot-worker-05 review lane quarantined; skipping eligibility check"
+  else
+    check_worker_registered spot-worker-05 review '[
+      "deepseek-r1:32b",
+      "qwen2.5-coder:32b",
+      "deepseek-r1:14b",
+      "qwen2.5:32b"
+    ]' || true
+  fi
   local reasoning_ping="$TMPDIR/reasoning-quarantine.json"
   local reasoning_code="$TMPDIR/reasoning-quarantine.http"
 

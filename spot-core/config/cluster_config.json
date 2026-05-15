@@ -7,6 +7,7 @@
     ]
   },
   "priority_order": [
+    "review",
     "reasoning",
     "heavy",
     "coding",
@@ -34,6 +35,10 @@
     "reasoning": [
       "spot-worker-06",
       "spot-worker-04"
+    ],
+    "review": [
+      "spot-worker-05",
+      "spot-worker-06"
     ]
   },
   "queue_policy": {
@@ -70,6 +75,11 @@
         "queue_wait_ms": 2500,
         "queue_poll_ms": 200,
         "burst_after_ms": 700
+      },
+      "review": {
+        "queue_wait_ms": 2500,
+        "queue_poll_ms": 200,
+        "burst_after_ms": 700
       }
     }
   },
@@ -86,7 +96,8 @@
       "coding",
       "heavy",
       "general",
-      "utility"
+      "utility",
+      "review"
     ],
     "targets": [
       {
@@ -414,12 +425,12 @@
     },
     "spot-worker-05": {
       "base_url": "http://192.168.10.15:11434",
-      "primary_role": "standby",
+      "primary_role": "review",
       "secondary_roles": [
         "heavy",
         "reasoning"
       ],
-      "routing_enabled": false,
+      "routing_enabled": true,
       "max_total": 1,
       "class_limits": {
         "general": 0,
@@ -427,26 +438,36 @@
         "coding": 0,
         "utility": 0,
         "watcher": 0,
-        "reasoning": 1
+        "reasoning": 1,
+        "review": 1
       },
       "installed_models": [
-        "llama3.1:8b",
-        "qwen2.5:14b",
+        "deepseek-r1:32b",
+        "qwen2.5-coder:32b",
+        "deepseek-r1:14b",
+        "qwen2.5-coder:7b",
+        "qwen2.5:32b",
         "qwen2.5-coder:14b",
-        "qwen2.5:32b"
+        "qwen2.5:14b",
+        "llama3.1:8b"
       ],
       "gpu_routes": {
         "gpu0": {
           "label": "Tesla P100 16GB",
           "max_total": 1,
           "classes": [
+            "review",
             "heavy",
             "reasoning"
           ],
           "model_limits": {
             "qwen2.5:14b": 1,
             "qwen2.5-coder:14b": 1,
-            "qwen2.5:32b": 1
+            "qwen2.5:32b": 1,
+            "qwen2.5-coder:32b": 1,
+            "deepseek-r1:32b": 1,
+            "deepseek-r1:14b": 1,
+            "qwen2.5-coder:7b": 1
           },
           "model_preferences": {
             "heavy": [
@@ -454,6 +475,12 @@
               "qwen2.5:14b"
             ],
             "reasoning": [
+              "qwen2.5:32b"
+            ],
+            "review": [
+              "qwen2.5-coder:32b",
+              "deepseek-r1:32b",
+              "deepseek-r1:14b",
               "qwen2.5:32b"
             ]
           }
@@ -479,17 +506,17 @@
     "default": "deny",
     "roles": {
       "general": {
-        "openai_fallback": "allow"
+        "openai_fallback": "approval_required"
       },
       "coding": {
-        "openai_fallback": "allow",
+        "openai_fallback": "approval_required",
         "send_repo_context": "approval_required"
       },
       "heavy": {
-        "openai_fallback": "allow"
+        "openai_fallback": "approval_required"
       },
       "reasoning": {
-        "openai_fallback": "allow"
+        "openai_fallback": "approval_required"
       },
       "utility": {
         "openai_fallback": "deny"
@@ -502,6 +529,10 @@
       },
       "secrets": {
         "openai_fallback": "deny"
+      },
+      "review": {
+        "openai_fallback": "approval_required",
+        "send_repo_context": "approval_required"
       }
     }
   },

@@ -314,22 +314,45 @@ if not proposal_validations:
     print("ERROR: approved proposal has no VALIDATION_COMMANDS section; apply plan blocked", file=sys.stderr)
     sys.exit(2)
 
-FORBIDDEN_VALIDATION_PATTERNS = [
-    r'(^|\\s)(mkdir|touch|chmod|chown|rm|mv|cp|tee)(\\s|$)',
-    r'(^|\\s)(systemctl|service)(\\s|$)',
-    r'(^|\\s)docker\\s+compose(\\s|$)',
-    r'(^|\\s)sed\\s+-i(\\s|$)',
-    r'(^|\\s)cat\\s+.*>',
-    r'(^|\\s)echo\\s+.*>',
-    r'>|>>|\\||;|&&|\\|\\|',
-]
+FORBIDDEN_VALIDATION_TOKENS = {
+    "mkdir", "touch", "chmod", "chown", "rm", "mv", "cp", "tee",
+    "systemctl", "service", "docker", "sed", "cat", "echo",
+}
+
+FORBIDDEN_VALIDATION_CHARS = [">", "|", ";", "&&", "||", "$("]
 
 def validation_command_is_safe(cmd):
+    import shlex
+
     stripped = cmd.strip()
-    for pattern in FORBIDDEN_VALIDATION_PATTERNS:
-        if re.search(pattern, stripped):
-            return False
-    return True
+    if not stripped:
+        return False
+
+    if any(x in stripped for x in FORBIDDEN_VALIDATION_CHARS):
+        return False
+
+    try:
+        argv = shlex.split(stripped)
+    except ValueError:
+        return False
+
+    if not argv:
+        return False
+
+    if argv[0] in FORBIDDEN_VALIDATION_TOKENS:
+        return False
+
+    # Explicitly allow deterministic read-only checks used by Spot proposals.
+    if argv[0] == "bash" and len(argv) >= 3 and argv[1] == "-n":
+        return True
+    if argv[0] == "python3" and len(argv) >= 3 and argv[1:3] == ["-m", "json.tool"]:
+        return True
+    if argv[0] == "spot" and len(argv) >= 2 and argv[1] in {"validate", "ask"}:
+        return True
+    if argv[0] in {"jq", "grep", "test"}:
+        return True
+
+    return False
 
 validations = []
 for item in proposal_validations:
@@ -423,6 +446,75 @@ PY
 cmd_generate_patch(){
   echo "[legacy-alias] generate-patch now generates a supervised apply plan" >&2
   cmd_generate_apply_plan "$@"
+}
+
+cmd_implement(){
+  need_cmd jq
+  need_cmd curl
+
+  local proposal_file
+  proposal_file="$(resolve_proposal_file "${1:-}")"
+
+  if ! proposal_is_approved "$proposal_file"; then
+    echo "ERROR: proposal is not approved; implement blocked" >&2
+    exit 2
+  fi
+
+  local proposal_text prompt result body task role
+  proposal_text="$(cat "$proposal_file")"
+  role="coding"
+  task="Implement approved proposal $(basename "$proposal_file" .md) as a non-mutating coding artifact."
+
+  prompt="You are Spot implementation planning mode.
+
+Input is an approved W-6 reasoning proposal. Your job is to produce a NEW W-3 coding implementation proposal only.
+
+Do not echo, copy, summarize, or preserve the approved proposal header.
+Do not output any line starting with hash Spot Proposal.
+Do not output status, created_utc, task, role, worker, model, gpu, or dash separator lines.
+Convert the approved design into concrete implementation targets for Spot source files.
+
+For this implementation proposal, FILES_AFFECTED must include:
+- /home/ogre/spot-stack/watch/spot-client.sh
+- /home/ogre/spot-stack/watch/spot-ops.sh
+
+The proposal must describe adding or refining the implement command path only.
+Do not say No files changed by this proposal.
+
+Hard rules:
+- Do not apply changes.
+- Do not execute commands.
+- Do not claim files were modified.
+- Do not include patch bodies or full file contents.
+- Do not use markdown code fences.
+- Output exactly these section headers: SUMMARY, RISK_CLASS, FILES_AFFECTED, VALIDATION_COMMANDS, ROLLBACK, NEXT_SAFE_ACTION.
+- FILES_AFFECTED must list concrete existing files to be changed, or say No files changed by this proposal.
+- VALIDATION_COMMANDS must contain read-only checks only.
+- VALIDATION_COMMANDS must use only these exact commands:
+bash -n /home/ogre/spot-stack/watch/spot-client.sh
+bash -n /home/ogre/spot-stack/watch/spot-ops.sh
+grep cmd_implement /home/ogre/spot-stack/watch/spot-client.sh
+grep implement) /home/ogre/spot-stack/watch/spot-client.sh
+grep implement) /home/ogre/spot-stack/watch/spot-ops.sh
+spot validate
+- VALIDATION_COMMANDS must not contain pipes, redirects, semicolons, &&, ||, command substitution, cat, echo, mkdir, touch, chmod, rm, mv, cp, docker, systemctl, git commit, git push, or git restore.
+- ROLLBACK must reference Spot Core backup/apply-plan process, not git restore.
+- NEXT_SAFE_ACTION must be Operator review only.
+- Output must end immediately after NEXT_SAFE_ACTION.
+
+Approved proposal follows:
+
+${proposal_text}"
+
+  result="$(call_exec "$role" "" "$prompt")"
+  body="$(printf '%s\n' "$result" | jq -r '.response')"
+
+  proposal_guardrail_check "$body" || true
+
+  printf '%s\n' "$body"
+  print_route "$result"
+
+  save_proposal "$task" "$role" "$result" "$body"
 }
 
 resolve_apply_plan_file(){
@@ -3375,7 +3467,7 @@ cmd_propose(){
   need_cmd jq
   need_cmd curl
 
-  local role="auto" json_out=false save=false use_memory=true use_related=true args=()
+  local role="reasoning" json_out=false save=false use_memory=true use_related=true args=()
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -3397,7 +3489,23 @@ cmd_propose(){
   [[ "$use_memory" == true ]] && mem="$(memory_context_for_prompt "$task" || true)"
   [[ "$use_related" == true ]] && related="$(proposal_context_for_task "$task" || true)"
 
-  prompt="You are Spot proposal mode. Do not apply changes. Durable memory context and related historical engineering artifacts may be provided below only when enabled. You must incorporate provided context when relevant unless contradicted by live telemetry. If no context is provided, use only the current task and live Spot context. Avoid duplicating already-approved plans when a related approved proposal exists. Use exactly these section headers: SUMMARY, RISK_CLASS, FILES_AFFECTED, VALIDATION_COMMANDS, ROLLBACK, NEXT_SAFE_ACTION. Put 1-4 concrete bullets or lines under every section. Use canonical paths only. Use only allowed validation commands. Avoid every forbidden guess. Do not include DETAILS, PROPOSAL_CONTENT, sample JSON, or patch bodies unless explicitly asked.
+  prompt="You are Spot proposal mode. Do not apply changes. Do not invent files. Do not propose creating files unless the task explicitly asks for implementation. Proposal mode is planning and review only.
+
+Durable memory context and related historical engineering artifacts may be provided below only when enabled. You must incorporate provided context when relevant unless contradicted by live telemetry. If no context is provided, use only the current task and live Spot context. Avoid duplicating already-approved plans when a related approved proposal exists.
+
+Use exactly these section headers: SUMMARY, RISK_CLASS, FILES_AFFECTED, VALIDATION_COMMANDS, ROLLBACK, NEXT_SAFE_ACTION.
+
+Rules:
+- VALIDATION_COMMANDS must contain read-only checks only.
+- No markdown code fences.
+- No mkdir, touch, chmod, rm, mv, cp, docker, systemctl, git commit, git push, or git restore.
+- ROLLBACK must be: No rollback required; proposal-only artifact.
+- NEXT_SAFE_ACTION must be: Operator review only.
+- FILES_AFFECTED must list only existing files when known; otherwise say: No files changed by this proposal.
+- Do not include DETAILS, PROPOSAL_CONTENT, sample JSON, numbered lists, response examples, schemas, endpoint payload examples, or patch bodies.
+- Output must end immediately after NEXT_SAFE_ACTION.
+- VALIDATION_COMMANDS must not contain pipes, redirects, semicolons, &&, ||, command substitution, cat, echo, or grep pipelines.
+- Use one validation command per line only.
 
 $(spot_context_block)
 
@@ -3408,7 +3516,7 @@ ${mem}
 
 TASK: ${task}"
 
-  [[ "$role" == auto ]] && role="$(classify_role "$task")"
+  [[ "$role" == auto ]] && role="reasoning"
 
   result="$(call_exec "$role" "" "$prompt")"
   body="$(printf '%s\n' "$result" | jq -r '.response')"
@@ -3429,5 +3537,5 @@ cmd_proposals(){ local count="${1:-20}"; mkdir -p "$PROPOSAL_DIR"; find "$PROPOS
 ' 2>/dev/null | sort -nr | head -n "$count" | awk '{print $2}'; }
 cmd_show_proposal(){ local id="${1:-}"; [[ -n "$id" ]] || { echo "ERROR: proposal id/file required" >&2; exit 2; }; local file="$id"; [[ -f "$file" ]] || file="${PROPOSAL_DIR}/${id%.md}.md"; [[ -f "$file" ]] || { echo "ERROR: proposal not found: $id" >&2; exit 2; }; cat "$file"; }
 
-main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-summary) cmd_plugin_registry_summary "$@";; plugin-registry-audit) cmd_plugin_registry_audit "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-plugin-request) cmd_create_plugin_request "$@";; plugin-requests) cmd_plugin_requests "$@";; show-plugin-request) cmd_show_plugin_request "$@";; plugin-request-status) cmd_plugin_request_status "$@";; plugin-request-audit) cmd_plugin_request_audit "$@";; plugin-request-summary) cmd_plugin_request_summary "$@";; plugin-request-verify) cmd_plugin_request_verify "$@";; worker05-status) cmd_worker05_status "$@";; worker05-verify) cmd_worker05_verify "$@";; worker05-routing-guard) cmd_worker05_routing_guard "$@";; worker05-ask) cmd_worker05_ask "$@";; worker05-standby-draft) cmd_worker05_standby_draft "$@";; worker05-standby-drafts) cmd_worker05_standby_drafts "$@";; show-worker05-standby-draft) cmd_show_worker05_standby_draft "$@";; worker05-standby-draft-verify) cmd_worker05_standby_draft_verify "$@";; approve-plugin-request) cmd_approve_plugin_request "$@";; reject-plugin-request) cmd_reject_plugin_request "$@";; close-plugin-request) cmd_close_plugin_request "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
+main(){ local cmd="${1:-}"; shift || true; case "$cmd" in ask) cmd_ask "$@";; propose) cmd_propose "$@";; proposals) cmd_proposals "$@";; show-proposal) cmd_show_proposal "$@";; approve) cmd_approve "$@";; reject) cmd_reject "$@";; proposal-status) cmd_proposal_status "$@";; generate-apply-plan) cmd_generate_apply_plan "$@";; apply-plans) cmd_apply_plans "$@";; show-apply-plan) cmd_show_apply_plan "$@";; apply-plan-status) cmd_apply_plan_status "$@";; apply-plan-check) cmd_apply_plan_check "$@";; apply-plan-verify) cmd_apply_plan_verify "$@";; approve-apply-plan) cmd_approve_apply_plan "$@";; reject-apply-plan) cmd_reject_apply_plan "$@";; prepare-execution-handoff) cmd_prepare_execution_handoff "$@";; execution-handoffs) cmd_execution_handoffs "$@";; show-execution-handoff) cmd_show_execution_handoff "$@";; execution-handoff-status) cmd_execution_handoff_status "$@";; execution-handoff-verify) cmd_execution_handoff_verify "$@";; execute-handoff) cmd_execute_handoff "$@";; execution-runs) cmd_execution_runs "$@";; show-execution-run) cmd_show_execution_run "$@";; execution-run-verify) cmd_execution_run_verify "$@";; execution-run-status) cmd_execution_run_status "$@";; execution-run-audit) cmd_execution_run_audit "$@";; execution-run-summary) cmd_execution_run_summary "$@";; execution-run-approve) cmd_execution_run_approve "$@";; execution-run-reject) cmd_execution_run_reject "$@";; execution-run-close) cmd_execution_run_close "$@";; action-policy) cmd_action_policy "$@";; action-policy-verify) cmd_action_policy_verify "$@";; plugin-registry) cmd_plugin_registry "$@";; plugin-registry-summary) cmd_plugin_registry_summary "$@";; plugin-registry-audit) cmd_plugin_registry_audit "$@";; plugin-registry-verify) cmd_plugin_registry_verify "$@";; create-plugin-request) cmd_create_plugin_request "$@";; plugin-requests) cmd_plugin_requests "$@";; show-plugin-request) cmd_show_plugin_request "$@";; plugin-request-status) cmd_plugin_request_status "$@";; plugin-request-audit) cmd_plugin_request_audit "$@";; plugin-request-summary) cmd_plugin_request_summary "$@";; plugin-request-verify) cmd_plugin_request_verify "$@";; worker05-status) cmd_worker05_status "$@";; worker05-verify) cmd_worker05_verify "$@";; worker05-routing-guard) cmd_worker05_routing_guard "$@";; worker05-ask) cmd_worker05_ask "$@";; worker05-standby-draft) cmd_worker05_standby_draft "$@";; worker05-standby-drafts) cmd_worker05_standby_drafts "$@";; show-worker05-standby-draft) cmd_show_worker05_standby_draft "$@";; worker05-standby-draft-verify) cmd_worker05_standby_draft_verify "$@";; approve-plugin-request) cmd_approve_plugin_request "$@";; reject-plugin-request) cmd_reject_plugin_request "$@";; close-plugin-request) cmd_close_plugin_request "$@";; create-action-request) cmd_create_action_request "$@";; action-requests) cmd_action_requests "$@";; show-action-request) cmd_show_action_request "$@";; action-request-verify) cmd_action_request_verify "$@";; action-request-status) cmd_action_request_status "$@";; action-request-audit) cmd_action_request_audit "$@";; action-request-summary) cmd_action_request_summary "$@";; approve-action-request) cmd_approve_action_request "$@";; reject-action-request) cmd_reject_action_request "$@";; close-action-request) cmd_close_action_request "$@";; prepare-action-handoff) cmd_prepare_action_handoff "$@";; action-handoffs) cmd_action_handoffs "$@";; show-action-handoff) cmd_show_action_handoff "$@";; action-handoff-status) cmd_action_handoff_status "$@";; action-handoff-audit) cmd_action_handoff_audit "$@";; action-handoff-summary) cmd_action_handoff_summary "$@";; action-handoff-verify) cmd_action_handoff_verify "$@";; approve-action-handoff) cmd_approve_action_handoff "$@";; reject-action-handoff) cmd_reject_action_handoff "$@";; close-action-handoff) cmd_close_action_handoff "$@";; generate-patch) cmd_generate_patch "$@";; implement) cmd_implement "$@";; remember) cmd_remember "$@";; memory) cmd_memory "$@";; recall) cmd_recall "$@";; -h|--help|"") usage;; *) usage; exit 2;; esac; }
 main "$@"

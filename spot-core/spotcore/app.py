@@ -97,6 +97,24 @@ class ExecResult(BaseModel):
     raw: dict[str, Any]
 
 
+class OpenAIReviewRequest(BaseModel):
+    prompt: str
+    role: ROLE = "reasoning"
+    model: str | None = None
+    review_type: str = "policy_review"
+
+
+class OpenAIReviewResult(BaseModel):
+    ok: bool
+    provider: str
+    model: str
+    role_requested: str
+    review_type: str
+    authority: str
+    response: str
+    raw: dict[str, Any]
+
+
 class AdminValidateRequest(BaseModel):
     token: str
     worker: str
@@ -1827,7 +1845,6 @@ async def call_generate(worker_url: str, req: ExecRequest, model: str) -> dict[s
         resp.raise_for_status()
         return resp.json()
 
-
 async def call_generate_with_retry(
     cfg: dict[str, Any],
     chosen: dict[str, Any],
@@ -3029,6 +3046,133 @@ async def restart_service(worker_name: str, service_name: str) -> dict[str, Any]
     result["deprecated_route"] = True
     result["preferred_route"] = "/admin/restart-service"
     return result
+
+ALLOWED_OPENAI_REVIEW_ROLES = {"general", "coding", "heavy", "reasoning"}
+DENIED_OPENAI_REVIEW_ROLES = {"utility", "watcher", "network_ops", "secrets"}
+
+
+def openai_provider_config(cfg: dict[str, Any]) -> dict[str, Any]:
+    return cfg.get("providers", {}).get("openai", {}) or {}
+
+
+def assert_openai_review_allowed(cfg: dict[str, Any], req: OpenAIReviewRequest) -> tuple[str, str]:
+    role = req.role
+    if role in DENIED_OPENAI_REVIEW_ROLES or role not in ALLOWED_OPENAI_REVIEW_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail={"message": f"OpenAI review denied for role: {role}"},
+        )
+
+    provider = openai_provider_config(cfg)
+    if not provider.get("enabled"):
+        raise HTTPException(status_code=503, detail={"message": "OpenAI provider disabled"})
+
+    api_key_env = provider.get("api_key_env", "OPENAI_API_KEY")
+    api_key = os.environ.get(api_key_env, "").strip()
+    if not api_key:
+        raise HTTPException(status_code=503, detail={"message": f"missing OpenAI API key env: {api_key_env}"})
+
+    model = req.model or provider.get("default_model") or "gpt-4.1-mini"
+    return api_key, model
+
+
+async def call_openai_review(cfg: dict[str, Any], req: OpenAIReviewRequest) -> dict[str, Any]:
+    api_key, model = assert_openai_review_allowed(cfg, req)
+
+    system_prompt = (
+        "You are an external Spot project reviewer. "
+        "Authority is proposal/review only. "
+        "Do not approve execution. Do not claim final authority. "
+        "Check project fit, policy fit, backup-first alignment, and worker role ownership. "
+        "Return concise PASS/FAIL with reasons."
+    )
+
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        resp = await client.post(
+            "https://api.openai.com/v1/responses",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "input": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": req.prompt},
+                ],
+            },
+        )
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            detail = {
+                "message": "OpenAI upstream request failed",
+                "status_code": e.response.status_code,
+                "response": e.response.text[:4000],
+            }
+
+            raise HTTPException(
+                status_code=502,
+                detail=detail,
+            ) from e
+
+        data = resp.json()
+
+    text = ""
+    for item in data.get("output", []):
+        for content in item.get("content", []):
+            if content.get("type") == "output_text":
+                text += content.get("text", "")
+
+    return {
+        "provider": "openai",
+        "model": model,
+        "authority": "proposal_and_review_only",
+        "response": text.strip(),
+        "raw": data,
+    }
+
+
+@app.post("/review/openai", response_model=OpenAIReviewResult)
+async def openai_review_route(req: OpenAIReviewRequest) -> OpenAIReviewResult:
+    cfg = load_config()
+    started = _now()
+    data = await call_openai_review(cfg, req)
+
+    append_jsonl(
+        EXEC_HISTORY_PATH,
+        {
+            "ts": started,
+            "provider": "openai",
+            "role_requested": req.role,
+            "review_type": req.review_type,
+            "model_requested": req.model,
+            "model_used": data["model"],
+            "authority": data["authority"],
+            "prompt_chars": len(req.prompt),
+            "response_chars": len(data["response"]),
+            "proposal_only": True,
+            "external_review": True,
+        },
+    )
+
+    return OpenAIReviewResult(
+        ok=True,
+        provider="openai",
+        model=data["model"],
+        role_requested=req.role,
+        review_type=req.review_type,
+        authority=data["authority"],
+        response=data["response"],
+        raw={
+            "provider": "openai",
+            "model": data["model"],
+            "authority": data["authority"],
+            "proposal_only": True,
+            "external_review": True,
+        },
+    )
+
 
 @app.post("/exec", response_model=ExecResult)
 async def exec_route(req: ExecRequest) -> ExecResult:

@@ -1875,6 +1875,7 @@ main() {
     openai-provider-contract-summary) cmd_openai_provider_contract_summary "$@" ;;
     openai-provider-contract-failure-test) cmd_openai_provider_contract_failure_test "$@" ;;
     generate-patch)      bash "${BASE_DIR}/spot-client.sh" generate-patch "$@" ;;
+    implement)           bash "${BASE_DIR}/spot-client.sh" implement "$@" ;;
     remember)            bash "${BASE_DIR}/spot-client.sh" remember "$@" ;;
     memory)              bash "${BASE_DIR}/spot-client.sh" memory "$@" ;;
     recall)              bash "${BASE_DIR}/spot-client.sh" recall "$@" ;;
