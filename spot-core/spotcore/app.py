@@ -26,6 +26,7 @@ ROUTING_AUDIT_PATH = Path(os.environ.get("SPOTCORE_ROUTING_AUDIT_LOG", "/watch/s
 REMEDIATION_STATE_PATH = Path(os.environ.get("SPOTCORE_REMEDIATION_STATE", "/watch/state/remediation-state.json"))
 BACKUP_ROOT_PATH = Path(os.environ.get("SPOTCORE_BACKUP_ROOT", "/mnt/collective/backups"))
 ACTION_LOG_ROOT = Path(os.environ.get("SPOTCORE_ACTION_LOG_ROOT", "/mnt/collective/logs/spot"))
+REVIEW_LOG_ROOT = ACTION_LOG_ROOT / "reviews"
 AUTONOMY_ALLOW_HIGH_RISK = os.environ.get("SPOTCORE_ALLOW_HIGH_RISK_AUTONOMY", "false").lower() in {
     "1",
     "true",
@@ -114,6 +115,25 @@ class OpenAIReviewResult(BaseModel):
     response: str
     raw: dict[str, Any]
 
+class LocalReviewRequest(BaseModel):
+    prompt: str
+    review_type: str = "policy_review"
+    worker: str = "spot-worker-05"
+    model: str = "qwen2.5-coder:32b"
+
+
+class LocalReviewResult(BaseModel):
+    ok: bool
+    reviewer: str
+    model: str
+    review_type: str
+    verdict: str
+    execution_allowed: bool
+    result_blocked: bool
+    authority: str
+    confidence: str
+    response: str
+    raw: dict[str, Any]
 
 class AdminValidateRequest(BaseModel):
     token: str
@@ -3132,6 +3152,87 @@ async def call_openai_review(cfg: dict[str, Any], req: OpenAIReviewRequest) -> d
         "raw": data,
     }
 
+async def call_local_review(cfg: dict[str, Any], req: LocalReviewRequest) -> dict[str, Any]:
+    worker_cfg = cfg.get("workers", {}).get(req.worker)
+    if not worker_cfg:
+        raise HTTPException(status_code=404, detail={"message": f"unknown review worker: {req.worker}"})
+
+    if worker_cfg.get("primary_role") != "review":
+        raise HTTPException(status_code=403, detail={"message": f"worker is not review role: {req.worker}"})
+
+    if not worker_cfg.get("routing_enabled", False):
+        raise HTTPException(status_code=503, detail={"message": f"review worker disabled: {req.worker}"})
+
+    base_url = worker_cfg.get("base_url")
+    if not base_url:
+        raise HTTPException(status_code=503, detail={"message": f"review worker missing base_url: {req.worker}"})
+
+    system_prompt = (
+        "You are Spot local reviewer. "
+        "You are proposal-review only. "
+        "You cannot authorize execution, mutation, dispatch, service restart, config write, network mutation, "
+        "backup creation, or backup binding. "
+        "Return STRICT JSON only with keys: verdict, confidence, notes. "
+        "verdict must be PASS, FIX, or NO."
+    )
+
+    payload = {
+        "model": req.model,
+        "prompt": f"{system_prompt}\n\nREVIEW_TYPE: {req.review_type}\n\n{req.prompt}",
+        "stream": False,
+    }
+
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        resp = await client.post(f"{base_url}/api/generate", json=payload)
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "message": "local review upstream request failed",
+                    "worker": req.worker,
+                    "status_code": exc.response.status_code,
+                    "response": exc.response.text[:4000],
+                },
+            ) from exc
+
+        data = resp.json()
+
+    response_text = str(data.get("response") or "").strip()
+    if not response_text:
+        raise HTTPException(status_code=502, detail={"message": "local review returned empty response"})
+
+    try:
+        parsed = json.loads(response_text)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "local review returned invalid JSON",
+                "response": response_text[:4000],
+            },
+        ) from exc
+
+    verdict = str(parsed.get("verdict", "FIX")).upper()
+    if verdict not in {"PASS", "FIX", "NO"}:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": "local review returned invalid verdict", "verdict": verdict},
+        )
+
+    return {
+        "reviewer": req.worker,
+        "model": req.model,
+        "review_type": req.review_type,
+        "verdict": verdict,
+        "execution_allowed": False,
+        "result_blocked": True,
+        "authority": "proposal_review_only",
+        "confidence": str(parsed.get("confidence", "low")),
+        "response": response_text,
+        "raw": parsed,
+    }
 
 @app.post("/review/openai", response_model=OpenAIReviewResult)
 async def openai_review_route(req: OpenAIReviewRequest) -> OpenAIReviewResult:
@@ -3173,6 +3274,42 @@ async def openai_review_route(req: OpenAIReviewRequest) -> OpenAIReviewResult:
         },
     )
 
+@app.post("/review/local", response_model=LocalReviewResult)
+async def review_local(req: LocalReviewRequest) -> LocalReviewResult:
+    cfg = load_config()
+    started = _now()
+
+    result = await call_local_review(cfg, req)
+
+    review_record = {
+        "ts": started,
+        "provider": "local",
+        "review_type": req.review_type,
+        "worker": req.worker,
+        "model": req.model,
+        "verdict": result["verdict"],
+        "authority": result["authority"],
+        "execution_allowed": False,
+        "result_blocked": True,
+        "proposal_only": True,
+        "local_review": True,
+    }
+
+    append_jsonl(REVIEW_LOG_ROOT / "local-review-history.jsonl", review_record)
+
+    return LocalReviewResult(
+        ok=True,
+        reviewer=result["reviewer"],
+        model=result["model"],
+        review_type=result["review_type"],
+        verdict=result["verdict"],
+        execution_allowed=False,
+        result_blocked=True,
+        authority="proposal_review_only",
+        confidence=result["confidence"],
+        response=result["response"],
+        raw=result["raw"],
+    )
 
 @app.post("/exec", response_model=ExecResult)
 async def exec_route(req: ExecRequest) -> ExecResult:

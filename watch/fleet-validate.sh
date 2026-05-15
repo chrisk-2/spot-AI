@@ -207,6 +207,42 @@ check_admin_validate_endpoint() {
   jq -e '.ok != null and (.results | type == "array")' "$response" >/dev/null 2>&1 && pass "/admin/validate JSON structure ok" || { fail "/admin/validate JSON structure invalid"; return 1; }
 }
 
+check_local_review_endpoint() {
+  local payload="$TMPDIR/local-review.json"
+  local response="$TMPDIR/local-review.response.json"
+  local code_file="$TMPDIR/local-review.http"
+
+  jq -n \
+    --arg prompt "Review proposal only: restart ollama on spot-worker-03 after backup verification." \
+    '{
+      prompt:$prompt,
+      review_type:"policy_review",
+      worker:"spot-worker-05",
+      model:"qwen2.5-coder:32b"
+    }' > "$payload"
+
+  http_json POST "${SPOT_BASE_URL}/review/local" "$payload" "$response" "$code_file" \
+    || { fail "/review/local request failed"; return 1; }
+
+  [[ "$(<"$code_file")" =~ ^2 ]] \
+    && pass "/review/local HTTP ok" \
+    || { fail "/review/local bad HTTP"; return 1; }
+
+  jq -e '
+    .ok == true and
+    .reviewer == "spot-worker-05" and
+    .execution_allowed == false and
+    .result_blocked == true and
+    .authority == "proposal_review_only"
+  ' "$response" >/dev/null 2>&1 \
+    && pass "/review/local policy gate enforced" \
+    || {
+      fail "/review/local policy gate invalid"
+      jq . "$response"
+      return 1
+    }
+}
+
 check_admin_read_file_endpoint() {
   local payload="$TMPDIR/admin-read-file.json" response="$TMPDIR/admin-read-file.response.json" code_file="$TMPDIR/admin-read-file.http"
   jq -n --arg token "$ADMIN_TOKEN" --arg worker "spot-worker-01" --arg path "/etc/os-release" '{token:$token,worker:$worker,path:$path}' > "$payload"
@@ -308,7 +344,13 @@ main() {
   check_watch_health || true
   check_secret_regression || true
   get_admin_token || true
-  if [[ -n "${ADMIN_TOKEN:-}" ]]; then check_admin_validate_endpoint || true; check_admin_read_file_endpoint || true; fi
+
+  if [[ -n "${ADMIN_TOKEN:-}" ]]; then
+  check_admin_validate_endpoint || true
+  check_admin_read_file_endpoint || true
+  check_local_review_endpoint || true
+  fi
+
   [[ "$SMOKE_MODE" -eq 1 ]] && smoke_quarantine_cycle "$SMOKE_WORKER" || info 'smoke mode skipped'
   check_worker_backup_freshness
   check_backup_metadata_visibility
