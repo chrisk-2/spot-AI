@@ -791,6 +791,32 @@ cmd_approve_apply_plan(){
   local file
   file="$(resolve_apply_plan_file "${1:-}")"
   cmd_apply_plan_check "$file" >/dev/null
+    local review_response
+  review_response="$(mktemp)"
+
+  curl -s \
+    -X POST "http://127.0.0.1:8787/review/local" \
+    -H 'Content-Type: application/json' \
+    -d '{
+      "prompt":"Apply-plan approval policy verification only.",
+      "review_type":"apply_plan_policy_gate",
+      "worker":"spot-worker-05",
+      "model":"qwen2.5-coder:32b"
+    }' > "$review_response"
+
+  jq -e '
+    .ok == true and
+    .execution_allowed == false and
+    .result_blocked == true and
+    .authority == "proposal_review_only"
+  ' "$review_response" >/dev/null || {
+    echo "ERROR: local review policy gate validation failed" >&2
+    cat "$review_response" >&2
+    rm -f "$review_response"
+    exit 1
+  }
+
+  rm -f "$review_response"
   set_apply_plan_status "$file" review_approved review_approved_utc
   memory_append decision "review approved apply plan $(basename "$file" .md)"
   echo "[apply-plan-review-approved] $file"
