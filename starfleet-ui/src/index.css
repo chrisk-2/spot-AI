@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+html, body, #root {
+  margin: 0;
+  min-height: 100%;
+  background: #000;
+}
+
+/* Starfleet scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #0891b2 #020617;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #020617;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #06b6d4, #1e40af);
+  border-radius: 999px;
+  border: 1px solid #0f172a;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #22d3ee, #2563eb);
+}
+
+/* Starfleet UI scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #0891b2 #020617;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020617;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #06b6d4, #0ea5e9);
+  border-radius: 999px;
+  border: 1px solid #083344;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #22d3ee, #38bdf8);
+}
+
+/* Starfleet scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #06b6d4 #020817;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #020817;
+  border-left: 1px solid rgba(6,182,212,0.15);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(34,211,238,0.95),
+    rgba(8,145,178,0.95)
+  );
+  border-radius: 999px;
+  border: 2px solid #020817;
+  box-shadow:
+    0 0 8px rgba(34,211,238,0.45),
+    inset 0 0 4px rgba(255,255,255,0.12);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(103,232,249,1),
+    rgba(6,182,212,1)
+  );
+}
+
+
+.starfleet-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #22d3ee #020817;
+}
+
+.starfleet-scroll::-webkit-scrollbar {
+  width: 12px;
+}
+
+.starfleet-scroll::-webkit-scrollbar-track {
+  background: #020817;
+}
+
+.starfleet-scroll::-webkit-scrollbar-thumb {
+  background: #22d3ee;
+  border-radius: 999px;
+  border: 2px solid #020817;
+}
