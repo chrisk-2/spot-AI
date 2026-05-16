@@ -61,6 +61,11 @@ Current operational posture:
 - backup deletion forbidden
 - backup overwrite forbidden
 - no-backup-no-change enforced
+- Starfleet UI layout aligned and stabilized
+- Worker lane persistent footer completed
+- Fleet Nodes scroll behavior corrected
+- Assistant panel converted from mascot style to tactical hologram style
+- Custom cyan scrollbar styling added
 
 Current autonomy scope:
 - proposal generation
