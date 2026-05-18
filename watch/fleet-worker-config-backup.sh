@@ -79,6 +79,8 @@ META
 META
 
   mv "$tmp" "$dest"
+  rm -rf "${root}/latest"
+  ln -s "$dest" "${root}/latest"
 
   if [[ "$status" == "ok" ]]; then
     log "OK worker=${worker} metadata=${dest}/metadata.json"
