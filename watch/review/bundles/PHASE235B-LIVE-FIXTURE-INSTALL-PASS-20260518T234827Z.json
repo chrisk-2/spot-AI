@@ -1,0 +1,38 @@
+{
+  "checkpoint": "PHASE235B-LIVE-FIXTURE-INSTALL-PASS",
+  "ts": "2026-05-18T23:49:18Z",
+  "phase": "Phase 2.35B",
+  "bundle": "watch/review/bundles/phase235b-live-fixture-install-review-bundle-20260518T234827Z.md",
+  "hash_file": "watch/review/bundles/phase235b-live-fixture-install-review-bundle-20260518T234827Z.md.sha256",
+  "review": {
+    "ok": true,
+    "reviewer": "spot-worker-05",
+    "model": "qwen2.5-coder:32b",
+    "review_type": "policy_review",
+    "verdict": "PASS",
+    "execution_allowed": false,
+    "result_blocked": true,
+    "authority": "proposal_review_only",
+    "confidence": "high",
+    "response": "{\n  \"verdict\":\"PASS\",\n  \"confidence\":\"high\",\n  \"intent_match\":\"pass\",\n  \"policy_match\":\"pass\",\n  \"phase_match\":\"pass\",\n  \"backup_required\":true,\n  \"backup_verified\":false,\n  \"rollback_defined\":true,\n  \"validation_defined\":true,\n  \"required_fixes\":[],\n  \"blocking_findings\":[],\n  \"notes\":\"All required conditions are met. Spot Core remains the sole future executor, and live mutations are explicitly forbidden.\"\n}",
+    "raw": {
+      "verdict": "PASS",
+      "confidence": "high",
+      "intent_match": "pass",
+      "policy_match": "pass",
+      "phase_match": "pass",
+      "backup_required": true,
+      "backup_verified": false,
+      "rollback_defined": true,
+      "validation_defined": true,
+      "required_fixes": [],
+      "blocking_findings": [],
+      "notes": "All required conditions are met. Spot Core remains the sole future executor, and live mutations are explicitly forbidden."
+    }
+  },
+  "mutation_performed": false,
+  "execution_performed": false,
+  "execution_allowed": false,
+  "fail_closed": true,
+  "spot_core_only_apply_authority": true
+}
