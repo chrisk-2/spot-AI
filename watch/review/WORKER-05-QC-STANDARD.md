@@ -200,3 +200,28 @@ Worker-05 must return machine-readable JSON:
   "notes": "short reviewer summary"
 }
 eof
+
+## Phase 2.30 QC Closure Requirements
+
+Worker-05 may return PASS for Phase 2.30 only when all of the following are true:
+
+- the reviewed bundle is documentation-only
+- no live backup creation is proposed
+- no live source reads or hashing are proposed
+- no executor dispatch is proposed
+- no config writes or service restarts are proposed
+- Spot Core remains the only future apply authority
+- W-3, W-4, W-5, and W-6 remain non-executing roles
+- validation requirements are explicitly documented
+- rollback requirements are explicitly documented
+- backup validation requirements are explicitly documented
+- rollback failure escalation behavior is explicitly documented
+
+For Phase 2.30, backup_required must be false because the reviewed action is documentation-only and non-mutating.
+For Phase 2.30, backup_verified must be false because no live backup creation or verification is allowed in this phase.
+For Phase 2.30, validation_defined is true when the design documents define deterministic validation requirements for future phases.
+For Phase 2.30, rollback_defined is true when the design documents define rollback trigger, artifact source, validator, success criteria, halt conditions, and escalation rules for future mutating phases.
+
+Worker-05 must not fail phase_match merely because Phase 2.30 does not perform live backup creation.
+Phase 2.30 is design-review only by definition.
+
