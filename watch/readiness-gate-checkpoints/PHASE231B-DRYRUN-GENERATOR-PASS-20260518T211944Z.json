@@ -1,0 +1,27 @@
+{
+  "timestamp_utc": "20260518T211944Z",
+  "phase": "2.31B",
+  "status": "dryrun_generator_review_pass",
+  "decision": "PASS",
+  "review_type": "phase231b_dryrun_generator_review",
+  "reviewer": "spot-worker-05",
+  "model": "qwen2.5-coder:32b",
+  "confidence": "high",
+  "execution_allowed": false,
+  "authority": "proposal_review_only",
+  "bundle": "watch/review/bundles/phase231b-dryrun-generator-review-bundle-20260518T211400Z.md",
+  "bundle_sha256_file": "watch/review/bundles/phase231b-dryrun-generator-review-bundle-20260518T211400Z.md.sha256",
+  "notes": [
+    "script prints manifest to stdout only",
+    "no live source reads",
+    "no backup directory creation",
+    "no backup artifact writes",
+    "no executor dispatch",
+    "no service or config mutation",
+    "execution_allowed false",
+    "fail_closed true",
+    "validation_result emitted",
+    "safety assertions present",
+    "manifest matches Phase 2.31 spec"
+  ]
+}
