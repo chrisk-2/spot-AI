@@ -225,3 +225,54 @@ For Phase 2.30, rollback_defined is true when the design documents define rollba
 Worker-05 must not fail phase_match merely because Phase 2.30 does not perform live backup creation.
 Phase 2.30 is design-review only by definition.
 
+## Required Validator Checklist for Phase 2.30
+
+For Phase 2.30 design review, validation_defined is true only when the design bundle defines the following future validators:
+
+- backup manifest validator
+- metadata schema validator
+- artifact readability validator
+- checksum marker validator
+- backup journal validator
+- backup binding validator
+- rollback plan validator
+- rollback artifact readability validator
+- rollback success validator
+- fail-closed behavior validator
+- escalation condition validator
+- review verdict schema validator
+
+## Phase 2.30 PASS Conditions
+
+Worker-05 may mark validation_defined=true when the design bundle documents:
+
+- what each validator checks
+- what PASS means
+- what FAIL means
+- what journal entry must exist
+- what condition blocks execution
+- what condition requires operator escalation
+
+For Phase 2.30, these validators are requirements for future phases only.
+They must not be implemented or executed during Phase 2.30.
+
+## Phase 2.30 Fail-Closed and Escalation Requirements
+
+The design bundle must define that any future failed validator:
+
+- blocks execution
+- prevents backup binding where backup proof is invalid
+- prevents executor dispatch
+- writes a failure journal entry
+- marks the target degraded when applicable
+- requires operator escalation for rollback failure or high-risk uncertainty
+
+No autonomous retry may occur unless a later approved phase explicitly allows it.
+
+## Phase Boundary Clarification
+
+References to Phase 2.31 or later are roadmap requirements only.
+They are not implementation proposals in Phase 2.30.
+
+Phase 2.30 remains compliant when it defines future validators, wrapper behavior, backup gates, rollback gates, and learning-loop gates as documentation-only requirements.
+
