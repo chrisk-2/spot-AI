@@ -1,0 +1,166 @@
+{
+  "timestamp_utc": "2026-05-18T23:53:11Z",
+  "result": "PASS",
+  "summary": {
+    "hosts_ping": "13/13",
+    "services": "24/24",
+    "warnings": 0,
+    "failures": 0
+  },
+  "hosts": [
+    {
+      "host": "opnsense",
+      "ip": "192.168.1.1",
+      "role": "OPNsense",
+      "ping": "OK",
+      "latency_ms": 0.112,
+      "health": "OK",
+      "services": {
+        "443": "OK"
+      }
+    },
+    {
+      "host": "dns-core",
+      "ip": "192.168.60.10",
+      "role": "DNS Core",
+      "ping": "OK",
+      "latency_ms": 0.463,
+      "health": "OK",
+      "services": {
+        "22": "OK",
+        "53": "OK"
+      }
+    },
+    {
+      "host": "starfleet-core",
+      "ip": "192.168.60.20",
+      "role": "NPM UniFi DNS NTP",
+      "ping": "OK",
+      "latency_ms": 0.327,
+      "health": "OK",
+      "services": {
+        "22": "OK",
+        "80": "OK",
+        "443": "OK",
+        "8443": "OK"
+      }
+    },
+    {
+      "host": "spot-core",
+      "ip": "192.168.60.30",
+      "role": "Spot Core API",
+      "ping": "OK",
+      "latency_ms": 0.018,
+      "health": "OK",
+      "services": {
+        "22": "OK",
+        "8787": "OK"
+      }
+    },
+    {
+      "host": "unimatrix6",
+      "ip": "192.168.50.10",
+      "role": "NAS NFS",
+      "ping": "OK",
+      "latency_ms": 0.222,
+      "health": "OK",
+      "services": {
+        "2049": "OK"
+      }
+    },
+    {
+      "host": "starfleet-tower",
+      "ip": "192.168.30.5",
+      "role": "Tower",
+      "ping": "OK",
+      "latency_ms": 0.369,
+      "health": "OK",
+      "services": {
+        "22": "OK"
+      }
+    },
+    {
+      "host": "spot-worker-01",
+      "ip": "192.168.10.10",
+      "role": "general",
+      "ping": "OK",
+      "latency_ms": 0.569,
+      "health": "OK",
+      "services": {
+        "22": "OK",
+        "11434": "OK"
+      }
+    },
+    {
+      "host": "spot-worker-02",
+      "ip": "192.168.10.11",
+      "role": "utility/watcher",
+      "ping": "OK",
+      "latency_ms": 0.19,
+      "health": "OK",
+      "services": {
+        "22": "OK",
+        "11434": "OK"
+      }
+    },
+    {
+      "host": "spot-ui-01",
+      "ip": "192.168.10.12",
+      "role": "ui",
+      "ping": "OK",
+      "latency_ms": 0.887,
+      "health": "OK",
+      "services": {
+        "22": "OK"
+      }
+    },
+    {
+      "host": "spot-worker-03",
+      "ip": "192.168.10.13",
+      "role": "coding",
+      "ping": "OK",
+      "latency_ms": 0.305,
+      "health": "OK",
+      "services": {
+        "22": "OK",
+        "11434": "OK"
+      }
+    },
+    {
+      "host": "spot-worker-04",
+      "ip": "192.168.10.14",
+      "role": "heavy",
+      "ping": "OK",
+      "latency_ms": 0.389,
+      "health": "OK",
+      "services": {
+        "22": "OK",
+        "11434": "OK"
+      }
+    },
+    {
+      "host": "spot-worker-05",
+      "ip": "192.168.10.15",
+      "role": "review",
+      "ping": "OK",
+      "latency_ms": 0.333,
+      "health": "OK",
+      "services": {
+        "22": "OK",
+        "11434": "OK"
+      }
+    },
+    {
+      "host": "spot-worker-06",
+      "ip": "192.168.10.16",
+      "role": "reasoning",
+      "ping": "OK",
+      "latency_ms": 0.297,
+      "health": "OK",
+      "services": {
+        "22": "OK",
+        "11434": "OK"
+      }
+    }
+  ]
+}

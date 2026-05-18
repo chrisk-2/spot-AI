@@ -61,3 +61,6 @@ watch/quarantine/
 watch/reports/
 *.bak
 *.pre-openai-*
+
+# Starfleet temp/backups
+*.bak.*

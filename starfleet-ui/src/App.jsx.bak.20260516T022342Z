@@ -1,0 +1,627 @@
+import { useEffect, useMemo, useState } from 'react'
+
+const fallback = {
+  timestamp_utc: 'waiting',
+  result: 'WARN',
+  summary: { hosts_ping: '0/0', services: '0/0', warnings: 0 },
+  hosts: []
+}
+
+const navItems = [
+  ['overview', '01', 'BRIDGE OVERVIEW', 'Fleet Summary'],
+  ['nodes', '02', 'FLEET NODES', 'Node Inspector'],
+  ['map', '03', 'SYSTEM MAP', 'Network Topology'],
+  ['services', '04', 'SERVICES', '& Status'],
+  ['performance', '05', 'PERFORMANCE', 'Metrics & GPUs'],
+  ['alerts', '06', 'ALERTS', 'Active Alerts'],
+  ['logs', '07', 'LOGS', 'Event Console'],
+  ['settings', '08', 'SETTINGS', 'Policy & Config'],
+  ['terminal', '09', 'TERMINAL', 'Spot Console']
+]
+
+const workerOrder = [
+  ['spot-worker-01', 'W-1', 'GENERAL LANE'],
+  ['spot-worker-02', 'W-2', 'UTILITY LANE'],
+  ['spot-worker-03', 'W-3', 'CODING LANE'],
+  ['spot-worker-04', 'W-4', 'HEAVY LANE'],
+  ['spot-worker-05', 'W-5', 'REVIEW LANE'],
+  ['spot-worker-06', 'W-6', 'REASONING LANE']
+]
+
+function statusDot(status) {
+  if (status === 'OK' || status === 'PASS') return 'bg-emerald-400 shadow-emerald-400'
+  if (status === 'WARN') return 'bg-yellow-300 shadow-yellow-300'
+  return 'bg-red-500 shadow-red-500'
+}
+
+function resultText(result) {
+  return result === 'PASS' ? 'ALL SYSTEMS NOMINAL' : `STATUS ${result || 'UNKNOWN'}`
+}
+
+function serviceList(services = {}) {
+  return Object.entries(services || {}).map(([port, state]) => `${port}:${state}`).join('  ')
+}
+
+function getHost(hosts, name) {
+  return hosts.find(h => h.host === name)
+}
+
+function HostStatus({ host }) {
+  return (
+    <span className="flex items-center gap-2">
+      <span className={`h-2.5 w-2.5 rounded-full shadow-lg ${statusDot(host?.health || 'FAIL')}`} />
+      <span>{host?.health || 'OFFLINE'}</span>
+    </span>
+  )
+}
+
+function PanelTitle({ title, subtitle, data }) {
+  return (
+    <div className="flex justify-between">
+      <div>
+        <div className="text-2xl text-indigo-300 tracking-widest font-black">{title}</div>
+        <div className="text-xs text-slate-400">{subtitle}</div>
+      </div>
+      <div className="text-right text-xs text-slate-500">
+        STARDATE<br />{data.timestamp_utc}
+      </div>
+    </div>
+  )
+}
+
+function MetricCards({ data }) {
+  return (
+    <div className="grid grid-cols-4 gap-3 mt-4">
+      <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-4">
+        <div className="text-xs text-slate-400">HOSTS ONLINE</div>
+        <div className="text-3xl text-emerald-400 font-black">{data.summary?.hosts_ping || '0/0'}</div>
+        <div className="text-xs text-emerald-400">PRIMARY GRID</div>
+      </div>
+      <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-4">
+        <div className="text-xs text-slate-400">SERVICES HEALTHY</div>
+        <div className="text-3xl text-emerald-400 font-black">{data.summary?.services || '0/0'}</div>
+        <div className="text-xs text-emerald-400">PORT MATRIX</div>
+      </div>
+      <div className="rounded-lg border border-yellow-500/30 bg-yellow-950/10 p-4">
+        <div className="text-xs text-slate-400">WARNINGS</div>
+        <div className="text-3xl text-yellow-300 font-black">{data.summary?.warnings ?? 0}</div>
+        <div className="text-xs text-yellow-300">ACTIVE ALERTS</div>
+      </div>
+      <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-4">
+        <div className="text-xs text-slate-400">CONTROL PLANE</div>
+        <div className="text-xl text-emerald-400 font-black mt-2">SPOT CORE OK</div>
+        <div className="text-xs text-emerald-400">POLICY AUTHORITY</div>
+      </div>
+    </div>
+  )
+}
+
+function StarMap({ hosts, tall = false }) {
+  const mapHosts = [
+    ['spot-core', 'SPOT-CORE', '50%', '50%'],
+    ['starfleet-core', 'STARFLEET-CORE', '50%', '14%'],
+    ['dns-core', 'DNS-CORE', '73%', '22%'],
+    ['unimatrix6', 'UNIMATRIX6', '82%', '50%'],
+    ['starfleet-tower', 'STARFLEET-TOWER', '24%', '34%'],
+    ['spot-worker-01', 'WORKER-01', '25%', '70%'],
+    ['spot-worker-02', 'WORKER-02', '18%', '58%'],
+    ['spot-worker-03', 'WORKER-03', '33%', '80%'],
+    ['spot-worker-04', 'WORKER-04', '74%', '70%'],
+    ['spot-worker-05', 'WORKER-05', '60%', '82%'],
+    ['spot-worker-06', 'WORKER-06', '50%', '78%']
+  ]
+
+  const stars = [
+    ['8%', '18%'], ['14%', '76%'], ['22%', '12%'], ['34%', '20%'], ['39%', '64%'],
+    ['66%', '13%'], ['88%', '28%'], ['91%', '73%'], ['76%', '84%'], ['58%', '25%'],
+    ['45%', '88%'], ['11%', '47%'], ['69%', '55%'], ['31%', '91%']
+  ]
+
+  return (
+    <div className={`relative ${tall ? 'h-[520px]' : 'h-[245px]'} rounded-xl overflow-hidden border border-cyan-500/30 bg-[#020817]`}>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#0ea5e944_0%,#0b3a7055_12%,transparent_13%),repeating-radial-gradient(circle_at_center,transparent_0_20px,#0ea5e933_21px,#0ea5e933_22px,transparent_23px_38px)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_49.7%,#0ea5e955_50%,transparent_50.3%),linear-gradient(0deg,transparent_49.7%,#0ea5e955_50%,transparent_50.3%)]" />
+
+      {stars.map(([left, top], i) => (
+        <span key={i} className="absolute h-1 w-1 rounded-full bg-yellow-200 shadow-[0_0_8px_rgba(250,204,21,0.9)]" style={{ left, top }} />
+      ))}
+
+      {mapHosts.map(([name, label, left, top]) => {
+        const host = getHost(hosts, name)
+        return (
+          <div key={name} className="absolute -translate-x-1/2 -translate-y-1/2 text-[10px] text-slate-200" style={{ left, top }}>
+            <div className="flex flex-col items-center gap-1">
+              <span className={`h-3 w-3 rounded-full shadow-lg ${statusDot(host?.health || 'OK')}`} />
+              <span>{label}</span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function WorkerCard({ host, label, lane }) {
+  const roleColors = {
+    'W-1': 'border-emerald-500/40 text-emerald-300',
+    'W-2': 'border-cyan-500/40 text-cyan-300',
+    'W-3': 'border-blue-500/40 text-blue-300',
+    'W-4': 'border-purple-500/40 text-purple-300',
+    'W-5': 'border-yellow-500/40 text-yellow-300',
+    'W-6': 'border-teal-500/40 text-teal-300'
+  }
+
+  return (
+    <div className={`rounded-xl border ${roleColors[label]} bg-slate-950/90 p-2 min-w-0 h-full overflow-hidden`}>
+      <div className="flex items-center justify-between">
+        <div className="text-lg font-black">{label}</div>
+        <HostStatus host={host} />
+      </div>
+      <div className="mt-1 text-white font-bold truncate">{host?.host || label}</div>
+      <div className="text-xs text-slate-400">{lane}</div>
+      <div className="grid grid-cols-4 gap-2 mt-3 text-xs">
+        <div><div className="text-slate-500">CPU</div><div className="text-emerald-400">--</div></div>
+        <div><div className="text-slate-500">RAM</div><div className="text-emerald-400">--</div></div>
+        <div><div className="text-slate-500">GPU</div><div className="text-emerald-400">--</div></div>
+        <div><div className="text-slate-500">VRAM</div><div className="text-emerald-400">--</div></div>
+      </div>
+    </div>
+  )
+}
+
+function FleetTable({ hosts, large = false }) {
+  return (
+    <div className="rounded-xl border border-cyan-500/30 bg-slate-950 overflow-hidden flex-1 flex flex-col min-h-0">
+      <div className="flex justify-between px-4 py-3 border-b border-cyan-500/20">
+        <div className="text-cyan-300 font-bold">FLEET NODES — LIVE STATUS</div>
+        <div className="text-xs text-slate-400">GREEN = GOOD / RED = BROKEN / YELLOW = WARNING</div>
+      </div>
+      <div className={large ? 'flex-1 min-h-0 max-h-[260px] overflow-y-scroll overflow-x-hidden pr-1 starfleet-scroll' : 'flex-1 min-h-0 max-h-[260px] overflow-y-scroll overflow-x-hidden pr-1 starfleet-scroll'}>
+        <table className="w-full text-xs">
+          <thead className="sticky top-0 bg-slate-900 text-slate-400">
+            <tr>
+              <th className="text-left p-2">STATUS</th>
+              <th className="text-left p-2">HOST</th>
+              <th className="text-left p-2">ROLE</th>
+              <th className="text-left p-2">IP</th>
+              <th className="text-left p-2">LATENCY</th>
+              <th className="text-left p-2">SERVICES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hosts.map(h => (
+              <tr key={h.host} className="border-t border-slate-800 hover:bg-cyan-950/20">
+                <td className="p-2"><HostStatus host={h} /></td>
+                <td className="p-2 font-bold">{h.host}</td>
+                <td className="p-2">{h.role}</td>
+                <td className="p-2 text-cyan-300">{h.ip}</td>
+                <td className="p-2 text-orange-300">{h.latency_ms ?? '-'} ms</td>
+                <td className="p-2">{serviceList(h.services)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function Overview({ data, hosts, workers }) {
+  return (
+    <>
+      <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4 shrink-0">
+        <PanelTitle title="BRIDGE OVERVIEW" subtitle="Real-time fleet command summary" data={data} />
+        <MetricCards data={data} />
+      </section>
+
+      <section className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4 min-h-[250px]">
+          <div className="text-cyan-300 font-bold mb-3">FLEET HEALTH MATRIX</div>
+          <div className="flex items-center gap-5">
+            <div className="h-36 w-36 rounded-full border-8 border-emerald-500 flex items-center justify-center shadow-[0_0_35px_rgba(16,185,129,.4)]">
+              <div className="text-center">
+                <div className="text-4xl text-emerald-400 font-black">100%</div>
+                <div className="text-xs text-emerald-400">FLEET HEALTH</div>
+              </div>
+            </div>
+            <div className="flex-1 space-y-3 text-sm">
+              <div className="flex justify-between"><span>Nodes Online</span><span>{data.summary?.hosts_ping}</span></div>
+              <div className="flex justify-between"><span>Services Healthy</span><span>{data.summary?.services}</span></div>
+              <div className="flex justify-between"><span>Quarantine</span><span>0</span></div>
+              <div className="flex justify-between"><span>Remediation</span><span>0 Active</span></div>
+              <div className="flex justify-between"><span>Review Gate</span><span>Clear</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
+          <div className="flex justify-between mb-3">
+            <div className="text-cyan-300 font-bold">GALACTIC SYSTEM MAP</div>
+            <div className="text-xs text-slate-400">LOCAL SECTOR / NODE COUNT: {hosts.length}</div>
+          </div>
+          <StarMap hosts={hosts} />
+        </div>
+      </section>
+
+      <FleetTable hosts={hosts} />
+    </>
+  )
+}
+
+function NodesView({ data, hosts, workers }) {
+  return (
+    <>
+      <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
+        <PanelTitle title="FLEET NODES" subtitle="Expanded node inspector and worker lane status" data={data} />
+        <div className="grid grid-cols-6 gap-2 mt-4">
+          {workers.map(w => <WorkerCard key={w.name} host={w.host} label={w.label} lane={w.lane} />)}
+        </div>
+      </section>
+      <FleetTable hosts={hosts} large />
+    </>
+  )
+}
+
+function MapView({ data, hosts }) {
+  return (
+    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
+      <PanelTitle title="SYSTEM MAP" subtitle="Expanded local-sector fleet topology" data={data} />
+      <div className="mt-4">
+        <StarMap hosts={hosts} tall />
+      </div>
+    </section>
+  )
+}
+
+function ServicesView({ data, hosts, ports }) {
+  return (
+    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
+      <PanelTitle title="SERVICES" subtitle="Port and service health matrix" data={data} />
+      <div className="grid grid-cols-8 gap-3 mt-5">
+        {ports.map(p => (
+          <div key={p} className="rounded-lg border border-cyan-500/20 bg-cyan-950/10 p-4 text-center">
+            <div className="text-xs text-slate-400">PORT</div>
+            <div className="text-xl text-cyan-300 font-black">{p}</div>
+            <div className="mx-auto mt-2 h-4 w-4 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400" />
+          </div>
+        ))}
+      </div>
+      <div className="mt-5">
+        <FleetTable hosts={hosts} large />
+      </div>
+    </section>
+  )
+}
+
+function PerformanceView({ data, workers }) {
+  return (
+    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
+      <PanelTitle title="PERFORMANCE" subtitle="Placeholder telemetry until worker metrics feed is wired" data={data} />
+      <div className="grid grid-cols-3 gap-4 mt-5">
+        {workers.map(w => (
+          <div key={w.name} className="rounded-xl border border-blue-500/30 bg-blue-950/10 p-4">
+            <div className="flex justify-between">
+              <div className="text-cyan-300 font-bold">{w.label} {w.host?.host || w.name}</div>
+              <HostStatus host={w.host} />
+            </div>
+            {['CPU', 'RAM', 'GPU', 'VRAM'].map((x, i) => (
+              <div key={x} className="mt-4">
+                <div className="flex justify-between text-xs"><span>{x}</span><span>{[12, 23, 31, 44][i]}%</span></div>
+                <div className="h-2 rounded bg-slate-800 mt-1 overflow-hidden">
+                  <div className="h-full bg-cyan-400" style={{ width: `${[12, 23, 31, 44][i]}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function AlertsView({ data }) {
+  const warnings = data.summary?.warnings ?? 0
+  return (
+    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
+      <PanelTitle title="ALERTS" subtitle="Incident, quarantine, and warning state" data={data} />
+      <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-10 text-center">
+        <div className="text-6xl text-emerald-400">✓</div>
+        <div className="text-2xl text-emerald-400 font-black mt-4">{warnings} ACTIVE WARNINGS</div>
+        <div className="text-slate-400 mt-2">No quarantine, remediation, or routing violations reported by this UI feed.</div>
+      </div>
+    </section>
+  )
+}
+
+function LogsView({ data, lastPull, error }) {
+  const rows = [
+    ['SYSTEM', 'Fleet status nominal'],
+    ['NETWORK', `${data.summary?.hosts_ping} hosts responding`],
+    ['SERVICES', `${data.summary?.services} services healthy`],
+    ['WATCH', 'No new violations'],
+    ['POLICY', 'Review gate clear']
+  ]
+  return (
+    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
+      <PanelTitle title="LOGS" subtitle="Live event console placeholder" data={data} />
+      <div className="mt-5 rounded-xl border border-blue-500/30 bg-black/60 p-4 h-[540px] overflow-auto text-sm">
+        {rows.map(([type, msg], i) => (
+          <div key={i} className="grid grid-cols-[120px_120px_1fr] border-b border-slate-800 py-3">
+            <span className="text-cyan-300">{lastPull}</span>
+            <span className="text-emerald-400">{type}</span>
+            <span>{msg}</span>
+          </div>
+        ))}
+        {error && <div className="text-yellow-300 mt-3">WARN UI pull: {error}</div>}
+      </div>
+    </section>
+  )
+}
+
+function SettingsView({ data }) {
+  return (
+    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
+      <PanelTitle title="SETTINGS" subtitle="Read-only policy and config state" data={data} />
+      <div className="grid grid-cols-2 gap-4 mt-5">
+        <div className="rounded-xl border border-orange-500/30 bg-orange-950/10 p-4">
+          <div className="text-orange-300 font-bold">POLICY MODE</div>
+          <div className="text-2xl text-orange-400 mt-3">CONTROLLED / READ-ONLY UI</div>
+          <div className="text-slate-400 mt-2">No remediation from frontend. Spot Core remains authority.</div>
+        </div>
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-4">
+          <div className="text-emerald-300 font-bold">BACKUP GATE</div>
+          <div className="text-2xl text-emerald-400 mt-3">ENFORCED</div>
+          <div className="text-slate-400 mt-2">No backup, no change.</div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function TerminalView({ data }) {
+  const [history, setHistory] = useState([
+    '[SPOT-CORE::OPS]',
+    'AUTHORITY: READ-ONLY',
+    'BACKUP GATE: ENFORCED',
+    'TYPE: status, fleet, services, policy, help'
+  ])
+  const [cmd, setCmd] = useState('')
+
+  function runCommand() {
+    const c = cmd.trim().toLowerCase()
+    if (!c) return
+    let output = []
+    if (c === 'status') output = [`RESULT: ${resultText(data.result)}`, `HOSTS: ${data.summary?.hosts_ping}`, `SERVICES: ${data.summary?.services}`]
+    else if (c === 'fleet') output = (data.hosts || []).map(h => `${h.host} ${h.ip} ${h.health}`)
+    else if (c === 'services') output = [`SERVICE MATRIX: ${data.summary?.services}`]
+    else if (c === 'policy') output = ['UI MODE: READ ONLY', 'SPOT CORE: AUTHORITY', 'BACKUP GATE: ENFORCED']
+    else if (c === 'help') output = ['commands: status, fleet, services, policy, clear']
+    else if (c === 'clear') { setHistory([]); setCmd(''); return }
+    else output = [`UNKNOWN COMMAND: ${c}`, 'Allowed: status, fleet, services, policy, help, clear']
+
+    setHistory(prev => [...prev, `> ${cmd}`, ...output])
+    setCmd('')
+  }
+
+  return (
+    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
+      <PanelTitle title="STARFLEET TERMINAL" subtitle="Read-only Spot tactical console" data={data} />
+      <div className="mt-5 rounded-xl border border-cyan-500/30 bg-black/80 h-[560px] p-4 text-sm text-emerald-300 overflow-auto shadow-[0_0_35px_rgba(14,165,233,.18)]">
+        {history.map((x, i) => <div key={i} className={x.startsWith('>') ? 'text-cyan-300' : ''}>{x}</div>)}
+      </div>
+      <div className="mt-3 flex rounded-lg border border-cyan-500/30 bg-black/60 overflow-hidden">
+        <div className="px-3 py-2 text-orange-300">SPOT&gt;</div>
+        <input
+          className="flex-1 bg-transparent px-2 outline-none text-cyan-200"
+          value={cmd}
+          onChange={e => setCmd(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') runCommand() }}
+          placeholder="type command..."
+        />
+        <button onClick={runCommand} className="px-4 text-cyan-300 border-l border-cyan-500/30">RUN</button>
+      </div>
+    </section>
+  )
+}
+
+function SpotAssistant({ setActive }) {
+  return (
+    <div className="h-full rounded-xl border border-cyan-500/30 bg-[#020817] p-3 overflow-hidden shadow-[0_0_25px_rgba(14,165,233,.15)] flex flex-col">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-cyan-300 text-lg font-bold">SPOT AI ASSISTANT</div>
+        <div className="text-xs text-emerald-400">● STANDBY</div>
+      </div>
+
+      <div className="relative flex-1 min-h-[185px] rounded-xl border border-cyan-500/20 bg-black overflow-hidden flex items-center justify-center">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#0ea5e955_0%,#07598544_24%,transparent_56%)]" />
+        <div className="absolute inset-0 bg-[repeating-radial-gradient(circle_at_center,transparent_0_21px,#06b6d433_22px,#06b6d433_23px,transparent_24px_40px)]" />
+        <div className="absolute inset-y-4 left-4 w-1 bg-orange-400/60 shadow-[0_0_12px_rgba(251,146,60,.8)]" />
+        <div className="absolute inset-y-4 right-4 w-1 bg-orange-400/60 shadow-[0_0_12px_rgba(251,146,60,.8)]" />
+
+        <div className="relative h-36 w-32 rounded-[48%] border border-cyan-200/80 bg-cyan-500/10 shadow-[0_0_45px_rgba(14,165,233,0.85)]">
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 text-white text-2xl drop-shadow-[0_0_8px_rgba(255,255,255,.9)]">△</div>
+
+          <div className="absolute top-16 left-6 h-2 w-6 rounded-full bg-cyan-100 shadow-[0_0_18px_rgba(125,211,252,1)]" />
+          <div className="absolute top-16 right-6 h-2 w-6 rounded-full bg-cyan-100 shadow-[0_0_18px_rgba(125,211,252,1)]" />
+
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 h-5 w-px bg-cyan-200/60" />
+          <div className="absolute top-27 left-1/2 -translate-x-1/2 h-6 w-12 rounded-b-full border-b border-cyan-200/80" />
+
+          <div className="absolute -left-4 top-10 h-16 w-5 rounded-full border border-cyan-300/30" />
+          <div className="absolute -right-4 top-10 h-16 w-5 rounded-full border border-cyan-300/30" />
+        </div>
+      </div>
+
+      <div className="mt-2 text-center text-emerald-400 text-sm tracking-widest">AWAITING COMMAND</div>
+
+      <button
+        onClick={() => setActive('terminal')}
+        className="mt-3 w-full rounded-lg border border-cyan-500/30 py-2 text-cyan-300 hover:bg-cyan-950/30"
+      >
+        OPEN TERMINAL
+      </button>
+    </div>
+  )
+}
+
+export default function App() {
+  const [data, setData] = useState(fallback)
+  const [active, setActive] = useState('overview')
+  const [lastPull, setLastPull] = useState('never')
+  const [error, setError] = useState('')
+
+  async function loadStatus() {
+    try {
+      const res = await fetch(`/status.json?ts=${Date.now()}`, { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = await res.json()
+      setData(json)
+      setLastPull(new Date().toLocaleTimeString())
+      setError('')
+    } catch (err) {
+      setError(String(err.message || err))
+      setLastPull(new Date().toLocaleTimeString())
+    }
+  }
+
+  useEffect(() => {
+    loadStatus()
+    const id = setInterval(loadStatus, 5000)
+    return () => clearInterval(id)
+  }, [])
+
+  const hosts = data.hosts || []
+  const workers = useMemo(() => workerOrder.map(([name, label, lane]) => ({
+    name, label, lane, host: getHost(hosts, name)
+  })), [hosts])
+
+  const ports = useMemo(() => {
+    const out = new Set()
+    hosts.forEach(h => Object.keys(h.services || {}).forEach(p => out.add(p)))
+    return [...out].sort((a, b) => Number(a) - Number(b))
+  }, [hosts])
+
+  function renderCenter() {
+    if (active === 'nodes') return <NodesView data={data} hosts={hosts} workers={workers} />
+    if (active === 'map') return <MapView data={data} hosts={hosts} />
+    if (active === 'services') return <ServicesView data={data} hosts={hosts} ports={ports} />
+    if (active === 'performance') return <PerformanceView data={data} workers={workers} />
+    if (active === 'alerts') return <AlertsView data={data} />
+    if (active === 'logs') return <LogsView data={data} lastPull={lastPull} error={error} />
+    if (active === 'settings') return <SettingsView data={data} />
+    if (active === 'terminal') return <TerminalView data={data} />
+    return <Overview data={data} hosts={hosts} workers={workers} />
+  }
+
+  return (
+    <div className="h-screen bg-black text-slate-100 font-mono overflow-hidden">
+      <div className="h-full p-2 grid grid-cols-[225px_minmax(0,1fr)_430px] grid-rows-[66px_minmax(0,1fr)_170px_50px] gap-2 overflow-hidden">
+
+        <header className="col-span-3 rounded-xl border border-cyan-500/40 bg-slate-950 flex items-center justify-between px-5">
+          <div>
+            <div className="text-2xl text-orange-400 font-black tracking-wider">STARFLEET COMMAND</div>
+            <div className="text-xs text-slate-400">LOCAL OPERATIONS / SPOT CORE</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl text-cyan-400 tracking-widest">STARFLEET OPERATIONS NETWORK</div>
+            <div className="text-xs text-slate-400">LIVE READ-ONLY FLEET VIEW</div>
+          </div>
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/40 bg-emerald-950/30 px-4 py-3">
+            <span className={`h-5 w-5 rounded-full shadow-lg ${statusDot(data.result)}`} />
+            <div>
+              <div className="text-emerald-400 font-bold">{resultText(data.result)}</div>
+              <div className="text-xs text-slate-400">UI pull: {lastPull}</div>
+            </div>
+          </div>
+        </header>
+
+        <aside className="row-start-2 rounded-xl border border-blue-500/40 bg-slate-950 p-3 space-y-2 overflow-hidden">
+          <div className="rounded-lg bg-blue-950/50 px-3 py-2 text-xs text-slate-400">LCARS 47-741</div>
+          {navItems.map(([id, num, title, sub]) => (
+            <button
+              key={id}
+              onClick={() => setActive(id)}
+              className={`w-full text-left rounded-lg border px-3 py-3 transition ${
+                active === id
+                  ? 'border-orange-400 bg-orange-500/20 text-orange-300'
+                  : 'border-blue-500/30 bg-slate-900/80 text-cyan-300 hover:bg-blue-950/60'
+              }`}
+            >
+              <div className="flex gap-3">
+                <div className="font-black">{num}</div>
+                <div>
+                  <div className="font-bold">{title}</div>
+                  <div className="text-xs text-slate-400">{sub}</div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </aside>
+
+        <main className="min-w-0 row-start-2 col-start-2 h-full pr-1 flex flex-col">
+          <div className="space-y-2 flex-1 flex flex-col">
+            {renderCenter()}
+          </div>
+        </main>
+
+        <aside className="row-start-2 col-start-3 flex flex-col gap-2 h-full min-h-0 overflow-hidden">
+          <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4 h-[180px] shrink-0">
+            <div className="flex justify-between">
+              <div className="text-cyan-300 text-lg font-bold">SYSTEM FEED</div>
+              <div className="text-emerald-400 text-xs">● LIVE</div>
+            </div>
+            <div className="mt-3 space-y-2 text-xs">
+              <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">SYSTEM</span> Fleet status nominal</div>
+              <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">NETWORK</span> {data.summary?.hosts_ping} hosts responding</div>
+              <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">SERVICES</span> {data.summary?.services} services healthy</div>
+              <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">POLICY</span> Review gate clear</div>
+              {error && <div className="text-yellow-300">WARN UI pull: {error}</div>}
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-3 shrink-0">
+            <div className="grid grid-cols-4 gap-2">
+              <button onClick={() => setActive('services')} className="rounded-lg border border-cyan-500/30 p-3 text-cyan-300">SERVICE HEALTH</button>
+              <button onClick={() => setActive('alerts')} className="rounded-lg border border-red-500/30 p-3 text-red-400">ALERTS</button>
+              <button onClick={() => setActive('logs')} className="rounded-lg border border-blue-500/30 p-3 text-blue-300">LOGS</button>
+              <button onClick={() => setActive('settings')} className="rounded-lg border border-slate-600 p-3 text-slate-300">SETTINGS</button>
+            </div>
+          </section>
+
+          <section className="flex-1 min-h-[260px] overflow-hidden"><SpotAssistant setActive={setActive} /></section>
+
+          <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
+            <div className="text-cyan-300 font-bold">COMMAND TERMINAL</div>
+            <div className="mt-2 text-sm text-slate-300">
+              HOW CAN I ASSIST WITH YOUR STARFLEET OPERATIONS TODAY?
+            </div>
+            <button onClick={() => setActive('terminal')} className="mt-3 w-full rounded-lg border border-blue-500/30 bg-black/40 px-3 py-2 text-left text-slate-400">
+              Open tactical terminal... <span className="float-right text-blue-400">➤</span>
+            </button>
+          </section>
+        </aside>
+
+        <section className="col-span-3 row-start-3 rounded-xl border border-orange-500/30 bg-slate-950 p-2 overflow-hidden">
+          <div className="text-orange-400 font-black mb-2">STARFLEET WORKER LANES</div>
+          <div className="grid grid-cols-6 gap-2 h-[130px]">
+            {workers.map(w => (
+              <WorkerCard
+                key={w.name}
+                host={w.host}
+                label={w.label}
+                lane={w.lane}
+              />
+            ))}
+          </div>
+        </section>
+
+        <footer className="col-span-3 row-start-4 rounded-xl border border-orange-500/40 bg-slate-950 flex items-center justify-between px-5">
+          <div className="text-emerald-400 font-bold">SYSTEM STATUS — {resultText(data.result)}</div>
+          <div className="text-slate-400 text-xs">Read-only monitor • No remediation from UI • Spot Core remains authority</div>
+          <div className="text-orange-400 font-bold">BACKUP GATE ENFORCED</div>
+        </footer>
+      </div>
+    </div>
+  )
+}
+
