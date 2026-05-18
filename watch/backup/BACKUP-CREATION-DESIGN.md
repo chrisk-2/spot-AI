@@ -156,3 +156,21 @@ This design is complete when:
 - failure cases exist
 - no implementation was added
 - readiness checkpoint remains clean
+
+
+## Backup Validation Requirements
+
+Backup creation is not considered valid unless:
+
+- metadata.json exists
+- backup artifact is readable
+- checksum/hash markers exist where required
+- backup path is journaled
+- backup verification returns PASS
+- validator confirms artifact visibility
+
+Failure of any validation step must:
+- block execution
+- write failure journal entry
+- prevent backup binding
+

@@ -153,3 +153,46 @@ Validation after adding design docs
 •	spot-readiness-gate-checkpoint remains clean.
 •	fleet validate remains PASS.
 •	No mutation beyond approved design files.
+
+
+## Deterministic Validation Requirements
+
+Every autonomy phase must define:
+
+- required validation commands
+- expected PASS conditions
+- required journal entries
+- rollback verification requirements
+- fail-closed behavior
+- escalation conditions
+- dry-run proof requirements where applicable
+
+No phase may advance unless:
+- validators pass
+- required journals exist
+- rollback paths are defined
+- failure handling is documented
+- review gates return PASS
+
+Validation must be deterministic and repeatable.
+Model judgment alone is not considered sufficient validation.
+
+## Rollback Verification Requirements
+
+Every mutating workflow must define:
+
+- rollback trigger conditions
+- rollback artifact source
+- rollback validation method
+- rollback success criteria
+- rollback halt conditions
+- operator escalation conditions
+
+Rollback verification must occur before execution approval.
+
+No mutating workflow may proceed without:
+- verified rollback path
+- readable rollback artifact
+- defined rollback validator
+- explicit halt conditions on rollback failure
+

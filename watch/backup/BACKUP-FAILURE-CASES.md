@@ -311,3 +311,17 @@ This failure case design is complete when:
 - backup creation design references these cases
 - metadata schema supports these cases
 - no implementation was added
+
+
+## Rollback Failure Escalation
+
+If rollback fails:
+
+- execution chain halts immediately
+- affected target is marked degraded
+- Spot Core records rollback failure journal
+- autonomous retry is blocked unless policy explicitly allows it
+- operator escalation becomes mandatory
+
+No workflow may silently continue after rollback failure.
+
