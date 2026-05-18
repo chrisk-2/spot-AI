@@ -1,0 +1,27 @@
+{
+  "timestamp_utc": "20260518T172415Z",
+  "phase": "2.31",
+  "status": "spec_review_pass",
+  "decision": "PASS",
+  "review_type": "phase231_grounded_bundle_review",
+  "reviewer": "spot-worker-05",
+  "model": "qwen2.5-coder:32b",
+  "confidence": "high",
+  "execution_allowed": false,
+  "authority": "proposal_review_only",
+  "bundle": "watch/review/bundles/phase231-review-bundle-20260518T171939Z.md",
+  "bundle_sha256_file": "watch/review/bundles/phase231-review-bundle-20260518T171939Z.md.sha256",
+  "notes": [
+    "dry-run only",
+    "no live source reads",
+    "no live backup writes",
+    "no executor dispatch",
+    "no config or service mutation",
+    "manifest schema documented",
+    "static validators documented",
+    "PASS and FAIL conditions documented",
+    "fail-closed behavior documented",
+    "W-5 review requirement documented",
+    "phase exit criteria documented"
+  ]
+}
