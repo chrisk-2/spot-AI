@@ -96,3 +96,52 @@ utility   -> spot-worker-02
 coding    -> spot-worker-03
 heavy     -> spot-worker-04
 reasoning -> spot-worker-06
+
+---
+
+## PHASE 3.11 CHECKPOINT — 2026-05-19
+
+Phase 3 dry-run engineering pipeline is active through Phase 3.11.
+
+Latest committed Phase 3 chain:
+- `516bee2 phase3: add rollback binding gate`
+- `a93bb47 phase3: add backup binding gate`
+- `3cc2bcb phase3: add transaction summary envelope`
+- `e44e3e5 phase3: add mutation lifecycle simulator`
+- `f1476af phase3: add recovery orchestration simulator`
+- `199da1d phase3: add governance envelope simulator`
+- `8c2c72e phase3: ignore simulator python caches`
+- `69152c2 phase3: add dry-run proof bundle`
+
+Current validation:
+- `spot validate` RESULT: PASS
+- pass=30
+- warn=0
+- fail=0
+
+Current intentional dirty runtime-only state:
+- `starfleet-ui/public/status.json`
+- `watch/apply/journals/`
+- runtime simulator/proof run artifacts ignored under `*/runs/`
+
+Current Phase 3 status:
+- dry-run transaction summary envelope complete
+- mutation lifecycle simulator complete
+- recovery orchestration simulator complete
+- deterministic governance envelope simulator complete
+- Phase 3 proof bundle complete
+
+No live mutation path exists.
+No git apply path enabled.
+No config mutation path enabled.
+No service restart path enabled.
+No rollback restore path enabled.
+
+Spot Core remains sole executor.
+Worker self-apply remains blocked.
+Codex mutation remains blocked.
+OpenAI mutation remains blocked.
+
+Next lane:
+- Phase 3.12 — dry-run apply-wrapper integration proof
+- Goal: prove the wrapper can consume the Phase 3 proof bundle and reject unsafe envelopes without mutation.
