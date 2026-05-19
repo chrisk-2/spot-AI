@@ -1,0 +1,18 @@
+{
+  "checkpoint": "PHASE239-CONTROLLED-AUTONOMY-ACCEPTANCE",
+  "ts": "2026-05-19T03:00:13Z",
+  "phase": "Phase 2.39",
+  "acceptance_file": "watch/review/bundles/PHASE239-CONTROLLED-AUTONOMY-ACCEPTANCE-20260519T030013Z.md",
+  "controlled_autonomy_fixture_milestone_complete": true,
+  "first_live_fixture_execution_complete": true,
+  "defect_detected": true,
+  "defect_remediated": true,
+  "heartbeat_verified": true,
+  "final_validation_passed": true,
+  "rollback_required": false,
+  "spot_core_only_apply_authority": true,
+  "worker05_proposal_review_only": true,
+  "production_services_touched": false,
+  "network_stack_touched": false,
+  "known_excluded_dirty_file": "starfleet-ui/public/status.json"
+}
