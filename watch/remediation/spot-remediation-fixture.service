@@ -1,6 +1,6 @@
 [Unit]
 Description=Spot Remediation Fixture Service
-Documentation=internal:starfleet-phase-2.35a
+Documentation=internal:starfleet-phase-2.38
 ConditionPathExists=/usr/local/lib/spot/spot-remediation-fixture.sh
 
 [Service]
@@ -12,7 +12,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/tmp
+ReadWritePaths=/var/lib/spot/remediation-fixture
 CapabilityBoundingSet=
 RestrictSUIDSGID=true
 LockPersonality=true
