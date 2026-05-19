@@ -43,6 +43,12 @@ def repo_dirty():
             continue
         if "watch/rollback/bindings/" in line:
             continue
+        if "watch/backup/bindings/" in line:
+            continue
+        if "watch/backup/spot-backup-binding-new.py" in line:
+            continue
+        if "watch/backup/spot-backup-binding-validate.py" in line:
+            continue
         if "watch/apply/spot-apply-wrapper.py" in line:
             continue
         dirty.append(line)
@@ -55,12 +61,32 @@ def main():
     ap.add_argument("--review-json", required=True)
     ap.add_argument("--journal-json", required=True)
     ap.add_argument("--rollback-binding-json", required=False)
+    ap.add_argument("--backup-binding-json", required=False)
     args = ap.parse_args()
 
     patch = load_json(args.patch_bundle)
     review = load_json(args.review_json)
     journal = load_json(args.journal_json)
     rollback_binding = load_json(args.rollback_binding_json) if args.rollback_binding_json else None
+    backup_binding = load_json(args.backup_binding_json) if args.backup_binding_json else None
+
+    if backup_binding is None:
+        fail("backup binding required")
+
+    if backup_binding.get("mutation_performed") is not False:
+        fail("backup binding mutation_performed must remain false")
+
+    if backup_binding.get("execution_performed") is not False:
+        fail("backup binding execution_performed must remain false")
+
+    if backup_binding.get("verified") is not True:
+        fail("backup binding not verified")
+
+    if backup_binding.get("patch_bundle_id") != patch.get("patch_bundle_id"):
+        fail("backup patch_bundle_id mismatch")
+
+    if backup_binding.get("backup_binding_id") != journal.get("backup_binding_id"):
+        fail("backup backup_binding_id mismatch")
 
     if rollback_binding is None:
         fail("rollback binding required")
@@ -117,6 +143,7 @@ def main():
     print("[PASS] patch bundle verified")
     print("[PASS] review verified")
     print("[PASS] apply journal verified")
+    print("[PASS] backup binding verified")
     print("[PASS] rollback binding verified")
     print("[PASS] repo cleanliness verified")
     print("[PASS] DRY-RUN apply wrapper gating succeeded")
