@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "request_id": "REQ-EXAMPLE-0001",
+  "patch_bundle_id": "PB-REQ-EXAMPLE-0001",
+  "phase": "3.0",
+  "created_utc": "2026-05-18T00:00:00Z",
+  "generated_by": {
+    "worker": "spot-worker-03",
+    "provider": "codex",
+    "model": "proposal-only"
+  },
+  "target": {
+    "host": "spot-core",
+    "repo": "~/spot-stack",
+    "service": "spot-core"
+  },
+  "risk_class": "medium",
+  "intent": "Example controlled code mutation bundle.",
+  "files": [
+    {
+      "path": "spot-core/spotcore/app.py",
+      "operation": "modify",
+      "sha256_before": "",
+      "sha256_after_expected": ""
+    }
+  ],
+  "diff_artifacts": [
+    "patch.diff"
+  ],
+  "validation": [
+    "python3 -m py_compile spot-core/spotcore/app.py",
+    "spot validate"
+  ],
+  "rollback": {
+    "required": true,
+    "strategy": "restore-bound-backup",
+    "commands": []
+  },
+  "review_required": true,
+  "execution_allowed": false
+}
