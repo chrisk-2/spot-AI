@@ -1,6 +1,6 @@
 {
   "checkpoint": "PHASE238-FIXTURE-HEARTBEAT-CONTRACT-PASS",
-  "ts": "2026-05-19T02:50:43Z",
+  "ts": "2026-05-19T02:52:13Z",
   "phase": "Phase 2.38",
   "bundle": "watch/review/bundles/phase238-fixture-heartbeat-contract-review-bundle-20260519T024918Z.md",
   "hash_file": "watch/review/bundles/phase238-fixture-heartbeat-contract-review-bundle-20260519T024918Z.md.sha256",
@@ -14,7 +14,7 @@
     "result_blocked": true,
     "authority": "proposal_review_only",
     "confidence": "high",
-    "response": "{\n  \"verdict\": \"PASS\",\n  \"execution_allowed\": false,\n  \"confidence\": \"high\",\n  \"intent_match\": \"pass\",\n  \"policy_match\": \"pass\",\n  \"phase_match\": \"pass\",\n  \"backup_required\": true,\n  \"backup_verified\": false,\n  \"rollback_defined\": true,\n  \"validation_defined\": true,\n  \"required_fixes\": [],\n  \"blocking_findings\": [],\n  \"notes\": \"The remediation is scoped to fixture artifacts, the unit remains sandboxed, the write path is narrow and explicit, the script remains deterministic, no production service is touched, and live execution is not authorized.\"\n}",
+    "response": "{\n  \"verdict\": \"PASS\",\n  \"execution_allowed\": false,\n  \"confidence\": \"high\",\n  \"intent_match\": \"pass\",\n  \"policy_match\": \"pass\",\n  \"phase_match\": \"pass\",\n  \"backup_required\": true,\n  \"backup_verified\": false,\n  \"rollback_defined\": true,\n  \"validation_defined\": true,\n  \"required_fixes\": [],\n  \"blocking_findings\": [],\n  \"notes\": \"Heartbeat contract remediation scoped to fixture artifacts, unit remains sandboxed, write path is narrow and explicit, script deterministic, no production service touched, live execution not authorized, Spot Core sole executor, Worker-05 remains proposal_review_only.\"\n}",
     "raw": {
       "verdict": "PASS",
       "execution_allowed": false,
@@ -28,7 +28,7 @@
       "validation_defined": true,
       "required_fixes": [],
       "blocking_findings": [],
-      "notes": "The remediation is scoped to fixture artifacts, the unit remains sandboxed, the write path is narrow and explicit, the script remains deterministic, no production service is touched, and live execution is not authorized."
+      "notes": "Heartbeat contract remediation scoped to fixture artifacts, unit remains sandboxed, write path is narrow and explicit, script deterministic, no production service touched, live execution not authorized, Spot Core sole executor, Worker-05 remains proposal_review_only."
     }
   },
   "mutation_performed": false,
