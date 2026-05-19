@@ -145,3 +145,39 @@ OpenAI mutation remains blocked.
 Next lane:
 - Phase 3.12 — dry-run apply-wrapper integration proof
 - Goal: prove the wrapper can consume the Phase 3 proof bundle and reject unsafe envelopes without mutation.
+
+---
+
+## PHASE 3.12 CHECKPOINT — 2026-05-19
+
+Phase 3 dry-run engineering pipeline is active through Phase 3.12.
+
+Latest commit:
+- `8c33a15 phase3: add apply wrapper integration proof`
+
+Current validation:
+- `spot validate` RESULT: PASS
+- pass=30
+- warn=0
+- fail=0
+
+Phase 3.12 status:
+- dry-run apply-wrapper integration proof complete
+- safe envelope acceptance simulated
+- unsafe mutation rejection simulated
+- unsafe execution rejection simulated
+- unsafe rollback rejection simulated
+- executor drift rejection simulated
+- worker self-apply rejection simulated
+- Codex mutation rejection simulated
+- OpenAI mutation rejection simulated
+
+No live mutation path exists.
+No git apply path enabled.
+No config mutation path enabled.
+No service restart path enabled.
+No rollback restore path enabled.
+
+Next lane:
+- Phase 3.13 — full dry-run chain closure report
+- Goal: aggregate Phase 3.1 through Phase 3.12 into a single closure report with validation status and next-live-gate recommendation.
