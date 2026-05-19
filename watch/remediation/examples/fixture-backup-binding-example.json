@@ -1,0 +1,12 @@
+{
+  "binding_id": "EXAMPLE-BINDING-ONLY",
+  "target": "spot-core",
+  "service": "spot-remediation-fixture.service",
+  "backup_path": "REQUIRED",
+  "backup_verified": false,
+  "reviewed_bundle": "REQUIRED",
+  "reviewed_hash": "REQUIRED",
+  "rollback_defined": true,
+  "execution_allowed": false,
+  "final_state": "review_only"
+}

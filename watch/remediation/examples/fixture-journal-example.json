@@ -1,0 +1,13 @@
+{
+  "ts": "REQUIRED",
+  "request_id": "EXAMPLE-REQUEST",
+  "phase": "Phase 2.37",
+  "target": "spot-core",
+  "service": "spot-remediation-fixture.service",
+  "reviewed_bundle": "REQUIRED",
+  "reviewed_hash": "REQUIRED",
+  "backup_binding_id": "REQUIRED",
+  "verification_result": "pending",
+  "rollback_result": "pending",
+  "final_outcome": "review_only"
+}

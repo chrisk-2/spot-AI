@@ -1,0 +1,18 @@
+{
+  "authorization_id": "EXAMPLE-AUTH-ONLY",
+  "operator": "REQUIRED",
+  "timestamp": "REQUIRED",
+  "approved_action_placeholders": [
+    "ACTION_PLACEHOLDER_1",
+    "ACTION_PLACEHOLDER_2",
+    "ACTION_PLACEHOLDER_3"
+  ],
+  "reviewed_bundle": "REQUIRED",
+  "reviewed_hash": "REQUIRED",
+  "backup_binding_id": "REQUIRED",
+  "rollback_binding_id": "REQUIRED",
+  "execution_allowed": false,
+  "expiry": "REQUIRED",
+  "signature_placeholder": "REQUIRED",
+  "review_mode_only": true
+}
