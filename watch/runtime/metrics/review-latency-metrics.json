@@ -1,0 +1,11 @@
+{
+  "classification": "acceptable_cold",
+  "endpoint": "/review/local",
+  "execution_allowed": false,
+  "last_observed_latency_sec": 20.6,
+  "metrics_api_mode": "file_backed_dryrun",
+  "model": "qwen2.5-coder:32b",
+  "mutation_allowed": false,
+  "reviewer": "spot-worker-05",
+  "updated_ts": "2026-05-20T16:15:04Z"
+}

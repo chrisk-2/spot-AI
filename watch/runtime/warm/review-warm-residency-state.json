@@ -1,0 +1,20 @@
+{
+  "execution_allowed": false,
+  "mode": "dryrun_only",
+  "mutation_allowed": false,
+  "service_restart_allowed": false,
+  "targets": [
+    {
+      "model": "qwen2.5-coder:32b",
+      "purpose": "primary_review",
+      "worker": "spot-worker-05"
+    },
+    {
+      "model": "qwen2.5:32b",
+      "purpose": "reasoning_escalation",
+      "worker": "spot-worker-06"
+    }
+  ],
+  "updated_ts": "2026-05-20T16:15:04Z",
+  "warm_prompt_allowed": false
+}

@@ -1,0 +1,12 @@
+{
+  "active": [],
+  "completed": [],
+  "execution_allowed": false,
+  "last_manager_run": "2026-05-20T16:15:04Z",
+  "max_concurrency": 1,
+  "mutation_allowed": false,
+  "pending": [],
+  "queue_name": "review-local",
+  "service_restart_allowed": false,
+  "updated_ts": "2026-05-20T16:15:04Z"
+}
