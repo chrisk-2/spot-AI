@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "review_runtime_policy": {
+    "endpoint": "/review/local",
+    "default_timeout_sec": 45,
+    "cold_model_timeout_sec": 90,
+    "validator_timeout_sec": 60,
+    "max_concurrent_reviews": 1,
+    "queue_required": true,
+    "warm_residency_recommended": true,
+    "execution_authority": false,
+    "mutation_authority": false
+  },
+  "reviewers": {
+    "spot-worker-05": {
+      "role": "review",
+      "preferred_models": [
+        "qwen2.5-coder:32b",
+        "deepseek-r1:32b",
+        "qwen2.5-coder:14b"
+      ],
+      "can_execute": false,
+      "can_self_apply": false
+    },
+    "spot-worker-06": {
+      "role": "reasoning",
+      "preferred_models": [
+        "qwen2.5:32b",
+        "deepseek-r1:32b",
+        "qwen2.5:14b"
+      ],
+      "can_execute": false,
+      "can_self_apply": false
+    }
+  }
+}

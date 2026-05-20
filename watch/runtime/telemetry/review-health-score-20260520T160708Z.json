@@ -1,0 +1,12 @@
+{
+  "health_score_id": "review-health-20260520T160708Z",
+  "phase": 44,
+  "reviewer": "spot-worker-05",
+  "model": "qwen2.5-coder:32b",
+  "ok": true,
+  "latency_sec": 20.6,
+  "score": 0.8,
+  "advisory_only": true,
+  "execution_allowed": false,
+  "timestamp": "20260520T160708Z"
+}

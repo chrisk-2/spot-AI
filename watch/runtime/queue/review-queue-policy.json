@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "queue": {
+    "name": "review-local",
+    "max_concurrency": 1,
+    "dedupe_by": [
+      "candidate_id",
+      "content_hash",
+      "review_type"
+    ],
+    "retry_policy": {
+      "enabled": true,
+      "max_attempts": 2,
+      "retry_on": [
+        "timeout",
+        "transient_worker_unavailable"
+      ],
+      "retry_delay_sec": 10
+    },
+    "forbidden_retry_on": [
+      "policy_denied",
+      "execution_authority_blocked",
+      "approval_bypass_detected"
+    ]
+  },
+  "authority": {
+    "execution_allowed": false,
+    "mutation_allowed": false,
+    "service_restart_allowed": false
+  }
+}
