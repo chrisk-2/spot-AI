@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "validator": "spot validate",
+  "review_local_timeout_sec": 60,
+  "review_local_cold_start_budget_sec": 90,
+  "transient_timeout_isolation": true,
+  "governance_failure_required_for_hard_fail": true,
+  "service_restart_allowed": false,
+  "mutation_authority": false
+}

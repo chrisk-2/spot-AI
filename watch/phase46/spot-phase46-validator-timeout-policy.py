@@ -11,10 +11,10 @@ def main():
         "validator": "spot validate",
         "review_local_timeout_sec": 60,
         "review_local_cold_start_budget_sec": 90,
-        "transient_timeout_isolation": true,
-        "governance_failure_required_for_hard_fail": true,
-        "service_restart_allowed": false,
-        "mutation_authority": false
+        "transient_timeout_isolation": True,
+        "governance_failure_required_for_hard_fail": True,
+        "service_restart_allowed": False,
+        "mutation_authority": False
     }
 
     OUT.write_text(json.dumps(policy, indent=2))
