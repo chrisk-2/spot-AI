@@ -159,3 +159,18 @@ RESULT: PASS
 cases=14 learning_ingest=pass advisory_scoring=pass confidence_weighting=pass recommendation_generation=pass self_approval_blocked=pass execution_blocked=pass routing_mutation_blocked=pass ownership_mutation_blocked=pass production_target_blocked=pass deterministic_schema=pass advisory_journal=pass no_authority_escalation=pass mutation_scope=none
 
 Phase 12 remains advisory-only and does not authorize production mutation.
+
+---
+
+## PHASE 13 COMPLETION TARGET — 2026-05-20
+
+Phase 13 is complete only after:
+
+watch/phase13/spot-phase13-full-validate.py
+
+returns:
+
+RESULT: PASS
+cases=15 fabric_aggregation=pass readiness_classification=pass advisory_recommendations=pass execution_authority_blocked=pass approval_authority_blocked=pass routing_authority_blocked=pass ownership_authority_blocked=pass production_mutation_blocked=pass missing_proof_blocked=pass failed_proof_blocked=pass deterministic_schema=pass fabric_journal=pass no_authority_escalation=pass mutation_scope=none
+
+Phase 13 remains advisory-only and does not authorize production mutation.

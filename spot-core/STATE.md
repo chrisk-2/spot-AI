@@ -488,3 +488,30 @@ Phase 12 completion requires:
 Phase 12 remains advisory-only.
 
 No production mutation, routing mutation, worker ownership change, or autonomous execution is authorized by Phase 12.
+
+---
+
+## PHASE 13 COMPLETION TARGET — 2026-05-20
+
+Phase 13 introduces supervised operational intelligence fabric generation.
+
+Phase 13 completion requires:
+
+- fabric_aggregation=pass
+- readiness_classification=pass
+- advisory_recommendations=pass
+- execution_authority_blocked=pass
+- approval_authority_blocked=pass
+- routing_authority_blocked=pass
+- ownership_authority_blocked=pass
+- production_mutation_blocked=pass
+- missing_proof_blocked=pass
+- failed_proof_blocked=pass
+- deterministic_schema=pass
+- fabric_journal=pass
+- no_authority_escalation=pass
+- mutation_scope=none
+
+Phase 13 remains advisory-only.
+
+No production mutation, routing mutation, worker ownership change, autonomous approval, or autonomous execution is authorized by Phase 13.
