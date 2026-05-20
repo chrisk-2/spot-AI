@@ -204,3 +204,16 @@ RESULT: PASS
 cases=15 approval_token_acceptance=pass missing_token_blocked=pass expired_token_blocked=pass candidate_mismatch_blocked=pass target_mismatch_blocked=pass action_mismatch_blocked=pass scope_mismatch_blocked=pass operator_confirmation_blocked=pass approver_gate=pass execution_authority_blocked=pass deterministic_schema=pass approval_journal=pass denied_journal=pass mutation_scope=none
 
 Phase 15 remains approval-gate-only and does not authorize production execution.
+
+---
+
+## PHASE 16-19 COMPLETION TARGET — 2026-05-20
+
+watch/phase19/spot-phase16-19-full-validate.py
+
+must return:
+
+RESULT: PASS
+cases=16 phase16_preexecution_lockout=pass phase17_live_candidate_bundle=pass phase18_governance_consolidation=pass phase19_autonomy_readiness_closeout=pass execution_authority_blocked=pass approval_bypass_blocked=pass production_mutation_blocked=pass routing_authority_blocked=pass ownership_authority_blocked=pass deterministic_schema=pass governance_journal=pass mutation_scope=none
+
+No production execution is authorized.
