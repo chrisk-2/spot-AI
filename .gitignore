@@ -64,3 +64,9 @@ watch/reports/
 
 # Starfleet temp/backups
 *.bak.*
+
+# Runtime apply journals
+watch/apply/journals/
+
+# Generated live UI status
+starfleet-ui/public/status.json
