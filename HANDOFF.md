@@ -114,3 +114,18 @@ RESULT: PASS
 cases=15 approved_low_risk_execution=pass unapproved_blocked=pass risk_gate=pass worker_self_apply=pass backup_gate=pass rollback_gate=pass validation_gate=pass lease_expiration=pass replay_guard=pass production_target_blocked=pass service_restart_blocked=pass execution_journal=pass denied_journal=pass mutation_scope=fixture_only
 
 Phase 9 remains fixture-only and does not authorize production execution.
+
+---
+
+## PHASE 10 COMPLETION TARGET — 2026-05-20
+
+Phase 10 is complete only after:
+
+watch/phase10/spot-phase10-full-validate.py
+
+returns:
+
+RESULT: PASS
+cases=16 approved_remediation=pass verification_failure_rollback=pass rollback_receipt=pass rollback_journal=pass rollback_manifest_gate=pass invalid_manifest_blocked=pass unapproved_blocked=pass risk_gate=pass worker_self_apply=pass lease_expiration=pass replay_guard=pass production_target_blocked=pass validation_gate=pass execution_journal=pass denied_journal=pass mutation_scope=fixture_only
+
+Phase 10 remains fixture-only and does not authorize production execution.

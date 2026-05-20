@@ -403,3 +403,32 @@ Phase 9 completion requires:
 Phase 9 remains fixture-only.
 
 No production execution or mutation is authorized by Phase 9.
+
+---
+
+## PHASE 10 COMPLETION TARGET — 2026-05-20
+
+Phase 10 introduces rollback-integrated remediation wrapper proof against fixture-only targets.
+
+Phase 10 completion requires:
+
+- approved_remediation=pass
+- verification_failure_rollback=pass
+- rollback_receipt=pass
+- rollback_journal=pass
+- rollback_manifest_gate=pass
+- invalid_manifest_blocked=pass
+- unapproved_blocked=pass
+- risk_gate=pass
+- worker_self_apply=pass
+- lease_expiration=pass
+- replay_guard=pass
+- production_target_blocked=pass
+- validation_gate=pass
+- execution_journal=pass
+- denied_journal=pass
+- mutation_scope=fixture_only
+
+Phase 10 remains fixture-only.
+
+No production execution or mutation is authorized by Phase 10.
