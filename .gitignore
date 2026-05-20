@@ -70,3 +70,7 @@ watch/apply/journals/
 
 # Generated live UI status
 starfleet-ui/public/status.json
+
+# Runtime validation/output artifacts
+watch/runtime/queue/runs/
+watch/runtime/metrics/runs/
