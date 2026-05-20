@@ -1,0 +1,26 @@
+{
+  "fixture_environment": "group2-simulation",
+  "version": 1,
+  "targets": {
+    "fixture-controller": {
+      "type": "controller",
+      "production": false,
+      "mutation_allowed": false
+    },
+    "fixture-service": {
+      "type": "service",
+      "production": false,
+      "mutation_allowed": false
+    }
+  },
+  "forbidden_targets": [
+    "firewall",
+    "dns",
+    "dhcp",
+    "routing",
+    "ssh",
+    "production"
+  ],
+  "execution_allowed": false,
+  "service_restart_allowed": false
+}

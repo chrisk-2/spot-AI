@@ -1,0 +1,22 @@
+{
+  "execution_allowed": false,
+  "fixture_environment": "group2-simulation",
+  "forbidden_targets_enforced": [
+    "firewall",
+    "dns",
+    "dhcp",
+    "routing",
+    "ssh",
+    "production"
+  ],
+  "mode": "dryrun_only",
+  "mutation_allowed": false,
+  "production_targeted": false,
+  "service_restart_allowed": false,
+  "simulation_run_id": "group2-simulation-2026-05-20T16:20:05Z",
+  "targets_checked": [
+    "fixture-controller",
+    "fixture-service"
+  ],
+  "timestamp": "2026-05-20T16:20:05Z"
+}

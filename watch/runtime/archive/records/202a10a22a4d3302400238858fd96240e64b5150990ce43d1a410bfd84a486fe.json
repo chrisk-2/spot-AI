@@ -1,0 +1,10 @@
+{
+  "archive_mode": "append_only_dryrun",
+  "execution_allowed": false,
+  "mutation_allowed": false,
+  "record_hash": "202a10a22a4d3302400238858fd96240e64b5150990ce43d1a410bfd84a486fe",
+  "record_type": "governance-runtime-proof",
+  "service_restart_allowed": false,
+  "source": "group2-dryrun",
+  "timestamp": "2026-05-20T16:20:05Z"
+}
