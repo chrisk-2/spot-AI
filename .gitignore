@@ -74,3 +74,7 @@ starfleet-ui/public/status.json
 # Runtime validation/output artifacts
 watch/runtime/queue/runs/
 watch/runtime/metrics/runs/
+
+# Runtime UI telemetry snapshots
+starfleet-ui/public/runtime-metrics.json
+starfleet-ui/public/runtime-health-summary.json
