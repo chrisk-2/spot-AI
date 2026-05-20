@@ -3648,3 +3648,65 @@ async def exec_route(req: ExecRequest) -> ExecResult:
         response=response_text,
         raw=data,
     )
+
+
+# --- operational journaling completion lane ---
+def _spot_runtime_journal_summary(limit: int = 5) -> dict:
+    import json as _json
+    from pathlib import Path as _Path
+    from datetime import datetime as _datetime, timezone as _timezone
+
+    roots = [
+        _Path("/mnt/collective/logs/spot"),
+        _Path("/watch/state"),
+        _Path("/watch/apply/journals"),
+    ]
+    categories = ["reviews", "actions", "backups", "rollbacks", "learning", "runtime"]
+
+    def _validate_file(path: _Path) -> tuple[bool, str | None]:
+        try:
+            if path.suffix == ".json":
+                _json.loads(path.read_text(errors="replace"))
+            elif path.suffix == ".jsonl":
+                for line in path.read_text(errors="replace").splitlines():
+                    if line.strip():
+                        _json.loads(line)
+            return True, None
+        except Exception as exc:
+            return False, str(exc)
+
+    def _summarize(path: _Path) -> dict:
+        files = [x for x in path.glob("*") if x.is_file()] if path.exists() else []
+        recent = sorted(files, key=lambda x: x.stat().st_mtime, reverse=True)[:limit]
+        invalid = []
+        for f in files:
+            if f.suffix not in {".json", ".jsonl"}:
+                continue
+            ok, err = _validate_file(f)
+            if not ok:
+                invalid.append({"file": str(f), "error": err})
+        return {
+            "path": str(path),
+            "exists": path.exists(),
+            "file_count": len(files),
+            "invalid_count": len(invalid),
+            "invalid": invalid[:25],
+            "recent": [{"file": str(f), "size": f.stat().st_size} for f in recent],
+        }
+
+    primary = roots[0]
+    return {
+        "ts": _datetime.now(_timezone.utc).isoformat(),
+        "mode": "read_only",
+        "mutation_authority": False,
+        "executor": "spot-core",
+        "roots": {str(root): _summarize(root) for root in roots},
+        "categories": {name: _summarize(primary / name) for name in categories},
+    }
+
+
+@app.get("/stats/runtime/journals")
+def stats_runtime_journals(limit: int = 5):
+    safe_limit = max(1, min(int(limit), 25))
+    return _spot_runtime_journal_summary(limit=safe_limit)
+# --- end operational journaling completion lane ---
