@@ -45,8 +45,9 @@ backup_worker() {
 }
 META
     mv "$tmp" "$dest"
-    rm -rf "${root}/latest"
-    ln -s "$dest" "${root}/latest"
+    mkdir -p "${root}"
+    mkdir -p "${root}"
+printf '%s\n' "$dest" > "${root}/LATEST" || echo "[WARN] LATEST pointer failed worker=${worker} dest=${dest}" >&2
     log "WARN worker=${worker} ssh_unreachable metadata=${dest}/metadata.json"
     return 0
   fi
@@ -79,8 +80,9 @@ META
 META
 
   mv "$tmp" "$dest"
-  rm -rf "${root}/latest"
-  ln -s "$dest" "${root}/latest"
+  mkdir -p "${root}"
+  mkdir -p "${root}"
+printf '%s\n' "$dest" > "${root}/LATEST" || echo "[WARN] LATEST pointer failed worker=${worker} dest=${dest}" >&2
 
   if [[ "$status" == "ok" ]]; then
     log "OK worker=${worker} metadata=${dest}/metadata.json"
