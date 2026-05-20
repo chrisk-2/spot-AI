@@ -325,3 +325,28 @@ Phase 6 completion requires:
 Phase 6 remains fixture-only.
 
 No production mutation is authorized by Phase 6.
+
+---
+
+## PHASE 7 COMPLETION TARGET — 2026-05-20
+
+Phase 7 introduces production-adjacent read-only operations observability.
+
+Phase 7 completion requires:
+
+- readonly_observation=pass
+- mutation_verbs_blocked=pass
+- production_targets_blocked=pass
+- fleet_status_summary=pass
+- routing_audit_summary=pass
+- phase6_journal_summary=pass
+- incident_candidates=pass
+- deterministic_schema=pass
+- write_scope=phase7_runs_only
+- service_restart_blocked=pass
+- network_mutation_blocked=pass
+- mutation_scope=none
+
+Phase 7 remains read-only.
+
+No production mutation is authorized by Phase 7.

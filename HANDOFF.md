@@ -69,3 +69,18 @@ RESULT: PASS
 cases=15 fixture_service_lifecycle=pass supervised_state_transitions=pass governed_apply_queue=pass backup_gate=pass rollback_gate=pass validation_gate=pass rollback_continuity=pass lease_expiration=pass replay_guard=pass target_escape=pass worker_self_apply=pass journal_records=pass mutation_scope=fixture_only
 
 Phase 6 remains fixture-only and does not authorize production service mutation.
+
+---
+
+## PHASE 7 COMPLETION TARGET — 2026-05-20
+
+Phase 7 is complete only after:
+
+watch/phase7/spot-phase7-full-validate.py
+
+returns:
+
+RESULT: PASS
+cases=12 readonly_observation=pass mutation_verbs_blocked=pass production_targets_blocked=pass fleet_status_summary=pass routing_audit_summary=pass phase6_journal_summary=pass incident_candidates=pass deterministic_schema=pass write_scope=phase7_runs_only service_restart_blocked=pass network_mutation_blocked=pass mutation_scope=none
+
+Phase 7 remains read-only and does not authorize production service mutation.
