@@ -1,0 +1,13 @@
+{
+  "maintenance_plan_id": "maintenance-dryrun-20260520T160051Z",
+  "phase": 38,
+  "mode": "plan_only",
+  "candidate_type": "backup_freshness_review",
+  "requires_review": true,
+  "requires_approval": true,
+  "requires_backup": true,
+  "requires_rollback": true,
+  "execution_allowed": false,
+  "mutation_performed": false,
+  "timestamp": "20260520T160051Z"
+}

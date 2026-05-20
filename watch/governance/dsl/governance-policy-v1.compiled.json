@@ -1,0 +1,21 @@
+{
+  "policy": "governance_v1",
+  "compile_mode": "dryrun_only",
+  "invariants": [
+    "INVARIANT spot_core_sole_executor = true",
+    "INVARIANT worker_self_apply = forbidden",
+    "INVARIANT codex_mutation = forbidden",
+    "INVARIANT openai_mutation = forbidden"
+  ],
+  "rules": [
+    "RULE no_backup_no_execution",
+    "RULE no_rollback_no_execution",
+    "RULE no_review_no_execution",
+    "RULE no_unsigned_approval",
+    "RULE high_risk_requires_quorum",
+    "RULE production_network_mutation",
+    "RULE routing_authority_mutation"
+  ],
+  "execution_allowed": false,
+  "mutation_authority": false
+}

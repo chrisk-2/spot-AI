@@ -1,0 +1,20 @@
+{
+  "simulation_id": "simulation-lane-20260520T160051Z",
+  "phase": 35,
+  "mode": "simulation_manifest_only",
+  "targets": [
+    "fixture-controller",
+    "fixture-service"
+  ],
+  "forbidden_targets": [
+    "firewall",
+    "dns",
+    "dhcp",
+    "routing",
+    "ssh",
+    "production"
+  ],
+  "mutation_performed": false,
+  "production_targeted": false,
+  "timestamp": "20260520T160051Z"
+}

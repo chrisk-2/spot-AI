@@ -1,0 +1,15 @@
+{
+  "exchange_id": "cross-controller-20260520T160051Z",
+  "phase": 34,
+  "mode": "verification_dryrun_only",
+  "local_controller": "spot-core",
+  "remote_controller": "external-verifier-placeholder",
+  "verified_items": [
+    "approval_artifact_shape",
+    "governance_hash_present",
+    "mutation_scope_none"
+  ],
+  "remote_execution_allowed": false,
+  "external_mutation_authority": false,
+  "timestamp": "20260520T160051Z"
+}

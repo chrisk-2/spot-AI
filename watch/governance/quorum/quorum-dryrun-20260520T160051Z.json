@@ -1,0 +1,14 @@
+{
+  "quorum_id": "quorum-dryrun-20260520T160051Z",
+  "phase": 33,
+  "mode": "dryrun_only",
+  "required_signers": 2,
+  "present_signers": [
+    "operator-local",
+    "spot-core-verifier"
+  ],
+  "quorum_met": true,
+  "execution_allowed": false,
+  "mutation_performed": false,
+  "timestamp": "20260520T160051Z"
+}

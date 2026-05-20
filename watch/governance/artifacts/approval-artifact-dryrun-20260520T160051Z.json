@@ -1,0 +1,21 @@
+{
+  "artifact_id": "approval-artifact-20260520T160051Z",
+  "candidate_id": "candidate-phase31-dryrun",
+  "request_id": "request-phase31-dryrun",
+  "operator_identity": "operator-local-dryrun",
+  "approval_scope": "governance_dryrun_only",
+  "targets": [
+    "fixture-only"
+  ],
+  "actions": [
+    "validate-only"
+  ],
+  "issued_ts": "20260520T160051Z",
+  "expires_ts": "20260520T160051Z",
+  "governance_hash": "dryrun-governance-hash",
+  "content_hash": "8364df0b16743b3a4392eb8f7ab073083db7b346c9832c05f608edca660d1cb4",
+  "signer_identity": "dryrun-signer",
+  "signature_algorithm": "dryrun-detached-placeholder",
+  "detached_signature": "dryrun-signature-placeholder",
+  "immutable_receipt_id": "receipt-20260520T160051Z"
+}

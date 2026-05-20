@@ -1,0 +1,10 @@
+{
+  "archive_record_id": "archive-record-20260520T160051Z",
+  "mode": "append_dryrun_only",
+  "mutation_performed": false,
+  "execution_performed": false,
+  "record_type": "governance-proof",
+  "source_phase": 32,
+  "timestamp": "20260520T160051Z",
+  "record_hash": "ed89311a4a6d211a2fe68be20425a2006e7bc3002b93408b62a1a5e52a34095e"
+}

@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "workers": {
+    "spot-worker-01": {
+      "role": "general",
+      "can_execute": false,
+      "can_self_apply": false
+    },
+    "spot-worker-02": {
+      "role": "utility",
+      "can_execute": false,
+      "can_self_apply": false
+    },
+    "spot-worker-03": {
+      "role": "coding",
+      "can_execute": false,
+      "can_self_apply": false
+    },
+    "spot-worker-04": {
+      "role": "heavy",
+      "can_execute": false,
+      "can_self_apply": false
+    },
+    "spot-worker-05": {
+      "role": "review",
+      "can_execute": false,
+      "can_self_apply": false
+    },
+    "spot-worker-06": {
+      "role": "reasoning",
+      "can_execute": false,
+      "can_self_apply": false
+    },
+    "spot-core": {
+      "role": "executor",
+      "can_execute": true,
+      "can_self_apply": false
+    }
+  }
+}
