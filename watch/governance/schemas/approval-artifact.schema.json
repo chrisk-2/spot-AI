@@ -1,0 +1,73 @@
+{
+  "type": "object",
+  "required": [
+    "artifact_id",
+    "candidate_id",
+    "request_id",
+    "operator_identity",
+    "approval_scope",
+    "targets",
+    "actions",
+    "issued_ts",
+    "expires_ts",
+    "governance_hash",
+    "content_hash",
+    "signer_identity",
+    "signature_algorithm",
+    "detached_signature",
+    "immutable_receipt_id"
+  ],
+  "properties": {
+    "artifact_id": {
+      "type": "string"
+    },
+    "candidate_id": {
+      "type": "string"
+    },
+    "request_id": {
+      "type": "string"
+    },
+    "operator_identity": {
+      "type": "string"
+    },
+    "approval_scope": {
+      "type": "string"
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "issued_ts": {
+      "type": "string"
+    },
+    "expires_ts": {
+      "type": "string"
+    },
+    "governance_hash": {
+      "type": "string"
+    },
+    "content_hash": {
+      "type": "string"
+    },
+    "signer_identity": {
+      "type": "string"
+    },
+    "signature_algorithm": {
+      "type": "string"
+    },
+    "detached_signature": {
+      "type": "string"
+    },
+    "immutable_receipt_id": {
+      "type": "string"
+    }
+  }
+}

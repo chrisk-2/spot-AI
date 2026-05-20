@@ -1,0 +1,9 @@
+{
+  "phase": 23,
+  "mode": "dryrun_only",
+  "mutation_performed": false,
+  "execution_performed": false,
+  "archive_export_allowed": false,
+  "governance_state": "design_only",
+  "timestamp": "20260520T155005Z"
+}
