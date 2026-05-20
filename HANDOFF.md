@@ -54,3 +54,18 @@ Expected intentional dirty runtime-only state:
 - watch/apply/journals/
 - watch/phase6/runs/
 
+
+---
+
+## PHASE 6 COMPLETION TARGET — 2026-05-20
+
+Phase 6 is complete only after:
+
+watch/phase6/spot-phase6-full-validate.py
+
+returns:
+
+RESULT: PASS
+cases=15 fixture_service_lifecycle=pass supervised_state_transitions=pass governed_apply_queue=pass backup_gate=pass rollback_gate=pass validation_gate=pass rollback_continuity=pass lease_expiration=pass replay_guard=pass target_escape=pass worker_self_apply=pass journal_records=pass mutation_scope=fixture_only
+
+Phase 6 remains fixture-only and does not authorize production service mutation.
