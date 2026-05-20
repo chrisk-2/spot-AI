@@ -217,3 +217,93 @@ RESULT: PASS
 cases=16 phase16_preexecution_lockout=pass phase17_live_candidate_bundle=pass phase18_governance_consolidation=pass phase19_autonomy_readiness_closeout=pass execution_authority_blocked=pass approval_bypass_blocked=pass production_mutation_blocked=pass routing_authority_blocked=pass ownership_authority_blocked=pass deterministic_schema=pass governance_journal=pass mutation_scope=none
 
 No production execution is authorized.
+
+---
+
+# POST PHASE62 HANDOFF
+
+Read:
+1. HANDOFF.md
+2. spot-core/STATE.md
+
+Branch:
+main
+
+Latest commits:
+
+7b39ca1 phase59-62: add governance timeline and maintenance pilot
+63bf36f phase55-58: add archive writer and simulation fixtures
+12d23e1 phase51-54: add review runtime control scaffolds
+6731a17 phase41-50: add runtime stabilization framework
+20b9979 phase31-40: add governed autonomy runtime dryrun framework
+5d13cc7 phase20-30: add governance expansion lane
+
+Intentional runtime-only dirty state:
+
+M starfleet-ui/public/status.json
+
+Do not commit runtime artifacts.
+
+Current validated state:
+
+spot validate:
+PASS
+pass=30 warn=0 fail=0
+
+Governance status:
+- governed autonomy framework established
+- runtime stabilization framework established
+- archive integrity model established
+- simulation fixture framework established
+- maintenance pilot framework established
+
+Current authority model:
+
+Spot Core remains sole executor.
+
+Forbidden:
+- worker self-apply
+- autonomous production mutation
+- autonomous service restart
+- routing ownership mutation
+- OpenAI mutation authority
+- Codex mutation authority
+- approval bypass
+- rollback bypass
+- backup bypass
+
+Current operational focus:
+
+We are no longer building foundational governance.
+
+Primary focus is now:
+- runtime engineering
+- operational maturity
+- simulation fidelity
+- telemetry
+- observability
+- queue durability
+- latency stabilization
+- controlled maintenance orchestration
+- operator UX/control plane
+
+Engineering rules:
+
+- coherent grouped runtime work only
+- no micro-commit treadmill
+- full-file outputs preferred
+- validate at end of coherent group
+- stop immediately on failures
+- isolate failing layer only
+- validate fix before continuing
+
+Next likely lanes:
+
+- real metrics API integration
+- real queue persistence
+- UI governance timeline integration
+- simulation topology expansion
+- controlled low-risk maintenance pilot
+- archive export tooling
+- telemetry dashboards
+- latency-aware reviewer selection
