@@ -84,3 +84,18 @@ RESULT: PASS
 cases=12 readonly_observation=pass mutation_verbs_blocked=pass production_targets_blocked=pass fleet_status_summary=pass routing_audit_summary=pass phase6_journal_summary=pass incident_candidates=pass deterministic_schema=pass write_scope=phase7_runs_only service_restart_blocked=pass network_mutation_blocked=pass mutation_scope=none
 
 Phase 7 remains read-only and does not authorize production service mutation.
+
+---
+
+## PHASE 8 COMPLETION TARGET — 2026-05-20
+
+Phase 8 is complete only after:
+
+watch/phase8/spot-phase8-full-validate.py
+
+returns:
+
+RESULT: PASS
+cases=14 proposal_generation=pass remediation_classification=pass forbidden_actions_blocked=pass rollback_planning=pass backup_planning=pass validation_planning=pass approval_gating=pass replay_guard=pass immutable_journals=pass deterministic_schema=pass execution_blocked=pass service_restart_blocked=pass mutation_scope=proposal_only
+
+Phase 8 remains proposal-only and does not authorize production execution.

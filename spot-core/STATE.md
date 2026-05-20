@@ -350,3 +350,29 @@ Phase 7 completion requires:
 Phase 7 remains read-only.
 
 No production mutation is authorized by Phase 7.
+
+---
+
+## PHASE 8 COMPLETION TARGET — 2026-05-20
+
+Phase 8 introduces deterministic dry-run remediation planning.
+
+Phase 8 completion requires:
+
+- proposal_generation=pass
+- remediation_classification=pass
+- forbidden_actions_blocked=pass
+- rollback_planning=pass
+- backup_planning=pass
+- validation_planning=pass
+- approval_gating=pass
+- replay_guard=pass
+- immutable_journals=pass
+- deterministic_schema=pass
+- execution_blocked=pass
+- service_restart_blocked=pass
+- mutation_scope=proposal_only
+
+Phase 8 remains proposal-only.
+
+No production execution or mutation is authorized by Phase 8.
