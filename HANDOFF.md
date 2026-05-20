@@ -189,3 +189,18 @@ RESULT: PASS
 cases=14 readiness_gate=pass missing_approval_blocked=pass missing_backup_blocked=pass missing_rollback_blocked=pass missing_validation_blocked=pass risk_gate=pass network_target_blocked=pass worker_executor_blocked=pass execution_authority_blocked=pass deterministic_schema=pass readiness_journal=pass no_authority_escalation=pass mutation_scope=none
 
 Phase 14 remains readiness-review-only and does not authorize production execution.
+
+---
+
+## PHASE 15 COMPLETION TARGET — 2026-05-20
+
+Phase 15 is complete only after:
+
+watch/phase15/spot-phase15-full-validate.py
+
+returns:
+
+RESULT: PASS
+cases=15 approval_token_acceptance=pass missing_token_blocked=pass expired_token_blocked=pass candidate_mismatch_blocked=pass target_mismatch_blocked=pass action_mismatch_blocked=pass scope_mismatch_blocked=pass operator_confirmation_blocked=pass approver_gate=pass execution_authority_blocked=pass deterministic_schema=pass approval_journal=pass denied_journal=pass mutation_scope=none
+
+Phase 15 remains approval-gate-only and does not authorize production execution.

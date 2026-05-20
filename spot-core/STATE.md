@@ -541,3 +541,30 @@ Phase 14 completion requires:
 Phase 14 remains readiness-review-only.
 
 No production execution or mutation is authorized by Phase 14.
+
+---
+
+## PHASE 15 COMPLETION TARGET — 2026-05-20
+
+Phase 15 introduces deterministic operator approval token gating.
+
+Phase 15 completion requires:
+
+- approval_token_acceptance=pass
+- missing_token_blocked=pass
+- expired_token_blocked=pass
+- candidate_mismatch_blocked=pass
+- target_mismatch_blocked=pass
+- action_mismatch_blocked=pass
+- scope_mismatch_blocked=pass
+- operator_confirmation_blocked=pass
+- approver_gate=pass
+- execution_authority_blocked=pass
+- deterministic_schema=pass
+- approval_journal=pass
+- denied_journal=pass
+- mutation_scope=none
+
+Phase 15 remains approval-gate-only.
+
+No production execution or mutation is authorized by Phase 15.
