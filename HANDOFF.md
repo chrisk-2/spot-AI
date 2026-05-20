@@ -26,3 +26,31 @@ general -> spot-worker-01
 utility -> spot-worker-02
 coding  -> spot-worker-03
 heavy   -> spot-worker-04
+
+---
+
+## PHASE 6 ACTIVE LANE — 2026-05-20
+
+Phase 6 supervised operational autonomy begins with controlled fixture-service orchestration only.
+
+Allowed:
+- fixture service lifecycle simulation
+- controlled supervisor state transitions
+- governed apply queue simulation
+- rollback continuity across supervised fixture operations
+- execution lease expiration handling
+
+Forbidden:
+- production service mutation
+- network/firewall/DNS/DHCP/routing mutation
+- worker self-apply
+- Codex mutation
+- OpenAI mutation
+- git apply in live environment
+- service restart autonomy against production services
+
+Expected intentional dirty runtime-only state:
+- starfleet-ui/public/status.json
+- watch/apply/journals/
+- watch/phase6/runs/
+

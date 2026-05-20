@@ -225,3 +225,57 @@ Current closure recommendation:
 
 Next lane:
 - Phase 4 planning and controlled noop executor architecture review
+
+---
+
+## PHASE 6 CHECKPOINT — 2026-05-20
+
+Phase 6 supervised operational autonomy lane is active.
+
+Current Phase 6 scope:
+- controlled fixture-service orchestration only
+- supervised state transitions
+- governed apply queue simulation
+- rollback continuity validation
+- lease expiration handling
+- replay guard enforcement
+- target escape blocking
+- fixture-only mutation scope
+
+Current prohibited scope:
+- production service mutation
+- network/firewall/DNS/DHCP/routing mutation
+- worker self-apply
+- Codex mutation
+- OpenAI mutation
+- git apply in live environment
+- service restart autonomy against production services
+- production rollback restore execution
+
+Current enforced invariants:
+- Spot Core sole executor
+- no worker self-apply
+- Codex cannot mutate
+- OpenAI cannot mutate
+- no backup = no execution
+- no rollback = no execution
+- replay-safe execution identity
+- immutable receipts/journals
+- no production mutation
+
+Expected Phase 6 validation:
+- RESULT: PASS
+- fixture_service_lifecycle=pass
+- supervised_state_transitions=pass
+- governed_apply_queue=pass
+- rollback_continuity=pass
+- lease_expiration=pass
+- replay_guard=pass
+- target_escape=pass
+- mutation_scope=fixture_only
+
+Current intentional dirty runtime-only state:
+- starfleet-ui/public/status.json
+- watch/apply/journals/
+- watch/phase6/runs/
+
