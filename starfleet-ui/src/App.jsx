@@ -472,6 +472,8 @@ export default function App() {
   const [active, setActive] = useState('overview')
   const [lastPull, setLastPull] = useState('never')
   const [error, setError] = useState('')
+  const [runtimeMetrics, setRuntimeMetrics] = useState(null)
+  const [runtimeHealth, setRuntimeHealth] = useState(null)
 
   async function loadStatus() {
     try {
@@ -590,6 +592,40 @@ export default function App() {
               <button onClick={() => setActive('settings')} className="rounded-lg border border-slate-600 p-3 text-slate-300">SETTINGS</button>
             </div>
           </section>
+            <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4 shrink-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-cyan-300 font-bold">RUNTIME GOVERNANCE</div>
+                  <div className="text-[11px] text-slate-500">Queue telemetry / replay safety / lease state</div>
+                </div>
+                <div className={`h-3 w-3 rounded-full shadow-lg ${runtimeHealth?.status === 'warn' ? 'bg-yellow-300 shadow-yellow-300' : 'bg-emerald-400 shadow-emerald-400'}`} />
+              </div>
+
+              <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
+                <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-2">
+                  <div className="text-slate-500">QUEUE</div>
+                  <div className="text-lg text-cyan-200 font-bold">{runtimeMetrics?.queue?.total ?? '--'}</div>
+                </div>
+                <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-2">
+                  <div className="text-slate-500">LEASED</div>
+                  <div className="text-lg text-cyan-200 font-bold">{runtimeMetrics?.queue?.leased ?? '--'}</div>
+                </div>
+                <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-2">
+                  <div className="text-slate-500">RECEIPTS</div>
+                  <div className="text-lg text-cyan-200 font-bold">{runtimeMetrics?.queue?.receipt_count ?? '--'}</div>
+                </div>
+                <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-2">
+                  <div className="text-slate-500">FALLBACKS</div>
+                  <div className="text-lg text-cyan-200 font-bold">{runtimeMetrics?.routing?.fallback_count ?? '--'}</div>
+                </div>
+              </div>
+
+              <div className="mt-2 text-[11px] text-cyan-100/80 break-all">
+                {(runtimeHealth?.findings?.length ?? 0) > 0 ? runtimeHealth.findings.join(' | ') : 'No governance anomalies detected'}
+              </div>
+            </section>
+
+
 
           <section className="flex-1 min-h-[260px] overflow-hidden"><SpotAssistant setActive={setActive} /></section>
 
