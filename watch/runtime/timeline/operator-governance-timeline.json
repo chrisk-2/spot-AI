@@ -1,0 +1,25 @@
+{
+  "events": [
+    {
+      "event": "review_queue_ready",
+      "source": "phase51-54",
+      "status": "available"
+    },
+    {
+      "event": "archive_writer_ready",
+      "source": "phase55-58",
+      "status": "available"
+    },
+    {
+      "event": "simulation_fixture_ready",
+      "source": "phase55-58",
+      "status": "available"
+    }
+  ],
+  "execution_allowed": false,
+  "mode": "dryrun_file_backed",
+  "mutation_allowed": false,
+  "service_restart_allowed": false,
+  "timeline_id": "governance-timeline-2026-05-20T16:24:59Z",
+  "updated_ts": "2026-05-20T16:24:59Z"
+}

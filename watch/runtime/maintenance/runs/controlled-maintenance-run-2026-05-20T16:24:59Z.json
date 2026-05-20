@@ -1,0 +1,19 @@
+{
+  "execution_performed": false,
+  "final_state": "blocked_before_execution",
+  "maintenance_run_id": "controlled-maintenance-run-2026-05-20T16:24:59Z",
+  "mode": "dryrun_only",
+  "mutation_performed": false,
+  "plan_id": "controlled-maintenance-plan-2026-05-20T16:24:59Z",
+  "service_restart_performed": false,
+  "steps": [
+    "detect",
+    "plan",
+    "review_required",
+    "approval_required",
+    "backup_required",
+    "rollback_required",
+    "execution_blocked"
+  ],
+  "timestamp": "2026-05-20T16:24:59Z"
+}
