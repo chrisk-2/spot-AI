@@ -14,6 +14,7 @@ import hashlib
 import shutil
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
@@ -44,6 +45,7 @@ LATENCY_WINDOW = int(os.environ.get("SPOTCORE_LATENCY_WINDOW", "100"))
 DECISION_WINDOW = int(os.environ.get("SPOTCORE_DECISION_WINDOW", "200"))
 ALTERNATE_DEBUG_LIMIT = int(os.environ.get("SPOTCORE_ALTERNATE_DEBUG_LIMIT", "10"))
 ROUTING_AUDIT_WINDOW = int(os.environ.get("SPOTCORE_ROUTING_AUDIT_WINDOW", "500"))
+SPOTCORE_CORS_ORIGINS = [item.strip() for item in os.environ.get("SPOTCORE_CORS_ORIGINS", "*").split(",") if item.strip()]
 
 RUNTIME_QUEUE_RUNS_PATH = Path(os.environ.get("SPOTCORE_RUNTIME_QUEUE_RUNS", "watch/runtime/queue/runs"))
 RUNTIME_METRICS_LOG_ROOT = Path(os.environ.get("SPOTCORE_RUNTIME_LOG_ROOT", "/mnt/collective/logs/spot"))
@@ -2078,6 +2080,13 @@ async def execute_unquarantine_worker(worker_name: str) -> dict[str, Any]:
     )
 
 app = FastAPI(title="Spot Core Control Plane", version="final-v6-routing-audit")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=SPOTCORE_CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 @app.post("/admin/validate")
 async def admin_validate(payload: AdminValidateRequest):

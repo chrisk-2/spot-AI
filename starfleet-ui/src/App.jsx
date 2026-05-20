@@ -474,6 +474,7 @@ export default function App() {
   const [error, setError] = useState('')
   const [runtimeMetrics, setRuntimeMetrics] = useState(null)
   const [runtimeHealth, setRuntimeHealth] = useState(null)
+  const spotCoreBase = `${window.location.protocol}//${window.location.hostname}:8787`
 
   async function loadStatus() {
     try {
