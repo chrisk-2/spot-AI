@@ -144,3 +144,18 @@ RESULT: PASS
 cases=17 supervised_chain=pass rollback_chain=pass chain_replay_guard=pass unapproved_blocked=pass risk_gate=pass owner_gate=pass production_target_blocked=pass backup_gate=pass rollback_gate=pass validation_gate=pass lease_expiration=pass observation_step=pass planning_step=pass execution_step=pass chain_journal=pass chain_receipts=pass mutation_scope=fixture_only
 
 Phase 11 remains fixture-only and does not authorize production execution.
+
+---
+
+## PHASE 12 COMPLETION TARGET — 2026-05-20
+
+Phase 12 is complete only after:
+
+watch/phase12/spot-phase12-full-validate.py
+
+returns:
+
+RESULT: PASS
+cases=14 learning_ingest=pass advisory_scoring=pass confidence_weighting=pass recommendation_generation=pass self_approval_blocked=pass execution_blocked=pass routing_mutation_blocked=pass ownership_mutation_blocked=pass production_target_blocked=pass deterministic_schema=pass advisory_journal=pass no_authority_escalation=pass mutation_scope=none
+
+Phase 12 remains advisory-only and does not authorize production mutation.

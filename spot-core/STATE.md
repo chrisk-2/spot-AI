@@ -462,3 +462,29 @@ Phase 11 completion requires:
 Phase 11 remains fixture-only.
 
 No production execution or mutation is authorized by Phase 11.
+
+---
+
+## PHASE 12 COMPLETION TARGET — 2026-05-20
+
+Phase 12 introduces advisory-only learning weights.
+
+Phase 12 completion requires:
+
+- learning_ingest=pass
+- advisory_scoring=pass
+- confidence_weighting=pass
+- recommendation_generation=pass
+- self_approval_blocked=pass
+- execution_blocked=pass
+- routing_mutation_blocked=pass
+- ownership_mutation_blocked=pass
+- production_target_blocked=pass
+- deterministic_schema=pass
+- advisory_journal=pass
+- no_authority_escalation=pass
+- mutation_scope=none
+
+Phase 12 remains advisory-only.
+
+No production mutation, routing mutation, worker ownership change, or autonomous execution is authorized by Phase 12.
