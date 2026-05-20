@@ -376,3 +376,30 @@ Phase 8 completion requires:
 Phase 8 remains proposal-only.
 
 No production execution or mutation is authorized by Phase 8.
+
+---
+
+## PHASE 9 COMPLETION TARGET — 2026-05-20
+
+Phase 9 introduces approval-gated low-risk execution wrapper proof against fixture-only targets.
+
+Phase 9 completion requires:
+
+- approved_low_risk_execution=pass
+- unapproved_blocked=pass
+- risk_gate=pass
+- worker_self_apply=pass
+- backup_gate=pass
+- rollback_gate=pass
+- validation_gate=pass
+- lease_expiration=pass
+- replay_guard=pass
+- production_target_blocked=pass
+- service_restart_blocked=pass
+- execution_journal=pass
+- denied_journal=pass
+- mutation_scope=fixture_only
+
+Phase 9 remains fixture-only.
+
+No production execution or mutation is authorized by Phase 9.

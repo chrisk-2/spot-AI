@@ -99,3 +99,18 @@ RESULT: PASS
 cases=14 proposal_generation=pass remediation_classification=pass forbidden_actions_blocked=pass rollback_planning=pass backup_planning=pass validation_planning=pass approval_gating=pass replay_guard=pass immutable_journals=pass deterministic_schema=pass execution_blocked=pass service_restart_blocked=pass mutation_scope=proposal_only
 
 Phase 8 remains proposal-only and does not authorize production execution.
+
+---
+
+## PHASE 9 COMPLETION TARGET — 2026-05-20
+
+Phase 9 is complete only after:
+
+watch/phase9/spot-phase9-full-validate.py
+
+returns:
+
+RESULT: PASS
+cases=15 approved_low_risk_execution=pass unapproved_blocked=pass risk_gate=pass worker_self_apply=pass backup_gate=pass rollback_gate=pass validation_gate=pass lease_expiration=pass replay_guard=pass production_target_blocked=pass service_restart_blocked=pass execution_journal=pass denied_journal=pass mutation_scope=fixture_only
+
+Phase 9 remains fixture-only and does not authorize production execution.
