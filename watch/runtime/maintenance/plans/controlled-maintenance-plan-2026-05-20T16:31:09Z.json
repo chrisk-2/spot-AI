@@ -1,0 +1,15 @@
+{
+  "execution_allowed": false,
+  "maintenance_plan_id": "controlled-maintenance-plan-2026-05-20T16:31:09Z",
+  "mode": "fixture_only_plan",
+  "mutation_allowed": false,
+  "production_targeted": false,
+  "requires_approval": true,
+  "requires_backup": true,
+  "requires_review": true,
+  "requires_rollback": true,
+  "risk_class": "low",
+  "service_restart_allowed": false,
+  "target": "fixture-service",
+  "timestamp": "2026-05-20T16:31:09Z"
+}
