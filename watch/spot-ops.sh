@@ -181,6 +181,7 @@ Operator commands:
   quick-health             Show one-screen operator health summary
   routing                  Show routing ownership and scheduler routing state
   audit [limit]            Show routing audit summary and recent items
+  latency                  Show worker latency statistics
   self-heal [audit|plan|dry-run|apply]  Run self-heal audit/plan/preview/apply wrapper
   net-basics               Show current basic network facts and cleanup targets
   endpoints                Show basic live endpoint reachability checks
@@ -282,6 +283,7 @@ Examples:
   $(basename "$0") quick-health
   $(basename "$0") routing
   $(basename "$0") audit
+  $(basename "$0") latency
   $(basename "$0") self-heal audit
   $(basename "$0") self-heal apply
   $(basename "$0") net-basics
@@ -1139,6 +1141,28 @@ cmd_audit() {
   fi
 }
 
+cmd_latency() {
+  need_cmd jq
+  need_http "/stats/latency"
+
+  print_header "spot-core /stats/latency"
+
+  api_get "/stats/latency" | jq -r '
+    ["worker","count","avg_total_ms","p50_total_ms","avg_tok_per_sec"],
+    (
+      to_entries[]
+      | [
+          .key,
+          (.value.count // "null"),
+          (.value.avg_total_ms // "null"),
+          (.value.p50_total_ms // "null"),
+          (.value.avg_tok_per_sec // "null")
+        ]
+    )
+    | @tsv
+  ' | column -t
+}
+
 cmd_net_basics() {
   need_cmd jq
 
@@ -1903,6 +1927,7 @@ main() {
     quick-health)        cmd_quick_health "$@" ;;
     routing)             cmd_routing "$@" ;;
     audit)               cmd_audit "$@" ;;
+    latency)             cmd_latency "$@" ;;
     self-heal)           cmd_self_heal "$@" ;;
     net-basics)          cmd_net_basics "$@" ;;
     endpoints)           cmd_endpoints "$@" ;;
