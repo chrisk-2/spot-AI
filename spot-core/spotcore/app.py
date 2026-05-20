@@ -45,6 +45,9 @@ DECISION_WINDOW = int(os.environ.get("SPOTCORE_DECISION_WINDOW", "200"))
 ALTERNATE_DEBUG_LIMIT = int(os.environ.get("SPOTCORE_ALTERNATE_DEBUG_LIMIT", "10"))
 ROUTING_AUDIT_WINDOW = int(os.environ.get("SPOTCORE_ROUTING_AUDIT_WINDOW", "500"))
 
+RUNTIME_QUEUE_RUNS_PATH = Path(os.environ.get("SPOTCORE_RUNTIME_QUEUE_RUNS", "watch/runtime/queue/runs"))
+RUNTIME_METRICS_LOG_ROOT = Path(os.environ.get("SPOTCORE_RUNTIME_LOG_ROOT", "/mnt/collective/logs/spot"))
+
 ACTIVE_REQUESTS: dict[str, int] = {}
 ACTIVE_GPU_REQUESTS: dict[str, dict[str, int]] = {}
 ACTIVE_MODEL_REQUESTS: dict[str, dict[str, dict[str, int]]] = {}
@@ -2855,6 +2858,179 @@ async def fleet_ping() -> dict[str, Any]:
 async def stats_latency() -> dict[str, Any]:
     cfg = load_config()
     return {name: worker_latency_summary(name) for name in cfg["workers"].keys()}
+
+def spotcore_runtime_count_queue_runs(queue_runs: Path) -> dict[str, Any]:
+    result = {
+        "total": 0,
+        "pending": 0,
+        "leased": 0,
+        "completed": 0,
+        "denied": 0,
+        "expired": 0,
+        "stale_leases": 0,
+        "receipt_count": 0,
+        "runs": 0,
+        "malformed_runs": 0,
+    }
+
+    now = int(time.time())
+
+    if not queue_runs.exists():
+        return result
+
+    for state_path in queue_runs.glob("*/queue-state.json"):
+        result["runs"] += 1
+        try:
+            state = json.loads(state_path.read_text())
+        except Exception:
+            result["malformed_runs"] += 1
+            continue
+
+        for candidate in state.get("candidates", {}).values():
+            result["total"] += 1
+            state_name = candidate.get("state", "unknown")
+            if state_name in result:
+                result[state_name] += 1
+
+            lease = candidate.get("lease") or {}
+            if state_name == "leased" and lease.get("expires_ts", 0) <= now:
+                result["stale_leases"] += 1
+
+            result["receipt_count"] += len(candidate.get("receipts", []))
+
+    return result
+
+
+def spotcore_runtime_count_logs(root: Path) -> dict[str, Any]:
+    result = {
+        "root_exists": root.exists(),
+        "review_logs": 0,
+        "action_logs": 0,
+        "backup_logs": 0,
+        "rollback_logs": 0,
+        "learning_logs": 0,
+        "archive_logs": 0,
+    }
+
+    if not root.exists():
+        return result
+
+    mapping = {
+        "reviews": "review_logs",
+        "actions": "action_logs",
+        "backups": "backup_logs",
+        "rollbacks": "rollback_logs",
+        "learning": "learning_logs",
+        "archive": "archive_logs",
+    }
+
+    for dirname, field in mapping.items():
+        d = root / dirname
+        if d.exists():
+            result[field] = sum(1 for item in d.rglob("*") if item.is_file())
+
+    return result
+
+
+def spotcore_runtime_metrics_snapshot() -> dict[str, Any]:
+    queue = spotcore_runtime_count_queue_runs(RUNTIME_QUEUE_RUNS_PATH)
+    routing = summarize_routing_audit(ROUTING_AUDIT_WINDOW)
+    logs = spotcore_runtime_count_logs(RUNTIME_METRICS_LOG_ROOT)
+
+    return {
+        "schema": "runtime_metrics_v1",
+        "generated_at": _now(),
+        "scope": "read_only",
+        "mutation_authority": False,
+        "queue": queue,
+        "routing": {
+            "exists": ROUTING_AUDIT_PATH.exists(),
+            "lines": routing.get("window_count", 0),
+            "malformed_lines": routing.get("malformed_lines", 0),
+            "fallback_count": routing.get("fallbacks", 0),
+            "violation_count": routing.get("violations", 0),
+            "summary": routing,
+        },
+        "governance": {
+            "deny_count": logs["action_logs"],
+            "review_log_count": logs["review_logs"],
+            "log_root_exists": logs["root_exists"],
+        },
+        "archive": {
+            "archive_log_count": logs["archive_logs"],
+        },
+        "validation": {
+            "latest_known_result": "external",
+            "integrated_validator": False,
+        },
+        "raw_log_counts": logs,
+    }
+
+
+def spotcore_runtime_health_snapshot() -> dict[str, Any]:
+    metrics = spotcore_runtime_metrics_snapshot()
+    queue = metrics["queue"]
+    routing = metrics["routing"]
+
+    status = "ok"
+    findings = []
+
+    if queue["stale_leases"] > 0:
+        status = "warn"
+        findings.append(f"stale_leases={queue['stale_leases']}")
+
+    if routing["malformed_lines"] > 0:
+        status = "warn"
+        findings.append(f"routing_malformed_lines={routing['malformed_lines']}")
+
+    if routing["violation_count"] > 0:
+        status = "warn"
+        findings.append(f"routing_violations={routing['violation_count']}")
+
+    return {
+        "schema": "runtime_health_summary_v1",
+        "scope": "read_only",
+        "mutation_authority": False,
+        "status": status,
+        "findings": findings,
+        "queue_total": queue["total"],
+        "queue_pending": queue["pending"],
+        "queue_leased": queue["leased"],
+        "queue_completed": queue["completed"],
+        "queue_receipts": queue["receipt_count"],
+        "routing_audit_lines": routing["lines"],
+        "routing_fallback_count": routing["fallback_count"],
+    }
+
+
+@app.get("/stats/runtime")
+async def stats_runtime() -> dict[str, Any]:
+    return spotcore_runtime_metrics_snapshot()
+
+
+@app.get("/stats/runtime/health")
+async def stats_runtime_health() -> dict[str, Any]:
+    return spotcore_runtime_health_snapshot()
+
+
+@app.get("/stats/runtime/queue")
+async def stats_runtime_queue() -> dict[str, Any]:
+    return spotcore_runtime_metrics_snapshot()["queue"]
+
+
+@app.get("/stats/runtime/governance")
+async def stats_runtime_governance() -> dict[str, Any]:
+    metrics = spotcore_runtime_metrics_snapshot()
+    return {
+        "schema": "runtime_governance_metrics_v1",
+        "scope": "read_only",
+        "mutation_authority": False,
+        "governance": metrics["governance"],
+        "archive": metrics["archive"],
+        "validation": metrics["validation"],
+        "routing": metrics["routing"],
+    }
+
 
 
 @app.get("/operator/readiness")
