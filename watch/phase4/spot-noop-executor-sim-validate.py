@@ -12,6 +12,9 @@ CASES = [
     "allowed_noop",
     "kill_switch_blocked",
     "lease_collision",
+    "interrupted_before_receipt",
+    "interrupted_after_receipt",
+    "stale_lease_replay",
 ]
 
 REQUIRED_KEYS = {
@@ -20,6 +23,14 @@ REQUIRED_KEYS = {
     "request_id",
     "execution_id",
     "lease_id",
+    "kill_switch_state",
+    "rollback_state",
+    "backup_state",
+    "review_state",
+    "approval_state",
+    "replay_guard",
+    "envelope_hash",
+    "envelope_id",
     "phase",
     "executor",
     "action_type",
@@ -34,6 +45,11 @@ REQUIRED_KEYS = {
     "rollback_performed",
     "kill_switch_checked",
     "lease_checked",
+    "lease_valid",
+    "receipt_valid",
+    "replay_guard_checked",
+    "replay_detected",
+    "recovery_state",
     "git_apply_performed",
     "service_restart_performed",
     "final_outcome",
@@ -80,6 +96,10 @@ def validate_common(case: str, r: dict) -> None:
     require(r["executor"] == "spot-core", f"{case}: executor must be spot-core")
     require(r["action_type"] == "noop", f"{case}: action_type must be noop")
     require(r["risk_class"] == "none", f"{case}: risk_class must be none")
+    require(r["approval_state"] == "not_required", f"{case}: approval_state must be not_required")
+    require(r["review_state"] == "pass", f"{case}: review_state must be pass")
+    require(r["backup_state"] == "not_required", f"{case}: backup_state must be not_required")
+    require(r["rollback_state"] == "not_required", f"{case}: rollback_state must be not_required")
     require(r["case"] == case, f"{case}: case mismatch")
 
     require(r["mutation_performed"] is False, f"{case}: mutation_performed must be false")
@@ -90,25 +110,90 @@ def validate_common(case: str, r: dict) -> None:
 
     require(r["kill_switch_checked"] is True, f"{case}: kill switch must be checked")
     require(r["lease_checked"] is True, f"{case}: lease must be checked")
+    require(r["replay_guard_checked"] is True, f"{case}: replay guard must be checked")
 
     require(isinstance(r["receipt_id"], str) and r["receipt_id"].startswith("RECEIPT-"), f"{case}: bad receipt_id")
     require(isinstance(r["execution_id"], str) and r["execution_id"].startswith("EXEC-"), f"{case}: bad execution_id")
     require(isinstance(r["lease_id"], str) and r["lease_id"].startswith("LEASE-"), f"{case}: bad lease_id")
+    require(isinstance(r["envelope_id"], str) and r["envelope_id"].startswith("ENV-"), f"{case}: bad envelope_id")
+    require(isinstance(r["envelope_hash"], str) and len(r["envelope_hash"]) == 16, f"{case}: bad envelope_hash")
+    require(isinstance(r["replay_guard"], str) and len(r["replay_guard"]) == 24, f"{case}: bad replay_guard")
 
 
 def validate_case(case: str, r: dict) -> None:
     validate_common(case, r)
 
-    if case == "allowed_noop":
-        require(r["blocked_reason"] is None, f"{case}: blocked_reason must be null")
-        require(r["execution_performed"] is True, f"{case}: execution_performed must be true")
-        require(r["noop_performed"] is True, f"{case}: noop_performed must be true")
-        require(r["final_outcome"] == "success", f"{case}: final_outcome must be success")
-    else:
-        require(r["blocked_reason"] == case, f"{case}: blocked_reason must equal case")
-        require(r["execution_performed"] is False, f"{case}: execution_performed must be false")
-        require(r["noop_performed"] is False, f"{case}: noop_performed must be false")
-        require(r["final_outcome"] == "blocked", f"{case}: final_outcome must be blocked")
+    expected = {
+        "allowed_noop": {
+            "kill_switch_state": "clear",
+            "blocked_reason": None,
+            "execution_performed": True,
+            "noop_performed": True,
+            "lease_valid": True,
+            "receipt_valid": True,
+            "replay_detected": False,
+            "recovery_state": "clean_success",
+            "final_outcome": "success",
+        },
+        "kill_switch_blocked": {
+            "blocked_reason": "kill_switch_active",
+            "kill_switch_state": "active",
+            "execution_performed": False,
+            "noop_performed": False,
+            "lease_valid": True,
+            "receipt_valid": True,
+            "replay_detected": False,
+            "recovery_state": "clean_blocked",
+            "final_outcome": "blocked",
+        },
+        "lease_collision": {
+            "kill_switch_state": "clear",
+            "blocked_reason": "lease_collision",
+            "execution_performed": False,
+            "noop_performed": False,
+            "lease_valid": False,
+            "receipt_valid": True,
+            "replay_detected": False,
+            "recovery_state": "clean_blocked",
+            "final_outcome": "blocked",
+        },
+        "interrupted_before_receipt": {
+            "kill_switch_state": "clear",
+            "blocked_reason": "interrupted_before_receipt",
+            "execution_performed": False,
+            "noop_performed": False,
+            "lease_valid": True,
+            "receipt_valid": False,
+            "replay_detected": False,
+            "recovery_state": "incomplete_before_receipt",
+            "final_outcome": "blocked",
+        },
+        "interrupted_after_receipt": {
+            "kill_switch_state": "clear",
+            "blocked_reason": None,
+            "execution_performed": True,
+            "noop_performed": True,
+            "lease_valid": True,
+            "receipt_valid": True,
+            "replay_detected": False,
+            "recovery_state": "clean_success",
+            "final_outcome": "success",
+        },
+        "stale_lease_replay": {
+            "kill_switch_state": "clear",
+            "blocked_reason": "stale_lease",
+            "execution_performed": False,
+            "noop_performed": False,
+            "lease_valid": False,
+            "receipt_valid": True,
+            "replay_detected": True,
+            "recovery_state": "stale_lease",
+            "final_outcome": "blocked",
+        },
+    }[case]
+
+    for key, value in expected.items():
+        require(r[key] == value, f"{case}: {key} expected {value!r}, got {r[key]!r}")
 
 
 def main() -> None:
@@ -124,21 +209,14 @@ def main() -> None:
         validate_case(case, first[case])
         validate_case(case, second[case])
 
-        require(
-            first[case]["execution_id"] == second[case]["execution_id"],
-            f"{case}: execution_id is not deterministic",
-        )
-        require(
-            first[case]["receipt_id"] == second[case]["receipt_id"],
-            f"{case}: receipt_id is not deterministic",
-        )
-        require(
-            first[case]["lease_id"] == second[case]["lease_id"],
-            f"{case}: lease_id is not deterministic",
-        )
+        for key in ("receipt_id", "execution_id", "lease_id"):
+            require(
+                first[case][key] == second[case][key],
+                f"{case}: {key} is not deterministic",
+            )
 
     print("RESULT: PASS")
-    print("cases=3 immutable_receipts=pass deterministic_execution_identity=pass mutation=none")
+    print("cases=6 immutable_receipts=pass deterministic_execution_identity=pass recovery=pass mutation=none")
 
 
 if __name__ == "__main__":
