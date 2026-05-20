@@ -1,0 +1,22 @@
+{
+  "schema": "runtime_metrics_v1",
+  "scope": "read_only",
+  "mutation_authority": false,
+  "required_sections": [
+    "queue",
+    "routing",
+    "governance",
+    "archive",
+    "validation"
+  ],
+  "required_queue_fields": [
+    "total",
+    "pending",
+    "leased",
+    "completed",
+    "denied",
+    "expired",
+    "stale_leases",
+    "receipt_count"
+  ]
+}
