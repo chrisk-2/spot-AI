@@ -685,3 +685,93 @@ Operational runtime maturity:
 
 Production-safe maintenance autonomy:
 still intentionally constrained
+
+---
+
+## PHASE 63-67 CHECKPOINT — 2026-05-20
+
+Runtime governance operational maturity advanced through Phase 67.
+
+Latest committed chain:
+- `9bad057 phase63: add runtime queue persistence and lease locking`
+- `0f1c012 phase64: add runtime telemetry and metrics aggregation`
+- `cf6f7be phase65: ignore runtime validation artifacts`
+- `c80f39b phase66: add runtime governance telemetry panel to ui`
+- `5f03178 phase67: ignore runtime telemetry ui snapshots`
+
+Current validation:
+- `spot validate` RESULT: PASS
+- pass=30
+- warn=0
+- fail=0
+
+Phase 63 status:
+- runtime queue persistence scaffold complete
+- deterministic candidate IDs implemented
+- lease ownership gate implemented
+- worker self-lease blocked
+- duplicate active lease blocked
+- terminal replay blocked
+- stale lease recovery implemented
+- immutable queue receipts generated
+- mutation scope remains fixture_only
+
+Phase 64 status:
+- runtime metrics aggregation complete
+- queue metrics aggregated read-only
+- routing audit metrics aggregated read-only
+- governance/archive/log counts aggregated read-only
+- runtime health summary generated read-only
+- export snapshots generated under ignored runtime paths
+- mutation_authority=false preserved
+
+Phase 65 status:
+- runtime validation/output run directories ignored
+- queue and metrics run artifacts remain runtime-only
+
+Phase 66 status:
+- Starfleet UI runtime governance telemetry panel added
+- UI fetches runtime metrics snapshots read-only
+- queue totals, leased count, receipt count, fallback count, and governance status surfaced
+- no UI mutation controls added
+- no execution authority added
+
+Phase 67 status:
+- generated UI telemetry snapshot files ignored
+- runtime public telemetry JSON remains runtime-only
+
+Current intentional dirty runtime-only state:
+- `starfleet-ui/public/status.json`
+
+Current ignored runtime/output artifacts:
+- `watch/runtime/queue/runs/`
+- `watch/runtime/metrics/runs/`
+- `starfleet-ui/public/runtime-metrics.json`
+- `starfleet-ui/public/runtime-health-summary.json`
+
+Current enforced invariants:
+- Spot Core remains sole executor
+- no worker self-apply
+- Codex cannot mutate
+- OpenAI cannot mutate
+- no routing ownership mutation authority
+- no production service restart authority
+- no production mutation authority
+- no backup bypass
+- no rollback bypass
+- no approval bypass
+
+Current maturity position:
+- governed runtime orchestration established
+- persistent queue semantics established
+- lease safety established
+- replay protection established
+- centralized runtime telemetry established
+- live governance observability UI established
+
+Next likely lanes:
+- queue journal integration
+- metrics API endpoint integration
+- governance timeline UI integration
+- archive export tooling
+- latency-aware reviewer selection
