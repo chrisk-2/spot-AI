@@ -14,7 +14,6 @@ warn = 0
 
 def validate(path):
     global fail, warn
-
     try:
         text = path.read_text(errors="replace")
     except PermissionError as e:
@@ -29,17 +28,19 @@ def validate(path):
                 warn += 1
                 return
             json.loads(text)
-
         elif path.suffix == ".jsonl":
             lines = [x for x in text.splitlines() if x.strip()]
             if not lines:
                 print(f"WARN empty jsonl artifact: {path}")
                 warn += 1
                 return
-
-            for line in lines:
-                json.loads(line)
-
+            for n, line in enumerate(lines, 1):
+                try:
+                    json.loads(line)
+                except Exception as e:
+                    print(f"FAIL invalid journal: {path}:{n}: {e}")
+                    fail += 1
+                    return
     except Exception as e:
         print(f"FAIL invalid journal: {path}: {e}")
         fail += 1
@@ -49,8 +50,10 @@ for root in ROOTS:
         print(f"WARN missing root: {root}")
         warn += 1
         continue
-
     for f in root.rglob("*"):
+        s = str(f)
+        if "/corrupt/" in s or ".pre-repair-" in f.name or ".corrupt-" in f.name:
+            continue
         if f.is_file() and f.suffix in {".json", ".jsonl"}:
             validate(f)
 
