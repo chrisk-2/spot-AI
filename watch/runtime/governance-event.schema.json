@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Spot Unified Governance Event",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "event_id",
+    "ts",
+    "event_type",
+    "authority",
+    "source",
+    "correlation",
+    "subject",
+    "decision",
+    "integrity"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "spot.governance.event.v1"
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 12
+    },
+    "ts": {
+      "type": "string"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "review",
+        "queue",
+        "lease",
+        "routing",
+        "backup",
+        "rollback",
+        "validation",
+        "runtime",
+        "governance",
+        "journal"
+      ]
+    },
+    "authority": {
+      "type": "object",
+      "required": ["executor", "mutation_authority", "worker_self_apply_allowed"],
+      "properties": {
+        "executor": {"type": "string"},
+        "mutation_authority": {"type": "boolean"},
+        "worker_self_apply_allowed": {"type": "boolean"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["component"],
+      "properties": {
+        "component": {"type": "string"},
+        "worker": {"type": ["string", "null"]},
+        "file": {"type": ["string", "null"]}
+      }
+    },
+    "correlation": {
+      "type": "object",
+      "properties": {
+        "request_id": {"type": ["string", "null"]},
+        "queue_id": {"type": ["string", "null"]},
+        "lease_id": {"type": ["string", "null"]},
+        "review_id": {"type": ["string", "null"]},
+        "backup_id": {"type": ["string", "null"]},
+        "rollback_id": {"type": ["string", "null"]},
+        "replay_id": {"type": ["string", "null"]}
+      }
+    },
+    "subject": {
+      "type": "object",
+      "properties": {
+        "target": {"type": ["string", "null"]},
+        "service": {"type": ["string", "null"]},
+        "role": {"type": ["string", "null"]},
+        "risk_class": {"type": ["string", "null"]}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "properties": {
+        "verdict": {"type": ["string", "null"]},
+        "allowed": {"type": ["boolean", "null"]},
+        "blocked_reason": {"type": ["string", "null"]},
+        "policy_gate": {"type": ["string", "null"]}
+      }
+    },
+    "metrics": {
+      "type": "object"
+    },
+    "raw_ref": {
+      "type": "object",
+      "properties": {
+        "source_file": {"type": ["string", "null"]},
+        "line": {"type": ["integer", "null"]}
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "required": ["normalized_from_raw", "read_only"],
+      "properties": {
+        "normalized_from_raw": {"type": "boolean"},
+        "read_only": {"type": "boolean"},
+        "notes": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
