@@ -3710,3 +3710,153 @@ def stats_runtime_journals(limit: int = 5):
     safe_limit = max(1, min(int(limit), 25))
     return _spot_runtime_journal_summary(limit=safe_limit)
 # --- end operational journaling completion lane ---
+
+
+# --- review lease telemetry lane ---
+def _spot_review_lease_telemetry():
+    import json as _json
+    import statistics as _statistics
+    from pathlib import Path as _Path
+    from datetime import datetime as _datetime, timezone as _timezone
+
+    roots = [
+        _Path("/mnt/collective/logs/spot/reviews"),
+        _Path("/mnt/collective/logs/spot/runtime"),
+        _Path("/watch/state"),
+        _Path("/watch/apply/journals"),
+    ]
+
+    def _load(path):
+        try:
+            if path.suffix == ".json":
+                return [_json.loads(path.read_text(errors="replace"))]
+
+            if path.suffix == ".jsonl":
+                out = []
+                for line in path.read_text(errors="replace").splitlines():
+                    if line.strip():
+                        out.append(_json.loads(line))
+                return out
+
+        except Exception:
+            return []
+
+        return []
+
+    rows = []
+
+    for root in roots:
+        if not root.exists():
+            continue
+
+        for f in root.rglob("*"):
+            if f.is_file() and f.suffix in {".json", ".jsonl"}:
+                for row in _load(f):
+                    if isinstance(row, dict):
+                        row["_source_file"] = str(f)
+                        rows.append(row)
+
+    def _signal(row, terms):
+        text = _json.dumps(row, sort_keys=True, default=str).lower()
+        return any(x in text for x in terms)
+
+    reviews = [
+        r for r in rows
+        if _signal(r, ["review", "worker-05", "verdict", "review_type"])
+    ]
+
+    leases = [
+        r for r in rows
+        if _signal(r, ["lease", "lease_id", "lease_owner", "lease_ttl", "owner"])
+    ]
+
+    latency_values = []
+
+    for r in reviews:
+        for key in [
+            "latency_ms",
+            "duration_ms",
+            "review_latency_ms",
+            "elapsed_ms",
+            "runtime_ms",
+            "queue_latency_ms",
+            "total_ms",
+        ]:
+            if key in r:
+                try:
+                    latency_values.append(float(r[key]))
+                except Exception:
+                    pass
+                break
+
+    latency_values = sorted(latency_values)
+
+    if latency_values:
+        p95_index = min(
+            len(latency_values) - 1,
+            int(round((len(latency_values) - 1) * 0.95)),
+        )
+
+        latency = {
+            "count": len(latency_values),
+            "min_ms": round(latency_values[0], 3),
+            "max_ms": round(latency_values[-1], 3),
+            "avg_ms": round(_statistics.mean(latency_values), 3),
+            "p50_ms": round(_statistics.median(latency_values), 3),
+            "p95_ms": round(latency_values[p95_index], 3),
+        }
+    else:
+        latency = {
+            "count": 0,
+            "min_ms": None,
+            "max_ms": None,
+            "avg_ms": None,
+            "p50_ms": None,
+            "p95_ms": None,
+        }
+
+    verdicts = {}
+
+    for r in reviews:
+        verdict = str(
+            r.get("verdict")
+            or r.get("decision")
+            or "unknown"
+        ).upper()
+
+        verdicts[verdict] = verdicts.get(verdict, 0) + 1
+
+    owners = {}
+
+    for r in leases:
+        owner = str(
+            r.get("lease_owner")
+            or r.get("owner")
+            or r.get("worker")
+            or "unknown"
+        )
+
+        owners[owner] = owners.get(owner, 0) + 1
+
+    return {
+        "ts": _datetime.now(_timezone.utc).isoformat(),
+        "mode": "read_only",
+        "mutation_authority": False,
+        "executor": "spot-core",
+        "records_scanned": len(rows),
+        "review": {
+            "records": len(reviews),
+            "verdicts": verdicts,
+            "latency": latency,
+        },
+        "lease": {
+            "records": len(leases),
+            "owners": owners,
+        },
+    }
+
+
+@app.get("/stats/runtime/review-lease")
+def stats_runtime_review_lease():
+    return _spot_review_lease_telemetry()
+# --- end review lease telemetry lane ---
