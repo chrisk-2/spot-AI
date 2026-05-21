@@ -3860,3 +3860,57 @@ def _spot_review_lease_telemetry():
 def stats_runtime_review_lease():
     return _spot_review_lease_telemetry()
 # --- end review lease telemetry lane ---
+
+
+# --- unified governance event api lane ---
+def _spot_governance_events(limit: int = 100) -> dict:
+    import json as _json
+    import subprocess as _subprocess
+    from datetime import datetime as _datetime, timezone as _timezone
+
+    safe_limit = max(1, min(int(limit), 500))
+
+    cmd = [
+        "/watch/runtime/spot-governance-event-normalize.py",
+        "--limit",
+        str(safe_limit),
+    ]
+
+    proc = _subprocess.run(
+        cmd,
+        check=False,
+        stdout=_subprocess.PIPE,
+        stderr=_subprocess.PIPE,
+        text=True,
+    )
+
+    events = []
+    invalid = 0
+
+    if proc.returncode == 0:
+        for line in proc.stdout.splitlines():
+            if not line.strip():
+                continue
+            try:
+                events.append(_json.loads(line))
+            except Exception:
+                invalid += 1
+
+    return {
+        "ts": _datetime.now(_timezone.utc).isoformat(),
+        "mode": "read_only",
+        "mutation_authority": False,
+        "executor": "spot-core",
+        "limit": safe_limit,
+        "count": len(events),
+        "invalid_lines": invalid,
+        "normalizer_returncode": proc.returncode,
+        "stderr": proc.stderr[-1000:] if proc.stderr else "",
+        "events": events,
+    }
+
+
+@app.get("/stats/runtime/governance-events")
+def stats_runtime_governance_events(limit: int = 100):
+    return _spot_governance_events(limit=limit)
+# --- end unified governance event api lane ---
