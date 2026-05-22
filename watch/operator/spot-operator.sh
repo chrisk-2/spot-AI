@@ -185,6 +185,23 @@ case "$cmd" in
     shift || true
     exec watch/sandbox/sandbox-mutation-validate.py "$@"
     ;;
+
+  remediation-show)
+    shift || true
+    exec watch/remediation/controlled-remediation-show.py "$@"
+    ;;
+  remediation-validate)
+    shift || true
+    exec watch/remediation/controlled-remediation-validate.py "$@"
+    ;;
+  rollback-failure-show)
+    shift || true
+    exec watch/remediation/rollback-on-failure-show.py "$@"
+    ;;
+  rollback-failure-validate)
+    shift || true
+    exec watch/remediation/rollback-on-failure-validate.py "$@"
+    ;;
   validate)
     bash watch/fleet-validate.sh
     ;;
