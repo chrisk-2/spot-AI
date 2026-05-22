@@ -15,6 +15,15 @@ status() {
 precheck() {
   git diff --check
 
+  if git diff --cached --name-only | grep -E '\.md$' >/dev/null; then
+    if git diff --cached --name-only | grep -E '\.md$' | xargs grep -n '^```' >/tmp/spot-module-md-fences.out 2>/dev/null; then
+      echo "[FAIL] staged markdown contains fenced code blocks"
+      cat /tmp/spot-module-md-fences.out
+      echo "[INFO] use plain indented text in shell-created markdown"
+      exit 2
+    fi
+  fi
+
   find watch spot-core scripts -type f \
     \( -name '*.sh' -o -name '*.py' \) 2>/dev/null \
   | while read -r f; do
