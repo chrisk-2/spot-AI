@@ -142,7 +142,7 @@ function StarMap({ hosts, tall = false }) {
   )
 }
 
-function WorkerCard({ host, label, lane }) {
+function WorkerCard({ host, label, lane, route }) {
   const roleColors = {
     'W-1': 'border-emerald-500/40 text-emerald-300',
     'W-2': 'border-cyan-500/40 text-cyan-300',
@@ -160,11 +160,11 @@ function WorkerCard({ host, label, lane }) {
       </div>
       <div className="mt-1 text-white font-bold truncate">{host?.host || label}</div>
       <div className="text-xs text-slate-400">{lane}</div>
-      <div className="grid grid-cols-4 gap-2 mt-3 text-xs">
-        <div><div className="text-slate-500">CPU</div><div className="text-emerald-400">--</div></div>
-        <div><div className="text-slate-500">RAM</div><div className="text-emerald-400">--</div></div>
-        <div><div className="text-slate-500">GPU</div><div className="text-emerald-400">--</div></div>
-        <div><div className="text-slate-500">VRAM</div><div className="text-emerald-400">--</div></div>
+      <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+        <div><div className="text-slate-500">MODEL</div><div className="text-emerald-400 truncate">{route?.selected_model || route?.final_model || 'idle'}</div></div>
+        <div><div className="text-slate-500">GPU</div><div className="text-emerald-400 truncate">{route?.final_gpu_label || 'idle'}</div></div>
+        <div><div className="text-slate-500">ROUTE</div><div className="text-emerald-400">{route?.route_class || 'standby'}</div></div>
+        <div><div className="text-slate-500">OWNER</div><div className="text-emerald-400">{route?.ownership_ok === false ? 'NO' : 'OK'}</div></div>
       </div>
     </div>
   )
@@ -558,6 +558,53 @@ function AiChatView({ data }) {
   )
 }
 
+
+function ReviewPanel({ governanceEvents }) {
+  const events = governanceEvents?.events || []
+  const reviewEvents = events.filter(e => e.event_type === 'review')
+  const counts = reviewEvents.reduce((acc, e) => {
+    const verdict = e.decision?.verdict || 'UNKNOWN'
+    acc[verdict] = (acc[verdict] || 0) + 1
+    return acc
+  }, {})
+  const last = reviewEvents[0]
+
+  return (
+    <section className="rounded-xl border border-purple-500/30 bg-purple-950/10 p-4 shrink-0">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-purple-300 font-bold">REVIEW GATE</div>
+          <div className="text-[11px] text-slate-500">Worker-05 / governance review feed</div>
+        </div>
+        <div className="text-xs text-emerald-400">● LOCAL-FIRST</div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-950/10 p-2">
+          <div className="text-slate-500">PASS</div>
+          <div className="text-lg text-emerald-300 font-bold">{counts.PASS || 0}</div>
+        </div>
+        <div className="rounded-lg border border-yellow-500/20 bg-yellow-950/10 p-2">
+          <div className="text-slate-500">FIX</div>
+          <div className="text-lg text-yellow-300 font-bold">{counts.FIX || 0}</div>
+        </div>
+        <div className="rounded-lg border border-red-500/20 bg-red-950/10 p-2">
+          <div className="text-slate-500">NO</div>
+          <div className="text-lg text-red-300 font-bold">{counts.NO || 0}</div>
+        </div>
+        <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/10 p-2">
+          <div className="text-slate-500">TOTAL</div>
+          <div className="text-lg text-cyan-200 font-bold">{reviewEvents.length}</div>
+        </div>
+      </div>
+
+      <div className="mt-2 text-[11px] text-slate-300 break-all">
+        Last: {last ? `${last.source?.worker || 'unknown'} verdict=${last.decision?.verdict || 'UNKNOWN'} allowed=${String(last.decision?.allowed ?? false)}` : 'No review events loaded'}
+      </div>
+    </section>
+  )
+}
+
 function SpotAssistant({ setActive }) {
   return (
     <div className="h-full rounded-xl border border-cyan-500/30 bg-[#020817] p-3 overflow-hidden shadow-[0_0_25px_rgba(14,165,233,.15)] flex flex-col">
@@ -810,7 +857,7 @@ export default function App() {
               </div>
             </section>
 
-
+          <ReviewPanel governanceEvents={governanceEvents} />
 
           <section className="flex-1 min-h-[260px] overflow-hidden"><SpotAssistant setActive={setActive} /></section>
 
@@ -834,6 +881,7 @@ export default function App() {
                 host={w.host}
                 label={w.label}
                 lane={w.lane}
+                route={(routingAudit?.items || []).find(r => r.selected_worker === w.name || r.final_worker === w.name)}
               />
             ))}
           </div>
