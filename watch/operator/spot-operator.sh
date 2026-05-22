@@ -106,6 +106,33 @@ case "$cmd" in
     shift || true
     exec watch/receipt/receipt-validate.py "$@"
     ;;
+
+  leases)
+    exec watch/lease/lease-show.py
+    ;;
+  lease-show)
+    shift || true
+    exec watch/lease/lease-show.py "$@"
+    ;;
+  lease-validate)
+    shift || true
+    exec watch/lease/lease-validate.py "$@"
+    ;;
+  rollbacks)
+    exec watch/rollback/rollback-show.py
+    ;;
+  rollback-show)
+    shift || true
+    exec watch/rollback/rollback-show.py "$@"
+    ;;
+  rollback-validate)
+    shift || true
+    exec watch/rollback/rollback-validate.py "$@"
+    ;;
+  preflight)
+    shift || true
+    exec watch/preflight/preflight-check.py "$@"
+    ;;
   validate)
     bash watch/fleet-validate.sh
     ;;
