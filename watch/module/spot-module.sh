@@ -41,19 +41,22 @@ commit_cmd() {
     exit 2
   fi
 
-  git status --short
-
   if git diff --cached --quiet; then
-    echo
     echo "[FAIL] nothing staged"
-    echo "[INFO] stage files manually first"
     exit 2
   fi
 
   git commit -m "$msg"
+}
 
-  git status --short
-  git log --oneline -6
+module_cmd() {
+  msg="${1:-}"
+
+  precheck
+  validate
+  status
+  commit_cmd "$msg"
+  status
 }
 
 case "$cmd" in
@@ -65,6 +68,7 @@ spot-module.sh commands:
   precheck
   validate
   commit "message"
+  module "message"
 EOF
     ;;
 
@@ -82,6 +86,10 @@ EOF
 
   commit)
     commit_cmd "${1:-}"
+    ;;
+
+  module)
+    module_cmd "${1:-}"
     ;;
 
   *)
