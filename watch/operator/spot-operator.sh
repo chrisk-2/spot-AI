@@ -202,6 +202,23 @@ case "$cmd" in
     shift || true
     exec watch/remediation/rollback-on-failure-validate.py "$@"
     ;;
+
+  learning-show)
+    shift || true
+    exec watch/learning/learning-proposal-show.py "$@"
+    ;;
+  learning-validate)
+    shift || true
+    exec watch/learning/learning-proposal-validate.py "$@"
+    ;;
+  acceptance-show)
+    shift || true
+    exec watch/acceptance/controlled-autonomy-show.py "$@"
+    ;;
+  acceptance-validate)
+    shift || true
+    exec watch/acceptance/controlled-autonomy-validate.py "$@"
+    ;;
   validate)
     bash watch/fleet-validate.sh
     ;;
