@@ -94,6 +94,18 @@ case "$cmd" in
     shift || true
     exec watch/chain/chain-validate.py "$@"
     ;;
+
+  receipts)
+    exec watch/receipt/receipt-show.py
+    ;;
+  receipt-show)
+    shift || true
+    exec watch/receipt/receipt-show.py "$@"
+    ;;
+  receipt-validate)
+    shift || true
+    exec watch/receipt/receipt-validate.py "$@"
+    ;;
   validate)
     bash watch/fleet-validate.sh
     ;;
