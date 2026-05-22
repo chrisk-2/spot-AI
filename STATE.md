@@ -1,31 +1,124 @@
+# Starfleet OS / Spot Core State
 
-## 2026-05-01 Spot Assistant Checkpoint
+Updated: 2026-05-21T23:30:00Z
 
-Completed:
-- D.1 Spot ask interface with routed worker/model execution.
-- D.2 Saved proposal workflow.
-- D.3 Proposal lifecycle: approve, reject, status.
-- D.3b Approved patch artifact generation.
-- D.5 Persistent shared memory on Unimatrix at /mnt/collective/spot/memory.
-- D.5c searchable recall via spot recall.
-- D.5d automatic memory injection into ask/propose.
-- D.5e lifecycle memory capture with duplicate suppression.
-- D.6 proposal historical awareness using prior proposals and patch artifacts.
-- Proposal guardrail scanner added for forbidden invented paths/services.
+## Current phase
 
-Current approved pending work:
-- P-20260501-133615-revise-routing-so-utility-role-remains-primary-o
-- Patch artifact: PATCH-P-20260501-133615-revise-routing-so-utility-role-remains-primary-o.md
+Governed distributed orchestration platform with operational review/reasoning topology and validated pre-execution governance enforcement.
 
-Known issue:
-- worker-02 utility lane remains high-latency and can intermittently cause validation 503s.
-- Proposed mitigation: keep worker-02 as utility primary but add worker-01 as utility fallback.
+## Runtime classification
 
-Policy:
-- Spot Autonomy Policy and Safety Model is the governing execution model.
-- Locked rule: No backup, no change.
-- D.4a must implement supervised apply-plan plus backup-first execution wrapper before any config mutation.
+Deterministic governed adaptive operational intelligence fabric.
 
-Next:
-- Build D.4a supervised apply-plan engine.
-- Enforce Detect -> Analyze -> Classify -> Backup -> Plan -> Verify -> Execute -> Test/Rollback chain.
+## Verified live validation
+
+Latest validation:
+
+- timestamp: 2026-05-21T23:30:00Z
+- validator: watch/fleet-validate.sh
+- result: PASS
+- pass: 30
+- warn: 0
+- fail: 0
+- smoke_mode: skipped
+
+## Verified live fleet state
+
+- spot-core: online control plane / executor / policy authority
+- spot-worker-01: online, healthy, general lane
+- spot-worker-02: online, healthy, utility/watcher lane
+- spot-worker-03: online, healthy, coding lane
+- spot-worker-04: online, healthy, heavy lane
+- spot-worker-05: online, healthy, review lane
+- spot-worker-06: online, healthy, reasoning lane
+
+## Governance state
+
+Confirmed active:
+
+- role-owned routing
+- routing audit append and JSONL validation
+- `/stats/routing-audit` primary role verification
+- fleet status JSON validity
+- routing audit summary JSON validity
+- fleet-status core health check
+- fleet-status host health checks
+- admin validation JSON structure
+- admin read-file path
+- local review endpoint
+- review policy gate enforcement
+- governance integrity validation
+- backup freshness visibility for all six workers
+- backup metadata visibility
+
+## Current operational maturity
+
+Completed or operational:
+
+- governed runtime orchestration
+- centralized fleet validation
+- role-owned routing enforcement
+- review lane registration and policy-gate validation
+- reasoning lane registration
+- runtime observability
+- routing audit visibility
+- governance integrity validation
+- backup freshness telemetry
+- local-first review topology present in runtime
+
+Partially complete / needs hardening:
+
+- review verdict enforcement pipeline
+- governance event timeline aggregation
+- runtime historical trending
+- governance correlation tracing
+- operator UI exposure
+- backup binding from dry-run/contract into live guarded execution
+- rollback proof from fixtures into live guarded execution
+- no-op executor wrapper promotion path
+
+Not complete / not authorized as live mutation:
+
+- unrestricted live mutation
+- worker self-apply
+- OpenAI/Codex mutation authority
+- live network/firewall/DNS/DHCP/VLAN mutation
+- execution without backup binding
+- execution without rollback definition
+- execution without review and approval gates
+
+## Mandatory invariants
+
+- Spot Core remains sole executor and policy authority.
+- No worker self-apply.
+- No backup means no change.
+- No rollback means no execution.
+- No review means no apply.
+- Review PASS does not bypass backup.
+- Backup PASS does not bypass review.
+- High-risk network changes remain approval-gated.
+- OpenAI and Codex remain proposal/review only; no mutation authority.
+- Runtime-only dirty status files may exist and must not be treated as source-code drift without inspection.
+
+## Current blocker
+
+Priority 0 admin/operator reliability is currently validated green by fleet validation. The next operational blocker is safe mutation orchestration: backup binding, rollback certainty, review verdict enforcement, and deterministic executor lifecycle.
+
+## Next recommended operational lanes
+
+1. Implement review verdict enforcement and review journal hardening.
+2. Promote backup binding from contract/dry-run into guarded pre-execution gate.
+3. Promote rollback proof fixtures into guarded rollback execution path.
+4. Implement no-op executor wrapper lifecycle with receipts and replay protection.
+5. Implement governance event timeline aggregation.
+6. Build operator UI surfaces for fleet, review, governance events, quarantine, validation, backup, and rollback.
+7. Begin read-only network diagnostics.
+8. Defer all live mutation until backup, rollback, review, and approval gates are enforced.
+
+## Do not do yet
+
+- Do not implement unrestricted live mutation.
+- Do not enable worker execution authority.
+- Do not bypass review, backup, rollback, or approval gates.
+- Do not change role ownership without explicit operator approval.
+- Do not treat review/reasoning online status as authorization for autonomous remediation.

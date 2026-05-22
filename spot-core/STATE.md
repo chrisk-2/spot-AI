@@ -775,3 +775,103 @@ Next likely lanes:
 - governance timeline UI integration
 - archive export tooling
 - latency-aware reviewer selection
+
+---
+
+## PHASE 68+ CURRENT OPERATIONAL STATE — 2026-05-21
+
+Runtime verification completed after Priority 0 check.
+
+Current validation:
+- `bash watch/fleet-validate.sh` RESULT: PASS
+- pass=30
+- warn=0
+- fail=0
+- timestamp=2026-05-21T23:32:03Z
+
+Current repo state:
+- branch: main
+- commit: 8761641 runtime governance: expose normalized events api
+- local branch ahead of origin/main by 43 commits
+- intentional runtime-only dirty state:
+  - `starfleet-ui/public/status.json`
+
+Verified live fleet state:
+- spot-worker-01: healthy general lane
+- spot-worker-02: healthy utility/watcher lane
+- spot-worker-03: healthy coding lane
+- spot-worker-04: healthy heavy lane
+- spot-worker-05: healthy review lane
+- spot-worker-06: healthy reasoning lane
+
+Verified governance/runtime state:
+- routing audit file exists
+- role-owned routing validates:
+  - general -> spot-worker-01
+  - utility -> spot-worker-02
+  - coding -> spot-worker-03
+  - heavy -> spot-worker-04
+  - review -> spot-worker-05
+  - reasoning -> spot-worker-06
+- routing audit append validates
+- routing audit JSONL validates
+- `/stats/routing-audit` reflects expected primaries
+- fleet status JSON validates
+- routing audit summary JSON validates
+- fleet-status core health validates
+- fleet-status hosts healthy
+- secret regression clean
+- `/admin/validate` JSON structure validates
+- `/admin/read-file` returns expected file content
+- `/review/local` HTTP validates
+- `/review/local` policy gate validates
+- backup freshness validates for all six workers
+- backup metadata visibility validates
+- governance integrity validates
+
+Current operational classification:
+- governed distributed orchestration platform
+- operational review/reasoning topology
+- validated pre-execution governance enforcement
+- deterministic governed adaptive operational intelligence fabric
+
+Completed/operational:
+- governed runtime orchestration
+- centralized fleet validation
+- role-owned routing enforcement
+- review lane registration and policy-gate validation
+- reasoning lane registration
+- runtime observability
+- routing audit visibility
+- governance integrity validation
+- backup freshness telemetry
+- local-first review topology present in runtime
+
+Still constrained / not authorized:
+- unrestricted live mutation
+- worker self-apply
+- OpenAI/Codex mutation authority
+- live network/firewall/DNS/DHCP/VLAN mutation
+- execution without backup binding
+- execution without rollback definition
+- execution without review and approval gates
+
+Next blocking lane:
+- safe mutation orchestration:
+  - review verdict enforcement
+  - backup binding promotion from contract/dry-run to guarded pre-execution gate
+  - rollback proof promotion from fixture to guarded rollback execution path
+  - no-op executor wrapper lifecycle with receipts and replay protection
+  - governance event timeline aggregation
+
+Invariant status:
+- Spot Core remains sole executor and policy authority.
+- No worker self-apply.
+- No backup means no change.
+- No rollback means no execution.
+- No review means no apply.
+- Review PASS does not bypass backup.
+- Backup PASS does not bypass review.
+- High-risk network changes remain approval-gated.
+- OpenAI and Codex remain proposal/review only; no mutation authority.
+
