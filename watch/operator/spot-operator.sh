@@ -133,6 +133,26 @@ case "$cmd" in
     shift || true
     exec watch/preflight/preflight-check.py "$@"
     ;;
+
+  noop-show)
+    shift || true
+    exec watch/executor/noop-show.py "$@"
+    ;;
+  noop-validate)
+    shift || true
+    exec watch/executor/noop-validate.py "$@"
+    ;;
+  bundles)
+    exec watch/governance/bundle-show.py
+    ;;
+  bundle-show)
+    shift || true
+    exec watch/governance/bundle-show.py "$@"
+    ;;
+  bundle-validate)
+    shift || true
+    exec watch/governance/bundle-validate.py "$@"
+    ;;
   validate)
     bash watch/fleet-validate.sh
     ;;
