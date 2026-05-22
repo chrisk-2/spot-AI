@@ -188,6 +188,26 @@ class AdminOperatorCommandRequest(BaseModel):
     command: str
 
 
+class ChatRequest(BaseModel):
+    message: str
+    role: ROLE = "general"
+    model: str | None = None
+    source: str = "starfleet-ui"
+    mode: str = "advisory"
+
+
+class ChatResult(BaseModel):
+    ok: bool
+    reply: str
+    worker: str | None = None
+    model: str | None = None
+    role_requested: str
+    execution_allowed: bool = False
+    mutation_authority: bool = False
+    mode: str = "advisory"
+    raw: dict[str, Any] = {}
+
+
 SPOT_CORE_ROOT = Path(os.environ.get("SPOTCORE_ROOT", "/srv/spot-core"))
 SPOT_WATCH_ROOT = Path(os.environ.get("SPOTCORE_WATCH_ROOT", "/srv/watch"))
 SPOT_HOST_STACK_ROOT = Path(os.environ.get("SPOTCORE_HOST_STACK_ROOT", "/home/ogre/spot-stack"))
@@ -3496,6 +3516,46 @@ async def review_local(req: LocalReviewRequest) -> LocalReviewResult:
         raw=result["raw"],
     )
 
+
+@app.post("/chat", response_model=ChatResult)
+async def chat_route(payload: ChatRequest) -> ChatResult:
+    message = payload.message.strip()
+
+    if not message:
+        raise HTTPException(
+            status_code=400,
+            detail={"message": "empty chat message"},
+        )
+
+    req = ExecRequest(
+        prompt=message,
+        role=payload.role,
+        model=payload.model,
+        stream=False,
+        allow_fallback=True,
+        allow_burst=True,
+    )
+
+    result = await exec_route(req)
+
+    return ChatResult(
+        ok=bool(result.ok),
+        reply=result.response,
+        worker=result.worker,
+        model=result.model,
+        role_requested=result.role_requested,
+        execution_allowed=False,
+        mutation_authority=False,
+        mode="advisory",
+        raw={
+            "source": payload.source,
+            "requested_mode": payload.mode,
+            "gpu_lane": result.gpu_lane,
+            "gpu_label": result.gpu_label,
+        },
+    )
+
+
 @app.post("/exec", response_model=ExecResult)
 async def exec_route(req: ExecRequest) -> ExecResult:
     if req.stream:
@@ -3702,6 +3762,40 @@ def _spot_runtime_journal_summary(limit: int = 5) -> dict:
         "executor": "spot-core",
         "roots": {str(root): _summarize(root) for root in roots},
         "categories": {name: _summarize(primary / name) for name in categories},
+    }
+
+
+
+@app.get("/stats/runtime/telemetry")
+async def runtime_telemetry():
+    cfg = load_config()
+    watch = load_watch_state()
+    hosts = watch.get("hosts") or {}
+
+    workers = {}
+
+    for name, worker in (cfg.get("workers") or {}).items():
+        status = hosts.get(name, {}) if isinstance(hosts, dict) else {}
+
+        workers[name] = {
+            "role": worker.get("primary_role") or worker.get("role"),
+            "eligible": bool(worker.get("eligible", True)),
+            "health": status.get("health") or status.get("status") or "unknown",
+            "active_requests": ACTIVE_REQUESTS.get(name, 0),
+            "warm_models": WARM_MODELS.get(name, {}),
+            "latency_samples": len(LATENCY_HISTORY.get(name, [])),
+            "models": status.get("models") or [],
+        }
+
+    return {
+        "ok": True,
+        "ts": _now(),
+        "executor": "spot-core",
+        "mutation_authority": False,
+        "worker_self_apply_allowed": False,
+        "workers": workers,
+        "active_requests": dict(ACTIVE_REQUESTS),
+        "waiting_requests": dict(WAITING_REQUESTS),
     }
 
 

@@ -384,7 +384,7 @@ function SettingsView({ data }) {
   )
 }
 
-function TerminalView({ data }) {
+function TerminalView({ data, spotCoreBase }) {
   const [history, setHistory] = useState([
     '[SPOT-CORE::OPS]',
     'AUTHORITY: READ-ONLY',
@@ -392,21 +392,55 @@ function TerminalView({ data }) {
     'TYPE: status, fleet, services, policy, help'
   ])
   const [cmd, setCmd] = useState('')
+  const [token, setToken] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  function runCommand() {
-    const c = cmd.trim().toLowerCase()
+  async function runCommand() {
+    const c = cmd.trim()
     if (!c) return
-    let output = []
-    if (c === 'status') output = [`RESULT: ${resultText(data.result)}`, `HOSTS: ${data.summary?.hosts_ping}`, `SERVICES: ${data.summary?.services}`]
-    else if (c === 'fleet') output = (data.hosts || []).map(h => `${h.host} ${h.ip} ${h.health}`)
-    else if (c === 'services') output = [`SERVICE MATRIX: ${data.summary?.services}`]
-    else if (c === 'policy') output = ['UI MODE: READ ONLY', 'SPOT CORE: AUTHORITY', 'BACKUP GATE: ENFORCED']
-    else if (c === 'help') output = ['commands: status, fleet, services, policy, clear']
-    else if (c === 'clear') { setHistory([]); setCmd(''); return }
-    else output = [`UNKNOWN COMMAND: ${c}`, 'Allowed: status, fleet, services, policy, help, clear']
 
-    setHistory(prev => [...prev, `> ${cmd}`, ...output])
-    setCmd('')
+    if (c.toLowerCase() === 'clear') {
+      setHistory([])
+      setCmd('')
+      return
+    }
+
+    if (!token.trim()) {
+      setHistory(prev => [...prev, `> ${c}`, 'ERROR: admin token required for backend operator command'])
+      return
+    }
+
+    setBusy(true)
+    setHistory(prev => [...prev, `> ${c}`, 'dispatching to Spot Core operator command broker...'])
+
+    try {
+      const res = await fetch(`${spotCoreBase}/admin/operator-command`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, command: c })
+      })
+
+      const json = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        setHistory(prev => [...prev, `HTTP ${res.status}: ${JSON.stringify(json)}`])
+      } else {
+        const stdout = json.stdout || json.result?.stdout || ''
+        const stderr = json.stderr || json.result?.stderr || ''
+        const rc = json.returncode ?? json.result?.returncode ?? 'unknown'
+        setHistory(prev => [
+          ...prev,
+          `returncode=${rc}`,
+          ...(stdout ? stdout.split('\n') : []),
+          ...(stderr ? ['STDERR:', ...stderr.split('\n')] : [])
+        ])
+      }
+    } catch (err) {
+      setHistory(prev => [...prev, `ERROR: ${String(err.message || err)}`])
+    } finally {
+      setBusy(false)
+      setCmd('')
+    }
   }
 
   return (
@@ -415,6 +449,17 @@ function TerminalView({ data }) {
       <div className="mt-5 rounded-xl border border-cyan-500/30 bg-black/80 h-[560px] p-4 text-sm text-emerald-300 overflow-auto shadow-[0_0_35px_rgba(14,165,233,.18)]">
         {history.map((x, i) => <div key={i} className={x.startsWith('>') ? 'text-cyan-300' : ''}>{x}</div>)}
       </div>
+      <div className="mt-3 flex rounded-lg border border-orange-500/30 bg-black/60 overflow-hidden">
+        <div className="px-3 py-2 text-orange-300">TOKEN</div>
+        <input
+          className="flex-1 bg-transparent px-2 outline-none text-orange-200"
+          type="password"
+          value={token}
+          onChange={e => setToken(e.target.value)}
+          placeholder="Spot Core admin token..."
+        />
+      </div>
+
       <div className="mt-3 flex rounded-lg border border-cyan-500/30 bg-black/60 overflow-hidden">
         <div className="px-3 py-2 text-orange-300">SPOT&gt;</div>
         <input
@@ -424,14 +469,14 @@ function TerminalView({ data }) {
           onKeyDown={e => { if (e.key === 'Enter') runCommand() }}
           placeholder="type command..."
         />
-        <button onClick={runCommand} className="px-4 text-cyan-300 border-l border-cyan-500/30">RUN</button>
+        <button disabled={busy} onClick={runCommand} className="px-4 text-cyan-300 border-l border-cyan-500/30 disabled:text-slate-600">{busy ? 'RUNNING' : 'RUN'}</button>
       </div>
     </section>
   )
 }
 
 
-function AiChatView({ data }) {
+function AiChatView({ data, spotCoreBase }) {
   const [messages, setMessages] = useState([
     { role: 'spot', text: 'Spot interface online. Advisory mode only. No execution authority from chat.' }
   ])
@@ -440,26 +485,47 @@ function AiChatView({ data }) {
   const [soundEnabled, setSoundEnabled] = useState(false)
   const [cameraEnabled, setCameraEnabled] = useState(false)
   const [mediaError, setMediaError] = useState('')
+  const [chatBusy, setChatBusy] = useState(false)
 
-  function sendMessage() {
-    const text = input.trim()
+  async function sendMessage(textOverride = null) {
+    const text = (textOverride || input).trim()
     if (!text) return
 
-    setMessages(prev => [
-      ...prev,
-      { role: 'operator', text },
-      {
-        role: 'spot',
-        text: 'Received. Chat backend is not wired to Spot Core yet. This channel is advisory only until the API endpoint is connected.'
-      }
-    ])
-
-    if (soundEnabled && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
-      window.speechSynthesis.speak(new SpeechSynthesisUtterance('Received. Advisory mode only.'))
-    }
-
+    setMessages(prev => [...prev, { role: 'operator', text }])
     setInput('')
+    setChatBusy(true)
+
+    try {
+      const res = await fetch(`${spotCoreBase}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          role: 'general',
+          mode: 'advisory',
+          source: 'starfleet-ui'
+        })
+      })
+
+      const json = await res.json().catch(() => ({}))
+      const reply = res.ok
+        ? (json.reply || 'No reply returned.')
+        : `HTTP ${res.status}: ${JSON.stringify(json)}`
+
+      setMessages(prev => [...prev, {
+        role: 'spot',
+        text: `${reply}\n\nworker=${json.worker || 'n/a'} model=${json.model || 'n/a'} execution_allowed=${String(json.execution_allowed ?? false)}`
+      }])
+
+      if (soundEnabled && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance(reply))
+      }
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'spot', text: `ERROR: ${String(err.message || err)}` }])
+    } finally {
+      setChatBusy(false)
+    }
   }
 
   async function enableCamera() {
@@ -478,6 +544,22 @@ function AiChatView({ data }) {
       setMediaError('')
       await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
       setVoiceEnabled(true)
+
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      if (SpeechRecognition) {
+        const rec = new SpeechRecognition()
+        rec.lang = 'en-US'
+        rec.interimResults = false
+        rec.maxAlternatives = 1
+        rec.onresult = event => {
+          const spoken = event.results?.[0]?.[0]?.transcript || ''
+          if (spoken) sendMessage(spoken)
+        }
+        rec.onerror = event => setMediaError(`speech recognition: ${event.error}`)
+        rec.start()
+      } else {
+        setMediaError('speech recognition unavailable in this browser')
+      }
     } catch (err) {
       setMediaError(String(err.message || err))
       setVoiceEnabled(false)
@@ -549,8 +631,8 @@ function AiChatView({ data }) {
             className="flex-1 rounded-lg border border-cyan-500/30 bg-black/50 px-3 py-3 text-cyan-100 outline-none"
             placeholder="Talk to Spot..."
           />
-          <button onClick={sendMessage} className="rounded-lg border border-cyan-400/40 bg-cyan-950/30 px-5 text-cyan-200">
-            SEND
+          <button disabled={chatBusy} onClick={() => sendMessage()} className="rounded-lg border border-cyan-400/40 bg-cyan-950/30 px-5 text-cyan-200 disabled:text-slate-600">
+            {chatBusy ? 'THINKING' : 'SEND'}
           </button>
         </div>
       </div>
@@ -657,6 +739,7 @@ export default function App() {
   const [runtimeHealth, setRuntimeHealth] = useState(null)
   const [governanceEvents, setGovernanceEvents] = useState(null)
   const [routingAudit, setRoutingAudit] = useState(null)
+  const [telemetry, setTelemetry] = useState(null)
   const [apiError, setApiError] = useState('')
   const spotCoreBase = `${window.location.protocol}//${window.location.hostname}:8787`
 
@@ -682,16 +765,19 @@ export default function App() {
 
   async function loadRuntimeApis() {
     try {
-      const [govRes, routeRes] = await Promise.all([
+      const [govRes, routeRes, telemetryRes] = await Promise.all([
         fetch(`${spotCoreBase}/stats/runtime/governance-events?limit=25`, { cache: 'no-store' }),
-        fetch(`${spotCoreBase}/stats/routing-audit?limit=25`, { cache: 'no-store' })
+        fetch(`${spotCoreBase}/stats/routing-audit?limit=25`, { cache: 'no-store' }),
+        fetch(`${spotCoreBase}/stats/runtime/telemetry`, { cache: 'no-store' })
       ])
 
       const gov = govRes.ok ? await govRes.json() : null
       const route = routeRes.ok ? await routeRes.json() : null
+      const tel = telemetryRes.ok ? await telemetryRes.json() : null
 
       setGovernanceEvents(gov)
       setRoutingAudit(route)
+      setTelemetry(tel)
 
       setRuntimeMetrics({
         queue: {
@@ -745,7 +831,7 @@ export default function App() {
     if (active === 'alerts') return <AlertsView data={data} runtimeHealth={runtimeHealth} routingAudit={routingAudit} governanceEvents={governanceEvents} />
     if (active === 'logs') return <LogsView data={data} lastPull={lastPull} error={error} governanceEvents={governanceEvents} routingAudit={routingAudit} apiError={apiError} />
     if (active === 'settings') return <SettingsView data={data} />
-    if (active === 'terminal') return <TerminalView data={data} />
+    if (active === 'terminal') return <TerminalView data={data} spotCoreBase={spotCoreBase} />
     return <Overview data={data} hosts={hosts} workers={workers} />
   }
 
