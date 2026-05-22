@@ -16,7 +16,8 @@ const navItems = [
   ['alerts', '06', 'ALERTS', 'Active Alerts'],
   ['logs', '07', 'LOGS', 'Event Console'],
   ['settings', '08', 'SETTINGS', 'Policy & Config'],
-  ['terminal', '09', 'TERMINAL', 'Spot Console']
+  ['terminal', '09', 'TERMINAL', 'Operator Console'],
+  ['ai-chat', '10', 'AI CHAT', 'Spot Interface']
 ]
 
 const workerOrder = [
@@ -296,7 +297,7 @@ function ServicesView({ data, hosts, ports }) {
 function PerformanceView({ data, workers }) {
   return (
     <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
-      <PanelTitle title="PERFORMANCE" subtitle="Placeholder telemetry until worker metrics feed is wired" data={data} />
+      <PanelTitle title="PERFORMANCE" subtitle="Telemetry feed not wired yet — placeholders removed" data={data} />
       <div className="grid grid-cols-3 gap-4 mt-5">
         {workers.map(w => (
           <div key={w.name} className="rounded-xl border border-blue-500/30 bg-blue-950/10 p-4">
@@ -304,14 +305,12 @@ function PerformanceView({ data, workers }) {
               <div className="text-cyan-300 font-bold">{w.label} {w.host?.host || w.name}</div>
               <HostStatus host={w.host} />
             </div>
-            {['CPU', 'RAM', 'GPU', 'VRAM'].map((x, i) => (
-              <div key={x} className="mt-4">
-                <div className="flex justify-between text-xs"><span>{x}</span><span>{[12, 23, 31, 44][i]}%</span></div>
-                <div className="h-2 rounded bg-slate-800 mt-1 overflow-hidden">
-                  <div className="h-full bg-cyan-400" style={{ width: `${[12, 23, 31, 44][i]}%` }} />
-                </div>
-              </div>
-            ))}
+            <div className="mt-4 rounded-lg border border-yellow-500/20 bg-yellow-950/10 p-3 text-sm text-yellow-200">
+              Worker performance telemetry is not published to this UI feed yet.
+            </div>
+            <div className="mt-3 text-xs text-slate-400">
+              Status source available: {w.host?.health || 'OFFLINE'}
+            </div>
           </div>
         ))}
       </div>
@@ -319,27 +318,33 @@ function PerformanceView({ data, workers }) {
   )
 }
 
-function AlertsView({ data }) {
+function AlertsView({ data, runtimeHealth, routingAudit, governanceEvents }) {
   const warnings = data.summary?.warnings ?? 0
+  const findings = runtimeHealth?.findings || []
+  const fallbackCount = routingAudit?.fallback_count ?? routingAudit?.summary?.fallback_count ?? 0
+  const violationCount = routingAudit?.violation_count ?? routingAudit?.summary?.violation_count ?? 0
   return (
     <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
       <PanelTitle title="ALERTS" subtitle="Incident, quarantine, and warning state" data={data} />
       <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-10 text-center">
         <div className="text-6xl text-emerald-400">✓</div>
         <div className="text-2xl text-emerald-400 font-black mt-4">{warnings} ACTIVE WARNINGS</div>
-        <div className="text-slate-400 mt-2">No quarantine, remediation, or routing violations reported by this UI feed.</div>
+        <div className="text-slate-400 mt-2">Runtime findings: {findings.length}</div>
+        <div className="text-slate-400 mt-1">Routing fallbacks: {fallbackCount} / violations: {violationCount}</div>
+        <div className="text-slate-400 mt-1">Governance events: {governanceEvents?.count ?? '--'}</div>
       </div>
     </section>
   )
 }
 
-function LogsView({ data, lastPull, error }) {
+function LogsView({ data, lastPull, error, governanceEvents, routingAudit, apiError }) {
   const rows = [
-    ['SYSTEM', 'Fleet status nominal'],
+    ['SYSTEM', `Fleet result: ${data.result || 'UNKNOWN'}`],
     ['NETWORK', `${data.summary?.hosts_ping} hosts responding`],
     ['SERVICES', `${data.summary?.services} services healthy`],
-    ['WATCH', 'No new violations'],
-    ['POLICY', 'Review gate clear']
+    ['GOVERNANCE', `events=${governanceEvents?.count ?? '--'} invalid=${governanceEvents?.invalid_lines ?? '--'} mode=${governanceEvents?.mode ?? '--'}`],
+    ['AUTHORITY', `executor=${governanceEvents?.executor ?? 'spot-core'} mutation_authority=${String(governanceEvents?.mutation_authority ?? false)}`],
+    ['ROUTING', `fallbacks=${routingAudit?.fallback_count ?? routingAudit?.summary?.fallback_count ?? '--'} violations=${routingAudit?.violation_count ?? routingAudit?.summary?.violation_count ?? '--'}`]
   ]
   return (
     <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
@@ -353,6 +358,7 @@ function LogsView({ data, lastPull, error }) {
           </div>
         ))}
         {error && <div className="text-yellow-300 mt-3">WARN UI pull: {error}</div>}
+        {apiError && <div className="text-yellow-300 mt-3">WARN API pull: {apiError}</div>}
       </div>
     </section>
   )
@@ -424,6 +430,134 @@ function TerminalView({ data }) {
   )
 }
 
+
+function AiChatView({ data }) {
+  const [messages, setMessages] = useState([
+    { role: 'spot', text: 'Spot interface online. Advisory mode only. No execution authority from chat.' }
+  ])
+  const [input, setInput] = useState('')
+  const [voiceEnabled, setVoiceEnabled] = useState(false)
+  const [soundEnabled, setSoundEnabled] = useState(false)
+  const [cameraEnabled, setCameraEnabled] = useState(false)
+  const [mediaError, setMediaError] = useState('')
+
+  function sendMessage() {
+    const text = input.trim()
+    if (!text) return
+
+    setMessages(prev => [
+      ...prev,
+      { role: 'operator', text },
+      {
+        role: 'spot',
+        text: 'Received. Chat backend is not wired to Spot Core yet. This channel is advisory only until the API endpoint is connected.'
+      }
+    ])
+
+    if (soundEnabled && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance('Received. Advisory mode only.'))
+    }
+
+    setInput('')
+  }
+
+  async function enableCamera() {
+    try {
+      setMediaError('')
+      await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      setCameraEnabled(true)
+    } catch (err) {
+      setMediaError(String(err.message || err))
+      setCameraEnabled(false)
+    }
+  }
+
+  async function enableVoice() {
+    try {
+      setMediaError('')
+      await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      setVoiceEnabled(true)
+    } catch (err) {
+      setMediaError(String(err.message || err))
+      setVoiceEnabled(false)
+    }
+  }
+
+  return (
+    <section className="grid grid-cols-[360px_minmax(0,1fr)] gap-2 min-h-0 flex-1">
+      <div className="rounded-xl border border-cyan-500/30 bg-[#020817] p-4 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-cyan-300 text-xl font-black">SPOT AI</div>
+            <div className="text-xs text-slate-400">Conversational interface / advisory mode</div>
+          </div>
+          <div className="text-emerald-400 text-xs">● ONLINE</div>
+        </div>
+
+        <div className="relative mt-4 flex-1 min-h-[360px] rounded-xl border border-cyan-500/20 bg-black overflow-hidden flex items-center justify-center">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,.22),transparent_50%)]" />
+          <div className="absolute inset-0 opacity-25 bg-[linear-gradient(rgba(34,211,238,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,.08)_1px,transparent_1px)] bg-[size:28px_28px]" />
+
+          <div className="relative w-52 h-64 rounded-[45%] border border-cyan-300/40 bg-cyan-950/20 shadow-[0_0_50px_rgba(34,211,238,.25)]">
+            <div className="absolute left-1/2 top-8 h-6 w-20 -translate-x-1/2 rounded-full border border-orange-400/60 text-[9px] text-orange-300 flex items-center justify-center">
+              STARFLEET
+            </div>
+            <div className="absolute left-12 top-28 h-4 w-10 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,.9)]" />
+            <div className="absolute right-12 top-28 h-4 w-10 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,.9)]" />
+            <div className="absolute left-1/2 top-40 h-10 w-24 -translate-x-1/2 rounded-b-full border-b border-cyan-300/50" />
+            <div className="absolute inset-3 rounded-[45%] border border-cyan-400/15" />
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+          <button onClick={enableVoice} className={`rounded-lg border p-2 ${voiceEnabled ? 'border-emerald-400 text-emerald-300' : 'border-cyan-500/30 text-cyan-300'}`}>VOICE</button>
+          <button onClick={enableCamera} className={`rounded-lg border p-2 ${cameraEnabled ? 'border-emerald-400 text-emerald-300' : 'border-cyan-500/30 text-cyan-300'}`}>CAMERA</button>
+          <button onClick={() => setSoundEnabled(v => !v)} className={`rounded-lg border p-2 ${soundEnabled ? 'border-emerald-400 text-emerald-300' : 'border-cyan-500/30 text-cyan-300'}`}>SOUND</button>
+        </div>
+
+        {mediaError && <div className="mt-2 text-xs text-yellow-300">MEDIA: {mediaError}</div>}
+      </div>
+
+      <div className="rounded-xl border border-cyan-500/30 bg-slate-950 flex flex-col min-h-0 overflow-hidden">
+        <div className="border-b border-cyan-500/20 p-4 flex items-center justify-between">
+          <div>
+            <div className="text-cyan-300 text-xl font-black">STARFLEET AI CHANNEL</div>
+            <div className="text-xs text-slate-400">Chat path: advisory / no direct execution</div>
+          </div>
+          <div className="text-xs text-orange-300">SYSTEM: {data.result || 'UNKNOWN'}</div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto starfleet-scroll p-4 space-y-3">
+          {messages.map((m, i) => (
+            <div key={i} className={`rounded-xl border p-3 max-w-[82%] ${
+              m.role === 'operator'
+                ? 'ml-auto border-orange-500/30 bg-orange-950/20 text-orange-100'
+                : 'border-cyan-500/30 bg-cyan-950/20 text-cyan-100'
+            }`}>
+              <div className="text-[10px] text-slate-400 mb-1">{m.role === 'operator' ? 'OGRE' : 'SPOT'}</div>
+              <div className="text-sm">{m.text}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-cyan-500/20 p-3 flex gap-2">
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') sendMessage() }}
+            className="flex-1 rounded-lg border border-cyan-500/30 bg-black/50 px-3 py-3 text-cyan-100 outline-none"
+            placeholder="Talk to Spot..."
+          />
+          <button onClick={sendMessage} className="rounded-lg border border-cyan-400/40 bg-cyan-950/30 px-5 text-cyan-200">
+            SEND
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function SpotAssistant({ setActive }) {
   return (
     <div className="h-full rounded-xl border border-cyan-500/30 bg-[#020817] p-3 overflow-hidden shadow-[0_0_25px_rgba(14,165,233,.15)] flex flex-col">
@@ -458,10 +592,10 @@ function SpotAssistant({ setActive }) {
       <div className="mt-2 text-center text-emerald-400 text-sm tracking-widest">AWAITING COMMAND</div>
 
       <button
-        onClick={() => setActive('terminal')}
+        onClick={() => setActive('ai-chat')}
         className="mt-3 w-full rounded-lg border border-cyan-500/30 py-2 text-cyan-300 hover:bg-cyan-950/30"
       >
-        OPEN TERMINAL
+        OPEN AI CHAT
       </button>
     </div>
   )
@@ -474,6 +608,9 @@ export default function App() {
   const [error, setError] = useState('')
   const [runtimeMetrics, setRuntimeMetrics] = useState(null)
   const [runtimeHealth, setRuntimeHealth] = useState(null)
+  const [governanceEvents, setGovernanceEvents] = useState(null)
+  const [routingAudit, setRoutingAudit] = useState(null)
+  const [apiError, setApiError] = useState('')
   const spotCoreBase = `${window.location.protocol}//${window.location.hostname}:8787`
 
   async function loadStatus() {
@@ -496,6 +633,52 @@ export default function App() {
     return () => clearInterval(id)
   }, [])
 
+  async function loadRuntimeApis() {
+    try {
+      const [govRes, routeRes] = await Promise.all([
+        fetch(`${spotCoreBase}/stats/runtime/governance-events?limit=25`, { cache: 'no-store' }),
+        fetch(`${spotCoreBase}/stats/routing-audit?limit=25`, { cache: 'no-store' })
+      ])
+
+      const gov = govRes.ok ? await govRes.json() : null
+      const route = routeRes.ok ? await routeRes.json() : null
+
+      setGovernanceEvents(gov)
+      setRoutingAudit(route)
+
+      setRuntimeMetrics({
+        queue: {
+          total: gov?.queue?.total ?? gov?.count ?? 0,
+          leased: gov?.queue?.leased ?? 0,
+          receipt_count: gov?.queue?.receipt_count ?? gov?.count ?? 0
+        },
+        routing: {
+          fallback_count: route?.fallback_count ?? route?.summary?.fallback_count ?? 0
+        }
+      })
+
+      const findings = []
+      if (gov?.mutation_authority === true) findings.push('mutation_authority=true')
+      if (gov?.invalid_lines > 0) findings.push(`invalid governance lines=${gov.invalid_lines}`)
+      if ((route?.violation_count ?? route?.summary?.violation_count ?? 0) > 0) findings.push('routing violations detected')
+
+      setRuntimeHealth({
+        status: findings.length ? 'warn' : 'ok',
+        findings
+      })
+
+      setApiError('')
+    } catch (err) {
+      setApiError(String(err.message || err))
+    }
+  }
+
+  useEffect(() => {
+    loadRuntimeApis()
+    const id = setInterval(loadRuntimeApis, 7000)
+    return () => clearInterval(id)
+  }, [])
+
   const hosts = data.hosts || []
   const workers = useMemo(() => workerOrder.map(([name, label, lane]) => ({
     name, label, lane, host: getHost(hosts, name)
@@ -512,8 +695,8 @@ export default function App() {
     if (active === 'map') return <MapView data={data} hosts={hosts} />
     if (active === 'services') return <ServicesView data={data} hosts={hosts} ports={ports} />
     if (active === 'performance') return <PerformanceView data={data} workers={workers} />
-    if (active === 'alerts') return <AlertsView data={data} />
-    if (active === 'logs') return <LogsView data={data} lastPull={lastPull} error={error} />
+    if (active === 'alerts') return <AlertsView data={data} runtimeHealth={runtimeHealth} routingAudit={routingAudit} governanceEvents={governanceEvents} />
+    if (active === 'logs') return <LogsView data={data} lastPull={lastPull} error={error} governanceEvents={governanceEvents} routingAudit={routingAudit} apiError={apiError} />
     if (active === 'settings') return <SettingsView data={data} />
     if (active === 'terminal') return <TerminalView data={data} />
     return <Overview data={data} hosts={hosts} workers={workers} />
@@ -580,8 +763,9 @@ export default function App() {
               <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">SYSTEM</span> Fleet status nominal</div>
               <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">NETWORK</span> {data.summary?.hosts_ping} hosts responding</div>
               <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">SERVICES</span> {data.summary?.services} services healthy</div>
-              <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">POLICY</span> Review gate clear</div>
+              <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">POLICY</span> mutation_authority={String(governanceEvents?.mutation_authority ?? false)}</div>
               {error && <div className="text-yellow-300">WARN UI pull: {error}</div>}
+              {apiError && <div className="text-yellow-300">WARN API pull: {apiError}</div>}
             </div>
           </section>
 
