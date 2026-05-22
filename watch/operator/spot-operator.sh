@@ -82,6 +82,18 @@ case "$cmd" in
     api "/stats/runtime/governance-events?limit=${2:-25}" | jq .
     ;;
 
+
+  chain)
+    exec watch/chain/chain-show.py
+    ;;
+  chain-show)
+    shift || true
+    exec watch/chain/chain-show.py "$@"
+    ;;
+  chain-validate)
+    shift || true
+    exec watch/chain/chain-validate.py "$@"
+    ;;
   validate)
     bash watch/fleet-validate.sh
     ;;
