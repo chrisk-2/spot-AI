@@ -7,6 +7,55 @@ cd "$ROOT"
 cmd="${1:-help}"
 shift || true
 
+status() {
+  git status --short
+  git log --oneline -6
+}
+
+precheck() {
+  git diff --check
+
+  find watch spot-core scripts -type f \
+    \( -name '*.sh' -o -name '*.py' \) 2>/dev/null \
+  | while read -r f; do
+      case "$f" in
+        *.sh)
+          bash -n "$f"
+          ;;
+        *.py)
+          python3 -m py_compile "$f"
+          ;;
+      esac
+    done
+}
+
+validate() {
+  spot validate
+}
+
+commit_cmd() {
+  msg="${1:-}"
+
+  if [ -z "$msg" ]; then
+    echo "[FAIL] commit message required"
+    exit 2
+  fi
+
+  git status --short
+
+  if git diff --cached --quiet; then
+    echo
+    echo "[FAIL] nothing staged"
+    echo "[INFO] stage files manually first"
+    exit 2
+  fi
+
+  git commit -m "$msg"
+
+  git status --short
+  git log --oneline -6
+}
+
 case "$cmd" in
   help|-h|--help)
     cat <<'EOF'
@@ -20,36 +69,19 @@ EOF
     ;;
 
   status)
-    git status --short
-    git log --oneline -6
+    status
     ;;
 
   precheck)
-    git diff --check
-    find watch spot-core scripts -type f \( -name '*.sh' -o -name '*.py' \) 2>/dev/null | while read -r f; do
-      case "$f" in
-        *.sh) bash -n "$f" ;;
-        *.py) python3 -m py_compile "$f" ;;
-      esac
-    done
+    precheck
     ;;
 
   validate)
-    spot validate
+    validate
     ;;
 
   commit)
-    msg="${1:-}"
-    if [ -z "$msg" ]; then
-      echo "[FAIL] commit message required"
-      exit 2
-    fi
-    git status --short
-    echo
-    echo "[INFO] stage files manually before commit. Refusing git add ."
-    git commit -m "$msg"
-    git status --short
-    git log --oneline -6
+    commit_cmd "${1:-}"
     ;;
 
   *)
