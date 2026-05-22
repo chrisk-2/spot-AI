@@ -351,7 +351,11 @@ main() {
   check_local_review_endpoint || true
   fi
 
-  [[ "$SMOKE_MODE" -eq 1 ]] && smoke_quarantine_cycle "$SMOKE_WORKER" || info 'smoke mode skipped'
+  if [[ "$SMOKE_MODE" -eq 1 ]]; then
+    smoke_quarantine_cycle "$SMOKE_WORKER"
+  else
+    pass "smoke mode intentionally skipped"
+  fi
   check_worker_backup_freshness
   check_backup_metadata_visibility
   log "CHECK: governance integrity"
