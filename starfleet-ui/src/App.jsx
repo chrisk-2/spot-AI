@@ -384,97 +384,27 @@ function SettingsView({ data }) {
   )
 }
 
-function TerminalView({ data, spotCoreBase }) {
-  const [history, setHistory] = useState([
-    '[SPOT-CORE::OPS]',
-    'AUTHORITY: READ-ONLY',
-    'BACKUP GATE: ENFORCED',
-    'TYPE: status, fleet, services, policy, help'
-  ])
-  const [cmd, setCmd] = useState('')
-  const [token, setToken] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  async function runCommand() {
-    const c = cmd.trim()
-    if (!c) return
-
-    if (c.toLowerCase() === 'clear') {
-      setHistory([])
-      setCmd('')
-      return
-    }
-
-    if (!token.trim()) {
-      setHistory(prev => [...prev, `> ${c}`, 'ERROR: admin token required for backend operator command'])
-      return
-    }
-
-    setBusy(true)
-    setHistory(prev => [...prev, `> ${c}`, 'dispatching to Spot Core operator command broker...'])
-
-    try {
-      const res = await fetch(`${spotCoreBase}/admin/operator-command`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, command: c })
-      })
-
-      const json = await res.json().catch(() => ({}))
-
-      if (!res.ok) {
-        setHistory(prev => [...prev, `HTTP ${res.status}: ${JSON.stringify(json)}`])
-      } else {
-        const stdout = json.stdout || json.result?.stdout || ''
-        const stderr = json.stderr || json.result?.stderr || ''
-        const rc = json.returncode ?? json.result?.returncode ?? 'unknown'
-        setHistory(prev => [
-          ...prev,
-          `returncode=${rc}`,
-          ...(stdout ? stdout.split('\n') : []),
-          ...(stderr ? ['STDERR:', ...stderr.split('\n')] : [])
-        ])
-      }
-    } catch (err) {
-      setHistory(prev => [...prev, `ERROR: ${String(err.message || err)}`])
-    } finally {
-      setBusy(false)
-      setCmd('')
-    }
-  }
+function TerminalView({ data }) {
+  const terminalSrc = "http://192.168.60.30:7681"
 
   return (
-    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
-      <PanelTitle title="STARFLEET TERMINAL" subtitle="Read-only Spot tactical console" data={data} />
-      <div className="mt-5 rounded-xl border border-cyan-500/30 bg-black/80 h-[560px] p-4 text-sm text-emerald-300 overflow-auto shadow-[0_0_35px_rgba(14,165,233,.18)]">
-        {history.map((x, i) => <div key={i} className={x.startsWith('>') ? 'text-cyan-300' : ''}>{x}</div>)}
-      </div>
-      <div className="mt-3 flex rounded-lg border border-orange-500/30 bg-black/60 overflow-hidden">
-        <div className="px-3 py-2 text-orange-300">TOKEN</div>
-        <input
-          className="flex-1 bg-transparent px-2 outline-none text-orange-200"
-          type="password"
-          value={token}
-          onChange={e => setToken(e.target.value)}
-          placeholder="Spot Core admin token..."
-        />
+    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4 flex flex-col min-h-0 h-full">
+      <PanelTitle title="OGRE OPERATOR TERMINAL" subtitle="Real ttyd shell terminal on spot-core" data={data} />
+
+      <div className="mt-4 rounded-xl border border-orange-500/30 bg-orange-950/10 p-3 text-xs text-orange-200">
+        Real terminal session. This is not AI chat. This is Ogre operator access.
       </div>
 
-      <div className="mt-3 flex rounded-lg border border-cyan-500/30 bg-black/60 overflow-hidden">
-        <div className="px-3 py-2 text-orange-300">SPOT&gt;</div>
-        <input
-          className="flex-1 bg-transparent px-2 outline-none text-cyan-200"
-          value={cmd}
-          onChange={e => setCmd(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') runCommand() }}
-          placeholder="type command..."
+      <div className="mt-4 flex-1 min-h-0 overflow-hidden rounded-xl border border-cyan-500/30 bg-black">
+        <iframe
+          src={terminalSrc}
+          title="Spot Core ttyd Terminal"
+          className="h-full w-full border-0 bg-black"
         />
-        <button disabled={busy} onClick={runCommand} className="px-4 text-cyan-300 border-l border-cyan-500/30 disabled:text-slate-600">{busy ? 'RUNNING' : 'RUN'}</button>
       </div>
     </section>
   )
 }
-
 
 function AiChatView({ data, spotCoreBase }) {
   const [messages, setMessages] = useState([
@@ -831,7 +761,8 @@ export default function App() {
     if (active === 'alerts') return <AlertsView data={data} runtimeHealth={runtimeHealth} routingAudit={routingAudit} governanceEvents={governanceEvents} />
     if (active === 'logs') return <LogsView data={data} lastPull={lastPull} error={error} governanceEvents={governanceEvents} routingAudit={routingAudit} apiError={apiError} />
     if (active === 'settings') return <SettingsView data={data} />
-    if (active === 'terminal') return <TerminalView data={data} spotCoreBase={spotCoreBase} />
+    if (active === 'terminal') return <TerminalView data={data} />
+    if (active === 'ai-chat') return <AiChatView data={data} spotCoreBase={spotCoreBase} />
     return <Overview data={data} hosts={hosts} workers={workers} />
   }
 
@@ -948,9 +879,9 @@ export default function App() {
           <section className="flex-1 min-h-[260px] overflow-hidden"><SpotAssistant setActive={setActive} /></section>
 
           <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
-            <div className="text-cyan-300 font-bold">COMMAND TERMINAL</div>
+            <div className="text-cyan-300 font-bold">OPERATOR TERMINAL</div>
             <div className="mt-2 text-sm text-slate-300">
-              HOW CAN I ASSIST WITH YOUR STARFLEET OPERATIONS TODAY?
+              TOKEN-GATED SPOT CORE COMMAND BROKER
             </div>
             <button onClick={() => setActive('terminal')} className="mt-3 w-full rounded-lg border border-blue-500/30 bg-black/40 px-3 py-2 text-left text-slate-400">
               Open tactical terminal... <span className="float-right text-blue-400">➤</span>
