@@ -875,3 +875,40 @@ Invariant status:
 - High-risk network changes remain approval-gated.
 - OpenAI and Codex remain proposal/review only; no mutation authority.
 
+
+---
+
+## PHASE 68 SMOKE VALIDATION PROOF — 2026-05-22
+
+Milestone A smoke validation completed.
+
+Validation:
+- command: `bash watch/fleet-validate.sh --smoke`
+- result: PASS
+- pass=36
+- warn=0
+- fail=0
+
+Smoke cycle verified:
+- quarantine route accepted
+- fleet/ping asserted `quarantined=true eligible=false`
+- fleet-status asserted quarantine state
+- release route accepted
+- fleet/ping asserted `quarantined=false eligible=true`
+- fleet-status asserted release state
+- no restart required
+
+Backup freshness:
+- all six workers validated fresh
+- backup metadata visibility count=455
+
+Milestone A status:
+- audit write failure hardening: complete
+- validator normal mode: PASS
+- validator smoke mode: PASS
+- governance integrity: PASS
+- known-good checkpoint: ready
+
+Remaining dirty runtime-only state:
+- `starfleet-ui/public/status.json`
+
