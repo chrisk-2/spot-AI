@@ -912,3 +912,19 @@ Milestone A status:
 Remaining dirty runtime-only state:
 - `starfleet-ui/public/status.json`
 
+
+---
+
+## Module — Core Validation Hardening
+
+Status: complete.
+
+Validation proof:
+- RESULT: PASS
+- pass=31
+- warn=0
+- fail=0
+
+Expected runtime-only dirty file:
+- starfleet-ui/public/status.json
+
