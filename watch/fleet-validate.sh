@@ -365,7 +365,8 @@ main() {
   fi
   log
   log "=== SUMMARY ==="
-  log "pass=${PASS_COUNT} warn=${WARN_COUNT} fail=${FAIL_COUNT}"
+  echo
+log "pass=${PASS_COUNT} warn=${WARN_COUNT} fail=${FAIL_COUNT}"
   [[ "$FAIL_COUNT" -gt 0 ]] && { echo "RESULT: FAIL"; exit 1; } || { echo "RESULT: PASS"; exit 0; }
 }
 
