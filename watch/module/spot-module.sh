@@ -42,6 +42,20 @@ validate() {
   spot validate
 }
 
+operator_cmd() {
+  exec watch/operator/spot-operator.sh "$@"
+}
+
+logs_cmd() {
+  journalctl -u spot-core -n "${1:-50}" --no-pager
+}
+
+restart_cmd() {
+  docker compose down
+  docker compose up -d
+}
+
+
 commit_cmd() {
   msg="${1:-}"
 
@@ -78,6 +92,14 @@ spot-module.sh commands:
   validate
   commit "message"
   module "message"
+
+  operator ...
+  logs [N]
+  restart
+
+  operator ...
+  logs [N]
+  restart
 EOF
     ;;
 
@@ -99,6 +121,19 @@ EOF
 
   module)
     module_cmd "${1:-}"
+    ;;
+
+  operator)
+    shift || true
+    operator_cmd "$@"
+    ;;
+
+  logs)
+    logs_cmd "${1:-50}"
+    ;;
+
+  restart)
+    restart_cmd
     ;;
 
   *)
