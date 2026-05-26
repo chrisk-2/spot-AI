@@ -101,6 +101,21 @@ case "$cmd" in
     api "/stats/runtime/governance-events?limit=${2:-25}" | jq .
     ;;
 
+  executor-chain)
+    echo "=== EXECUTOR ROLLBACK CHAIN ==="
+    echo "detect -> analyze -> classify -> backup -> bind -> review -> preflight -> execute -> verify -> rollback/halt -> journal"
+    ;;
+
+  executor-policy)
+    echo "=== EXECUTOR POLICY ==="
+    echo "Spot Core is sole executor"
+    echo "No backup means no change"
+    echo "No rollback means no execution"
+    echo "No review means no apply"
+    echo "Workers do not self-apply"
+    ;;
+
+
 
   chain)
     exec watch/chain/chain-show.py
@@ -265,6 +280,8 @@ spot-operator commands:
   reviews [N]               show last N review journal index records
   reviews-tail              follow review journal index
   governance [N]            show normalized governance events
+  executor-chain            show required execution chain
+  executor-policy           show executor safety policy
   validate                  run full fleet validation
   smoke                     run smoke validation
   dirty                     show git dirty state

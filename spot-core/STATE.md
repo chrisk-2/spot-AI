@@ -950,3 +950,28 @@ Preserved policy:
 - OpenAI approval-required external reviewer only
 - Spot Core remains sole executor
 
+
+---
+
+## Module — Executor Rollback Chain
+
+Status: initial normalization checkpoint.
+
+Purpose:
+- consolidate executor, backup, rollback, and remediation chain expectations
+- preserve no-backup/no-rollback/no-review enforcement
+- keep Spot Core as sole executor
+
+Required chain:
+- detect
+- analyze
+- classify
+- backup
+- bind backup
+- review
+- preflight
+- execute through Spot Core only
+- verify
+- rollback or halt
+- journal
+
