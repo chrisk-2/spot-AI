@@ -381,6 +381,12 @@ EOF
   autonomy-constraints-validate)
     exec python3 watch/autonomy/autonomy-constraints-validate.py
     ;;
+  recovery-model)
+    exec python3 watch/recovery/recovery-model-snapshot.py
+    ;;
+  recovery-model-validate)
+    exec python3 watch/recovery/recovery-model-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
