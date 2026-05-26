@@ -387,6 +387,12 @@ EOF
   recovery-model-validate)
     exec python3 watch/recovery/recovery-model-validate.py
     ;;
+  approved-remediation-plan)
+    exec python3 watch/remediation/approved-remediation-plan-snapshot.py
+    ;;
+  approved-remediation-plan-validate)
+    exec python3 watch/remediation/approved-remediation-plan-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
