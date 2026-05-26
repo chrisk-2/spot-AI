@@ -1087,3 +1087,28 @@ Safety:
 - mutation_authority=false
 - Spot Core remains sole executor
 
+
+---
+
+## Module — Controlled Execution Orchestration
+
+Status: complete.
+
+Read-only controlled execution planner added:
+- required chain modeling
+- backup binding requirement
+- rollback binding requirement
+- review requirement
+- validation requirement
+- journal requirement
+
+Operator commands:
+- execution-plan
+- execution-plan-validate
+
+Safety:
+- planning only
+- execution_allowed=false
+- mutation_authority=false
+- Spot Core remains sole executor
+

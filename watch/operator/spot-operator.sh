@@ -147,6 +147,15 @@ case "$cmd" in
     exec watch/ui/ui-operator-status-validate.py
     ;;
 
+  execution-plan)
+    shift || true
+    exec watch/orchestration/controlled-execution-plan.py "$@"
+    ;;
+
+  execution-plan-validate)
+    exec watch/orchestration/controlled-execution-plan-validate.py
+    ;;
+
 
 
   chain)
@@ -322,6 +331,8 @@ spot-operator commands:
   capabilities-validate    validate worker role/capability registry
   ui-status                 export normalized UI operator status
   ui-status-validate        validate UI operator export
+  execution-plan            create read-only controlled execution plan
+  execution-plan-validate   validate controlled execution planner
   validate                  run full fleet validation
   smoke                     run smoke validation
   dirty                     show git dirty state
