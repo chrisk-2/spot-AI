@@ -124,7 +124,6 @@ EOF
     ;;
 
   operator)
-    shift || true
     operator_cmd "$@"
     ;;
 
