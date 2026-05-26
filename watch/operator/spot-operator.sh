@@ -131,6 +131,14 @@ case "$cmd" in
     exec watch/runtime/observability/runtime-observability-validate.py
     ;;
 
+  capabilities)
+    exec watch/capabilities/capability-registry-snapshot.py
+    ;;
+
+  capabilities-validate)
+    exec watch/capabilities/capability-registry-validate.py
+    ;;
+
 
 
   chain)
@@ -302,6 +310,8 @@ spot-operator commands:
   network-validate          validate read-only network truth collection
   runtime-snapshot          collect runtime observability snapshot
   runtime-validate          validate runtime observability endpoints
+  capabilities             show normalized worker capability registry
+  capabilities-validate    validate worker role/capability registry
   validate                  run full fleet validation
   smoke                     run smoke validation
   dirty                     show git dirty state

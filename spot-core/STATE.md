@@ -1031,3 +1031,36 @@ Safety:
 - mutation_authority=false
 - Spot Core remains sole executor
 
+
+---
+
+## Module — Fleet Capability Registry Normalization
+
+Status: complete.
+
+Read-only capability registry added:
+- normalized worker roles
+- configured models
+- installed models
+- warm models
+- eligibility
+- quarantine state
+- alerts
+
+Operator commands:
+- capabilities
+- capabilities-validate
+
+Locked role ownership remains:
+- general -> spot-worker-01
+- utility -> spot-worker-02
+- coding -> spot-worker-03
+- heavy -> spot-worker-04
+- review -> spot-worker-05
+- reasoning -> spot-worker-06
+
+Safety:
+- read-only only
+- mutation_authority=false
+- no role ownership changes
+
