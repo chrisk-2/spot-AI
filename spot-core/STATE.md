@@ -1112,3 +1112,26 @@ Safety:
 - mutation_authority=false
 - Spot Core remains sole executor
 
+
+---
+
+## Module — Governed Remediation Automation
+
+Status: complete.
+
+Governed remediation policy surface added:
+- remediation-policy
+- remediation-policy-validate
+
+Current boundary:
+- remediation_allowed_now=false
+- live_mutation_allowed_now=false
+- execution_allowed=false
+- mutation_authority=false
+
+Safety:
+- no backup means no change
+- no rollback means no execution
+- no review means no apply
+- Spot Core remains sole executor
+

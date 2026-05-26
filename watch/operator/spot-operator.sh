@@ -269,6 +269,14 @@ case "$cmd" in
     shift || true
     exec watch/remediation/controlled-remediation-validate.py "$@"
     ;;
+
+  remediation-policy)
+    exec watch/remediation/governed-remediation-policy.py
+    ;;
+
+  remediation-policy-validate)
+    exec watch/remediation/governed-remediation-policy-validate.py
+    ;;
   rollback-failure-show)
     shift || true
     exec watch/remediation/rollback-on-failure-show.py "$@"
@@ -333,6 +341,8 @@ spot-operator commands:
   ui-status-validate        validate UI operator export
   execution-plan            create read-only controlled execution plan
   execution-plan-validate   validate controlled execution planner
+  remediation-policy        show governed remediation policy
+  remediation-policy-validate validate governed remediation policy
   validate                  run full fleet validation
   smoke                     run smoke validation
   dirty                     show git dirty state
