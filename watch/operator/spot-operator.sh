@@ -123,6 +123,14 @@ case "$cmd" in
     exec watch/network/network-truth-validate.py
     ;;
 
+  runtime-snapshot)
+    exec watch/runtime/observability/runtime-observability-snapshot.py
+    ;;
+
+  runtime-validate)
+    exec watch/runtime/observability/runtime-observability-validate.py
+    ;;
+
 
 
   chain)
@@ -292,6 +300,8 @@ spot-operator commands:
   executor-policy           show executor safety policy
   network-truth             collect read-only network truth snapshot
   network-validate          validate read-only network truth collection
+  runtime-snapshot          collect runtime observability snapshot
+  runtime-validate          validate runtime observability endpoints
   validate                  run full fleet validation
   smoke                     run smoke validation
   dirty                     show git dirty state

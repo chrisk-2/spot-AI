@@ -1005,3 +1005,29 @@ Safety:
 - no route change
 - no service restart
 
+
+---
+
+## Module — Runtime Observability Polish
+
+Status: complete.
+
+Read-only runtime observability added:
+- health
+- fleet ping
+- routing
+- routing audit
+- governance events
+- optional runtime journals
+- optional review lease telemetry
+- optional queue metrics
+
+Operator commands:
+- runtime-snapshot
+- runtime-validate
+
+Safety:
+- read-only only
+- mutation_authority=false
+- Spot Core remains sole executor
+
