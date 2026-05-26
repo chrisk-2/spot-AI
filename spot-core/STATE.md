@@ -1064,3 +1064,26 @@ Safety:
 - mutation_authority=false
 - no role ownership changes
 
+
+---
+
+## Module — UI Operator Integration Cleanup
+
+Status: complete.
+
+UI operator export added:
+- operator-status.json
+- fleet validation visibility
+- network validation visibility
+- runtime validation visibility
+- capability validation visibility
+
+Operator commands:
+- ui-status
+- ui-status-validate
+
+Safety:
+- read-only only
+- mutation_authority=false
+- Spot Core remains sole executor
+

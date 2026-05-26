@@ -139,6 +139,14 @@ case "$cmd" in
     exec watch/capabilities/capability-registry-validate.py
     ;;
 
+  ui-status)
+    exec watch/ui/ui-operator-status-export.py
+    ;;
+
+  ui-status-validate)
+    exec watch/ui/ui-operator-status-validate.py
+    ;;
+
 
 
   chain)
@@ -312,6 +320,8 @@ spot-operator commands:
   runtime-validate          validate runtime observability endpoints
   capabilities             show normalized worker capability registry
   capabilities-validate    validate worker role/capability registry
+  ui-status                 export normalized UI operator status
+  ui-status-validate        validate UI operator export
   validate                  run full fleet validation
   smoke                     run smoke validation
   dirty                     show git dirty state
