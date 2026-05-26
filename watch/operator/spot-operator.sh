@@ -115,6 +115,14 @@ case "$cmd" in
     echo "Workers do not self-apply"
     ;;
 
+  network-truth)
+    exec watch/network/network-truth-snapshot.py
+    ;;
+
+  network-validate)
+    exec watch/network/network-truth-validate.py
+    ;;
+
 
 
   chain)
@@ -282,6 +290,8 @@ spot-operator commands:
   governance [N]            show normalized governance events
   executor-chain            show required execution chain
   executor-policy           show executor safety policy
+  network-truth             collect read-only network truth snapshot
+  network-validate          validate read-only network truth collection
   validate                  run full fleet validation
   smoke                     run smoke validation
   dirty                     show git dirty state

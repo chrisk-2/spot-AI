@@ -975,3 +975,33 @@ Required chain:
 - rollback or halt
 - journal
 
+
+---
+
+## Module — Network Ops Readonly
+
+Status: complete.
+
+Read-only network truth collection added:
+- Spot Core health
+- fleet ping
+- routing map
+- routing audit
+- fleet status
+- local routes
+- local addresses
+- local DNS
+- local listeners
+
+Operator commands:
+- network-truth
+- network-validate
+
+Safety:
+- no network mutation
+- no firewall change
+- no DNS change
+- no DHCP change
+- no route change
+- no service restart
+
