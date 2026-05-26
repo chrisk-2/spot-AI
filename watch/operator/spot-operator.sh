@@ -369,6 +369,12 @@ spot-operator commands:
 EOF
     ;;
 
+  execution-lease)
+    exec python3 watch/executor/execution-lease-snapshot.py
+    ;;
+  execution-lease-validate)
+    exec python3 watch/executor/execution-lease-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
