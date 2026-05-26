@@ -32,6 +32,14 @@ case "$cmd" in
     api /routing | jq .
     ;;
 
+  routing-confidence)
+    exec watch/routing/routing-confidence-snapshot.py
+    ;;
+
+  routing-confidence-validate)
+    exec watch/routing/routing-confidence-validate.py
+    ;;
+
   audit)
     limit="${2:-25}"
     echo "=== ROUTING AUDIT limit=$limit ==="
@@ -319,6 +327,8 @@ case "$cmd" in
 spot-operator commands:
   status                    read fleet health and worker ping
   routing                   read routing map
+  routing-confidence        show read-only routing confidence scores
+  routing-confidence-validate validate routing confidence scores
   audit [N]                 read routing audit summary
   review                    run review gate policy smoke
   review-health             show review/reasoning worker health

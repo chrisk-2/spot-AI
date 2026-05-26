@@ -1135,3 +1135,55 @@ Safety:
 - no review means no apply
 - Spot Core remains sole executor
 
+
+---
+
+## Module — Routing Confidence Scoring
+
+Status: complete.
+
+Read-only routing confidence scoring added:
+- worker health
+- eligibility
+- quarantine state
+- alerts
+- latency
+- fallback count
+- locked role ownership
+
+Operator commands:
+- routing-confidence
+- routing-confidence-validate
+
+Safety:
+- read-only only
+- advisory only
+- mutation_authority=false
+- no routing ownership changes
+
+
+---
+
+## Module — Routing Confidence Scoring
+
+Status: complete.
+
+Read-only routing confidence scoring added:
+- worker health
+- eligibility
+- quarantine state
+- alerts
+- latency
+- fallback count
+- locked role ownership
+
+Operator commands:
+- routing-confidence
+- routing-confidence-validate
+
+Safety:
+- read-only only
+- advisory only
+- mutation_authority=false
+- no routing ownership changes
+
