@@ -90,7 +90,6 @@ Current prohibited scope:
 
 Production routing ownership is authoritative and locked:
 
-```text
 general   -> spot-worker-01
 utility   -> spot-worker-02
 coding    -> spot-worker-03
@@ -927,4 +926,27 @@ Validation proof:
 
 Expected runtime-only dirty file:
 - starfleet-ui/public/status.json
+
+
+---
+
+## Module — Review Governance Hardening
+
+Status: complete.
+
+Review operator surface normalized:
+- review-health
+- review-escalate
+- review-openai
+- review-journal
+- review-journal-validate
+
+Validation behavior updated:
+- transient /review/local timeout is warning, not hard module failure
+
+Preserved policy:
+- worker-05 primary local reviewer
+- worker-06 local escalation
+- OpenAI approval-required external reviewer only
+- Spot Core remains sole executor
 

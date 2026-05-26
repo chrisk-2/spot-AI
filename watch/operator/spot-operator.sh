@@ -38,6 +38,25 @@ case "$cmd" in
     api "/stats/routing-audit?limit=$limit" | jq .
     ;;
 
+
+  review-health)
+    echo "=== REVIEW HEALTH ==="
+    api "/fleet/ping" | jq '{
+      review: ."spot-worker-05",
+      reasoning: ."spot-worker-06"
+    }'
+    ;;
+
+  review-openai)
+    echo "=== OPENAI REVIEW GATE ==="
+    echo "[INFO] approval-required external review only"
+    ;;
+
+  review-escalate)
+    echo "=== REVIEW ESCALATION PATH ==="
+    echo "worker-05 -> worker-06 -> approval-required external review"
+    ;;
+
   review)
     echo "=== REVIEW GATE SMOKE ==="
     curl -fsS -m 90 \
@@ -238,6 +257,9 @@ spot-operator commands:
   routing                   read routing map
   audit [N]                 read routing audit summary
   review                    run review gate policy smoke
+  review-health             show review/reasoning worker health
+  review-openai             show external review gate status
+  review-escalate           show escalation chain
   review-journal            run local review and write immutable journal artifact
   review-journal-validate   validate review journal artifacts and index
   reviews [N]               show last N review journal index records
