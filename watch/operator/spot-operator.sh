@@ -40,6 +40,14 @@ case "$cmd" in
     exec watch/routing/routing-confidence-validate.py
     ;;
 
+  scheduling-advice)
+    exec watch/scheduling/adaptive-scheduling-snapshot.py
+    ;;
+
+  scheduling-validate)
+    exec watch/scheduling/adaptive-scheduling-validate.py
+    ;;
+
   audit)
     limit="${2:-25}"
     echo "=== ROUTING AUDIT limit=$limit ==="
@@ -329,6 +337,8 @@ spot-operator commands:
   routing                   read routing map
   routing-confidence        show read-only routing confidence scores
   routing-confidence-validate validate routing confidence scores
+  scheduling-advice       show advisory scheduling recommendations
+  scheduling-validate     validate advisory scheduling layer
   audit [N]                 read routing audit summary
   review                    run review gate policy smoke
   review-health             show review/reasoning worker health

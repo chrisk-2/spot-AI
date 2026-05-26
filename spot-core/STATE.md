@@ -1187,3 +1187,29 @@ Safety:
 - mutation_authority=false
 - no routing ownership changes
 
+
+---
+
+## Module — Adaptive Scheduling Intelligence
+
+Status: complete.
+
+Read-only advisory scheduling added:
+- capability registry input
+- routing confidence input
+- eligibility input
+- quarantine input
+- installed model visibility
+- warm model visibility
+- confidence bands
+
+Operator commands:
+- scheduling-advice
+- scheduling-validate
+
+Safety:
+- advisory only
+- execution_allowed=false
+- mutation_authority=false
+- no routing ownership changes
+
