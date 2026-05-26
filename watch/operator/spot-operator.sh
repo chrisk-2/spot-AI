@@ -375,6 +375,12 @@ EOF
   execution-lease-validate)
     exec python3 watch/executor/execution-lease-validate.py
     ;;
+  autonomy-constraints)
+    exec python3 watch/autonomy/autonomy-constraints-snapshot.py
+    ;;
+  autonomy-constraints-validate)
+    exec python3 watch/autonomy/autonomy-constraints-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
