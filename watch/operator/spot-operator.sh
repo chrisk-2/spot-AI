@@ -393,6 +393,12 @@ EOF
   approved-remediation-plan-validate)
     exec python3 watch/remediation/approved-remediation-plan-validate.py
     ;;
+  execution-receipt-registry)
+    exec python3 watch/executor/execution-receipt-registry-snapshot.py
+    ;;
+  execution-receipt-registry-validate)
+    exec python3 watch/executor/execution-receipt-registry-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
