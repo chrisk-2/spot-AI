@@ -399,6 +399,12 @@ EOF
   execution-receipt-registry-validate)
     exec python3 watch/executor/execution-receipt-registry-validate.py
     ;;
+  rollback-binding-registry)
+    exec python3 watch/rollback/rollback-binding-registry-snapshot.py
+    ;;
+  rollback-binding-registry-validate)
+    exec python3 watch/rollback/rollback-binding-registry-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
