@@ -411,6 +411,12 @@ EOF
   replay-safe-token-validate)
     exec python3 watch/executor/replay-safe-token-validate.py
     ;;
+  execution-lease-ttl)
+    exec python3 watch/executor/execution-lease-ttl-snapshot.py
+    ;;
+  execution-lease-ttl-validate)
+    exec python3 watch/executor/execution-lease-ttl-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
