@@ -405,6 +405,12 @@ EOF
   rollback-binding-registry-validate)
     exec python3 watch/rollback/rollback-binding-registry-validate.py
     ;;
+  replay-safe-token)
+    exec python3 watch/executor/replay-safe-token-snapshot.py
+    ;;
+  replay-safe-token-validate)
+    exec python3 watch/executor/replay-safe-token-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
