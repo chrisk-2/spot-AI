@@ -423,6 +423,12 @@ EOF
   execution-window-policy-validate)
     exec python3 watch/executor/execution-window-policy-validate.py
     ;;
+  approval-escalation-chain)
+    exec python3 watch/approval/approval-escalation-chain-snapshot.py
+    ;;
+  approval-escalation-chain-validate)
+    exec python3 watch/approval/approval-escalation-chain-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
