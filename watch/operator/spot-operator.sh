@@ -435,6 +435,12 @@ EOF
   lease-receipt-chain-validate)
     exec python3 watch/executor/lease-receipt-chain-validate.py
     ;;
+  execution-quorum)
+    exec python3 watch/executor/execution-quorum-snapshot.py
+    ;;
+  execution-quorum-validate)
+    exec python3 watch/executor/execution-quorum-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
