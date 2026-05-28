@@ -447,6 +447,12 @@ EOF
   recovery-replay-validate)
     exec python3 watch/recovery/recovery-replay-validate.py
     ;;
+  transaction-state-reconciliation)
+    exec python3 watch/transaction/transaction-state-reconciliation-snapshot.py
+    ;;
+  transaction-state-reconciliation-validate)
+    exec python3 watch/transaction/transaction-state-reconciliation-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
