@@ -429,6 +429,12 @@ EOF
   approval-escalation-chain-validate)
     exec python3 watch/approval/approval-escalation-chain-validate.py
     ;;
+  lease-receipt-chain)
+    exec python3 watch/executor/lease-receipt-chain-snapshot.py
+    ;;
+  lease-receipt-chain-validate)
+    exec python3 watch/executor/lease-receipt-chain-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
