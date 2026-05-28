@@ -417,6 +417,12 @@ EOF
   execution-lease-ttl-validate)
     exec python3 watch/executor/execution-lease-ttl-validate.py
     ;;
+  execution-window-policy)
+    exec python3 watch/executor/execution-window-policy-snapshot.py
+    ;;
+  execution-window-policy-validate)
+    exec python3 watch/executor/execution-window-policy-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
