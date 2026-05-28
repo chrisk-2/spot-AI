@@ -453,6 +453,12 @@ EOF
   transaction-state-reconciliation-validate)
     exec python3 watch/transaction/transaction-state-reconciliation-validate.py
     ;;
+  execution-replay-audit)
+    exec python3 watch/executor/execution-replay-audit-snapshot.py
+    ;;
+  execution-replay-audit-validate)
+    exec python3 watch/executor/execution-replay-audit-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
