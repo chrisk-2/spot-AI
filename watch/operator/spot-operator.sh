@@ -441,6 +441,12 @@ EOF
   execution-quorum-validate)
     exec python3 watch/executor/execution-quorum-validate.py
     ;;
+  recovery-replay)
+    exec python3 watch/recovery/recovery-replay-snapshot.py
+    ;;
+  recovery-replay-validate)
+    exec python3 watch/recovery/recovery-replay-validate.py
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
