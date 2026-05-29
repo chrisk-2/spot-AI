@@ -89,6 +89,16 @@ case "$cmd" in
   governed-noop-transaction-history)
     exec watch/governance/governed-noop-transaction-history.py "${2:-10}"
     ;;
+  deterministic-noop-replay)
+    exec watch/governance/deterministic-noop-execution-replay.py
+    ;;
+  deterministic-noop-replay-validate)
+    watch/governance/deterministic-noop-execution-replay.py >/dev/null
+    exec watch/governance/deterministic-noop-execution-replay-validate.py
+    ;;
+  deterministic-noop-replay-history)
+    exec watch/governance/deterministic-noop-execution-replay-history.py "${2:-10}"
+    ;;
 
   scheduling-advice)
     exec watch/scheduling/adaptive-scheduling-snapshot.py
