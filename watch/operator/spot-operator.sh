@@ -49,6 +49,16 @@ case "$cmd" in
   execution-state-drift-history)
     exec watch/governance/execution-state-drift-history.py "${2:-10}"
     ;;
+  noop-executor-lifecycle)
+    exec watch/governance/noop-executor-lifecycle-sim.py
+    ;;
+  noop-executor-lifecycle-validate)
+    watch/governance/noop-executor-lifecycle-sim.py >/dev/null
+    exec watch/governance/noop-executor-lifecycle-validate.py
+    ;;
+  noop-executor-lifecycle-history)
+    exec watch/governance/noop-executor-lifecycle-history.py "${2:-10}"
+    ;;
 
   scheduling-advice)
     exec watch/scheduling/adaptive-scheduling-snapshot.py
@@ -350,6 +360,9 @@ spot-operator commands:
   execution-state-drift        show read-only execution state drift snapshot
   execution-state-drift-validate validate execution state drift snapshot
   execution-state-drift-history  show execution state drift history
+  noop-executor-lifecycle        simulate read-only noop executor lifecycle
+  noop-executor-lifecycle-validate validate noop executor lifecycle simulation
+  noop-executor-lifecycle-history  show noop executor lifecycle history
   scheduling-advice       show advisory scheduling recommendations
   scheduling-validate     validate advisory scheduling layer
   audit [N]                 read routing audit summary
