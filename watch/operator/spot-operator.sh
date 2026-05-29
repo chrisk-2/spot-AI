@@ -112,6 +112,13 @@ case "$cmd" in
   noop-governance-readiness-history)
     exec watch/governance/noop-governance-readiness-history.py "${2:-10}"
     ;;
+  governance-closeout)
+    exec watch/governance/governance-closeout-checkpoint.py
+    ;;
+  governance-closeout-validate)
+    watch/governance/governance-closeout-checkpoint.py >/dev/null
+    exec watch/governance/governance-closeout-validate.py
+    ;;
 
   scheduling-advice)
     exec watch/scheduling/adaptive-scheduling-snapshot.py
