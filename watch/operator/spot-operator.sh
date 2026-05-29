@@ -69,6 +69,16 @@ case "$cmd" in
   execution-reconciliation-history)
     exec watch/governance/execution-reconciliation-history.py "${2:-10}"
     ;;
+  lease-receipt-reconciliation)
+    exec watch/governance/lease-receipt-reconciliation-audit.py
+    ;;
+  lease-receipt-reconciliation-validate)
+    watch/governance/lease-receipt-reconciliation-audit.py >/dev/null
+    exec watch/governance/lease-receipt-reconciliation-validate.py
+    ;;
+  lease-receipt-reconciliation-history)
+    exec watch/governance/lease-receipt-reconciliation-history.py "${2:-10}"
+    ;;
 
   scheduling-advice)
     exec watch/scheduling/adaptive-scheduling-snapshot.py
@@ -376,6 +386,9 @@ spot-operator commands:
   execution-reconciliation        generate reconciliation journal
   execution-reconciliation-validate validate reconciliation journal
   execution-reconciliation-history  show reconciliation journal history
+  lease-receipt-reconciliation        audit lease/receipt reconciliation
+  lease-receipt-reconciliation-validate validate lease/receipt audit
+  lease-receipt-reconciliation-history  show lease/receipt audit history
   scheduling-advice       show advisory scheduling recommendations
   scheduling-validate     validate advisory scheduling layer
   audit [N]                 read routing audit summary
