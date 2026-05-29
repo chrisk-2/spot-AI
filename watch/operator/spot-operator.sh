@@ -59,6 +59,16 @@ case "$cmd" in
   noop-executor-lifecycle-history)
     exec watch/governance/noop-executor-lifecycle-history.py "${2:-10}"
     ;;
+  execution-reconciliation)
+    exec watch/governance/execution-reconciliation-journal.py
+    ;;
+  execution-reconciliation-validate)
+    watch/governance/execution-reconciliation-journal.py >/dev/null
+    exec watch/governance/execution-reconciliation-validate.py
+    ;;
+  execution-reconciliation-history)
+    exec watch/governance/execution-reconciliation-history.py "${2:-10}"
+    ;;
 
   scheduling-advice)
     exec watch/scheduling/adaptive-scheduling-snapshot.py
@@ -363,6 +373,9 @@ spot-operator commands:
   noop-executor-lifecycle        simulate read-only noop executor lifecycle
   noop-executor-lifecycle-validate validate noop executor lifecycle simulation
   noop-executor-lifecycle-history  show noop executor lifecycle history
+  execution-reconciliation        generate reconciliation journal
+  execution-reconciliation-validate validate reconciliation journal
+  execution-reconciliation-history  show reconciliation journal history
   scheduling-advice       show advisory scheduling recommendations
   scheduling-validate     validate advisory scheduling layer
   audit [N]                 read routing audit summary
