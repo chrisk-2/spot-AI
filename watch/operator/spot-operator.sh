@@ -119,6 +119,16 @@ case "$cmd" in
     watch/governance/governance-closeout-checkpoint.py >/dev/null
     exec watch/governance/governance-closeout-validate.py
     ;;
+  constrained-sandbox-pilot-design)
+    exec watch/governance/constrained-sandbox-pilot-design.py
+    ;;
+  constrained-sandbox-pilot-design-validate)
+    watch/governance/constrained-sandbox-pilot-design.py >/dev/null
+    exec watch/governance/constrained-sandbox-pilot-design-validate.py
+    ;;
+  constrained-sandbox-pilot-design-history)
+    exec watch/governance/constrained-sandbox-pilot-design-history.py "${2:-10}"
+    ;;
 
   scheduling-advice)
     exec watch/scheduling/adaptive-scheduling-snapshot.py
