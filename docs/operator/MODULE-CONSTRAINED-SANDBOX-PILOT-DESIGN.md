@@ -34,6 +34,45 @@ Only after explicit approval in a later module:
 - verify checksum
 - restore/delete using rollback plan
 
+ogre@spot-core:~/spot-stack$ cd /home/ogre/spot-stack
+
+cat > docs/operator/MODULE-CONSTRAINED-SANDBOX-PILOT-DESIGN.md <<'MD'
+# Module — Constrained Sandbox Pilot Design
+
+## Purpose
+
+Define the first controlled sandbox execution pilot.
+
+This module is design-only.
+
+It does not enable live execution.
+
+## Current Governance State
+
+- mode: read_only
+- advisory_only: true
+- execution_allowed: false
+- mutation_authority: false
+- live_executor_enabled: false
+- worker_self_apply_allowed: false
+
+## Pilot Goal
+
+Prove the future executor can perform one harmless, reversible action inside a dedicated sandbox path only.
+
+## Allowed Sandbox Path
+
+- /tmp/spot-sandbox-pilot/
+
+## Allowed Future Actions
+
+Only after explicit approval in a later module:
+
+- create a test file inside /tmp/spot-sandbox-pilot/
+- write non-sensitive test content
+- verify checksum
+- restore/delete using rollback plan
+
 ## Forbidden Actions
 
 - no service restart

@@ -129,6 +129,15 @@ case "$cmd" in
   constrained-sandbox-pilot-design-history)
     exec watch/governance/constrained-sandbox-pilot-design-history.py "${2:-10}"
     ;;
+  sandbox-executor-pilot)
+    exec watch/governance/sandbox-executor-pilot.py
+    ;;
+  sandbox-executor-pilot-validate)
+    exec watch/governance/sandbox-executor-pilot-validate.py
+    ;;
+  sandbox-executor-pilot-rollback)
+    exec watch/governance/sandbox-executor-pilot-rollback.py
+    ;;
 
   scheduling-advice)
     exec watch/scheduling/adaptive-scheduling-snapshot.py
