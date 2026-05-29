@@ -97,7 +97,20 @@ case "$cmd" in
     exec watch/governance/deterministic-noop-execution-replay-validate.py
     ;;
   deterministic-noop-replay-history)
+  noop-governance-readiness        generate noop governance readiness gate
+  noop-governance-readiness-validate validate noop governance readiness gate
+  noop-governance-readiness-history  show noop governance readiness history
     exec watch/governance/deterministic-noop-execution-replay-history.py "${2:-10}"
+    ;;
+  noop-governance-readiness)
+    exec watch/governance/noop-governance-readiness-gate.py
+    ;;
+  noop-governance-readiness-validate)
+    watch/governance/noop-governance-readiness-gate.py >/dev/null
+    exec watch/governance/noop-governance-readiness-validate.py
+    ;;
+  noop-governance-readiness-history)
+    exec watch/governance/noop-governance-readiness-history.py "${2:-10}"
     ;;
 
   scheduling-advice)
