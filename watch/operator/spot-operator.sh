@@ -39,6 +39,16 @@ case "$cmd" in
   routing-confidence-validate)
     exec watch/routing/routing-confidence-validate.py
     ;;
+  execution-state-drift)
+    exec watch/governance/execution-state-drift-snapshot.py
+    ;;
+  execution-state-drift-validate)
+    watch/governance/execution-state-drift-snapshot.py >/dev/null
+    exec watch/governance/execution-state-drift-validate.py
+    ;;
+  execution-state-drift-history)
+    exec watch/governance/execution-state-drift-history.py "${2:-10}"
+    ;;
 
   scheduling-advice)
     exec watch/scheduling/adaptive-scheduling-snapshot.py
@@ -337,6 +347,9 @@ spot-operator commands:
   routing                   read routing map
   routing-confidence        show read-only routing confidence scores
   routing-confidence-validate validate routing confidence scores
+  execution-state-drift        show read-only execution state drift snapshot
+  execution-state-drift-validate validate execution state drift snapshot
+  execution-state-drift-history  show execution state drift history
   scheduling-advice       show advisory scheduling recommendations
   scheduling-validate     validate advisory scheduling layer
   audit [N]                 read routing audit summary
