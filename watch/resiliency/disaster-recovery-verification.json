@@ -1,0 +1,16 @@
+{
+  "module": "disaster_recovery_verification",
+  "mode": "design_only",
+  "execution_allowed": false,
+  "mutation_authority": false,
+  "live_rebuild_allowed": false,
+  "required_checks": [
+    "backup_available",
+    "metadata_readable",
+    "restore_procedure_documented",
+    "locked_role_preserved",
+    "validation_defined",
+    "halt_criteria_defined",
+    "spot_core_executor_only"
+  ]
+}

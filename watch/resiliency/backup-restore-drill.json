@@ -1,0 +1,15 @@
+{
+  "module": "backup_restore_drill",
+  "mode": "design_only",
+  "execution_allowed": false,
+  "mutation_authority": false,
+  "live_restore_allowed": false,
+  "backup_deletion_allowed": false,
+  "required_validation": [
+    "ssh operational",
+    "ollama operational",
+    "nfs mounts active",
+    "gpu visible when applicable",
+    "spot validate PASS"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "module": "recovery_rehearsal_artifacts",
+  "mode": "design_only",
+  "execution_allowed": false,
+  "mutation_authority": false,
+  "required_artifacts": [
+    "rehearsal_request",
+    "worker_manifest",
+    "backup_manifest",
+    "restore_procedure_reference",
+    "validation_transcript",
+    "operator_decision",
+    "final_result"
+  ],
+  "artifact_root": "/mnt/collective/logs/spot/recovery-rehearsals"
+}

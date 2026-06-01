@@ -1,0 +1,16 @@
+{
+  "module": "node_loss_simulation",
+  "mode": "design_only",
+  "execution_allowed": false,
+  "mutation_authority": false,
+  "live_shutdown_allowed": false,
+  "live_quarantine_allowed": false,
+  "simulations": [
+    {"target_worker": "spot-worker-01", "locked_role": "general", "expected_loss_mode": "unreachable"},
+    {"target_worker": "spot-worker-02", "locked_role": "utility", "expected_loss_mode": "unreachable"},
+    {"target_worker": "spot-worker-03", "locked_role": "coding", "expected_loss_mode": "unreachable"},
+    {"target_worker": "spot-worker-04", "locked_role": "heavy", "expected_loss_mode": "unreachable"},
+    {"target_worker": "spot-worker-05", "locked_role": "review", "expected_loss_mode": "unreachable"},
+    {"target_worker": "spot-worker-06", "locked_role": "reasoning", "expected_loss_mode": "unreachable"}
+  ]
+}
