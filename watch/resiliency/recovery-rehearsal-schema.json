@@ -1,0 +1,16 @@
+{
+  "module": "recovery_rehearsal_program",
+  "mode": "design_only",
+  "execution_allowed": false,
+  "mutation_authority": false,
+  "required_fields": [
+    "timestamp",
+    "worker",
+    "role",
+    "recovery_source",
+    "manifest_reference",
+    "validation_reference",
+    "operator",
+    "result"
+  ]
+}
