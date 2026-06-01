@@ -1,0 +1,15 @@
+{
+  "module": "rebuild_validation_checklist",
+  "mode": "design_only",
+  "execution_allowed": false,
+  "mutation_authority": false,
+  "required_checks": [
+    "hostname_verified",
+    "ssh_operational",
+    "mounts_active",
+    "ollama_operational",
+    "gpu_visible",
+    "role_preserved",
+    "fleet_validation_pass"
+  ]
+}

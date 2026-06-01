@@ -1,0 +1,14 @@
+{
+  "module": "fleet_backup_inventory",
+  "mode": "design_only",
+  "execution_allowed": false,
+  "mutation_authority": false,
+  "required_inventory": [
+    "worker_backups",
+    "metadata_files",
+    "verification_markers",
+    "restore_references",
+    "backup_timestamps",
+    "retention_visibility"
+  ]
+}

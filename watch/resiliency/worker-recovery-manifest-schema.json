@@ -1,0 +1,21 @@
+{
+  "module": "worker_recovery_manifest",
+  "mode": "design_only",
+  "execution_allowed": false,
+  "mutation_authority": false,
+  "required_fields": [
+    "worker_name",
+    "role",
+    "hostname",
+    "ip_address",
+    "operating_system",
+    "hardware_profile",
+    "gpu_profile",
+    "storage_layout",
+    "mount_requirements",
+    "required_models",
+    "validation_commands",
+    "recovery_source",
+    "manifest_version"
+  ]
+}
