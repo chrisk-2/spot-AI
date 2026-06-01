@@ -1,0 +1,32 @@
+{
+  "module": "fleet_resiliency_hardening",
+  "mode": "design_only",
+  "mutation_authority": false,
+  "execution_allowed": false,
+  "spot_core_executor_only": true,
+  "locked_roles": {
+    "general": "spot-worker-01",
+    "utility": "spot-worker-02",
+    "coding": "spot-worker-03",
+    "heavy": "spot-worker-04",
+    "review": "spot-worker-05",
+    "reasoning": "spot-worker-06"
+  },
+  "rehearsals": [
+    {
+      "name": "node_loss_simulation",
+      "allowed": true,
+      "live_shutdown_allowed": false
+    },
+    {
+      "name": "backup_restore_drill",
+      "allowed": true,
+      "live_restore_allowed": false
+    },
+    {
+      "name": "disaster_recovery_verification",
+      "allowed": true,
+      "live_rebuild_allowed": false
+    }
+  ]
+}
