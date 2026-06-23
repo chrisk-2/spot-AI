@@ -1,0 +1,8 @@
+{
+  "required_fields": ["action_type", "risk"],
+  "allowed_risk": ["low", "medium", "high"],
+  "risk_floor_rules": [
+    {"match": ["firewall", "wan", "opnsense", "unifi", "vlan", "routing", "dhcp", "dns"], "minimum": "medium"},
+    {"match": ["lockout", "management", "worker_subnet", "default_route"], "minimum": "high"}
+  ]
+}

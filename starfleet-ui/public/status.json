@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-05-18T23:53:11Z",
+  "timestamp_utc": "2026-05-27T14:27:07Z",
   "result": "PASS",
   "summary": {
     "hosts_ping": "13/13",
@@ -13,7 +13,7 @@
       "ip": "192.168.1.1",
       "role": "OPNsense",
       "ping": "OK",
-      "latency_ms": 0.112,
+      "latency_ms": 0.14,
       "health": "OK",
       "services": {
         "443": "OK"
@@ -24,7 +24,7 @@
       "ip": "192.168.60.10",
       "role": "DNS Core",
       "ping": "OK",
-      "latency_ms": 0.463,
+      "latency_ms": 0.469,
       "health": "OK",
       "services": {
         "22": "OK",
@@ -36,7 +36,7 @@
       "ip": "192.168.60.20",
       "role": "NPM UniFi DNS NTP",
       "ping": "OK",
-      "latency_ms": 0.327,
+      "latency_ms": 0.265,
       "health": "OK",
       "services": {
         "22": "OK",
@@ -50,7 +50,7 @@
       "ip": "192.168.60.30",
       "role": "Spot Core API",
       "ping": "OK",
-      "latency_ms": 0.018,
+      "latency_ms": 0.032,
       "health": "OK",
       "services": {
         "22": "OK",
@@ -62,7 +62,7 @@
       "ip": "192.168.50.10",
       "role": "NAS NFS",
       "ping": "OK",
-      "latency_ms": 0.222,
+      "latency_ms": 0.239,
       "health": "OK",
       "services": {
         "2049": "OK"
@@ -73,7 +73,7 @@
       "ip": "192.168.30.5",
       "role": "Tower",
       "ping": "OK",
-      "latency_ms": 0.369,
+      "latency_ms": 0.359,
       "health": "OK",
       "services": {
         "22": "OK"
@@ -84,7 +84,7 @@
       "ip": "192.168.10.10",
       "role": "general",
       "ping": "OK",
-      "latency_ms": 0.569,
+      "latency_ms": 0.324,
       "health": "OK",
       "services": {
         "22": "OK",
@@ -96,7 +96,7 @@
       "ip": "192.168.10.11",
       "role": "utility/watcher",
       "ping": "OK",
-      "latency_ms": 0.19,
+      "latency_ms": 0.251,
       "health": "OK",
       "services": {
         "22": "OK",
@@ -108,7 +108,7 @@
       "ip": "192.168.10.12",
       "role": "ui",
       "ping": "OK",
-      "latency_ms": 0.887,
+      "latency_ms": 0.849,
       "health": "OK",
       "services": {
         "22": "OK"
@@ -119,7 +119,7 @@
       "ip": "192.168.10.13",
       "role": "coding",
       "ping": "OK",
-      "latency_ms": 0.305,
+      "latency_ms": 0.634,
       "health": "OK",
       "services": {
         "22": "OK",
@@ -131,7 +131,7 @@
       "ip": "192.168.10.14",
       "role": "heavy",
       "ping": "OK",
-      "latency_ms": 0.389,
+      "latency_ms": 0.355,
       "health": "OK",
       "services": {
         "22": "OK",
@@ -143,7 +143,7 @@
       "ip": "192.168.10.15",
       "role": "review",
       "ping": "OK",
-      "latency_ms": 0.333,
+      "latency_ms": 0.354,
       "health": "OK",
       "services": {
         "22": "OK",
@@ -155,7 +155,7 @@
       "ip": "192.168.10.16",
       "role": "reasoning",
       "ping": "OK",
-      "latency_ms": 0.297,
+      "latency_ms": 0.298,
       "health": "OK",
       "services": {
         "22": "OK",

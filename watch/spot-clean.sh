@@ -33,11 +33,14 @@ safe_move() {
     echo
 
     echo "## git status before"
-    git status --short
+    git status --short || true
     echo
 
     echo "## removing pycache"
-    find . -type d -name '__pycache__' -prune -print -exec rm -rf {} +
+    while IFS= read -r pycache_dir; do
+        echo "removing $pycache_dir"
+        rm -rf "$pycache_dir" 2>/dev/null || echo "SKIP (permission denied): $pycache_dir"
+    done < <(find . -type d -name '__pycache__' 2>/dev/null || true)
 
     echo
     echo "## quarantining generated failure tests"
@@ -65,7 +68,7 @@ safe_move() {
 
     echo
     echo "## git status after"
-    git status --short
+    git status --short || true
 
 } | tee "$REPORT"
 

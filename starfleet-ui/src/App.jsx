@@ -1,916 +1,579 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from "react";
+import "./App.css";
 
-const fallback = {
-  timestamp_utc: 'waiting',
-  result: 'WARN',
-  summary: { hosts_ping: '0/0', services: '0/0', warnings: 0 },
-  hosts: []
+const READINESS_URL = "/operator/readiness";
+const ALERTS_LOG    = "/operator/alerts";
+const API_BASE      = "https://api.starfleetcore.com";
+const ADMIN_TOKEN   = "39f35fb1c5825708704a40bfe015f5b547ea23f74fffc2fd813253ef7593d156";
+const POLL_MS       = 10_000;
+const ALERTS_POLL   = 15_000;
+
+async function sha256hex(str) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
 }
 
-const navItems = [
-  ['overview', '01', 'BRIDGE OVERVIEW', 'Fleet Summary'],
-  ['nodes', '02', 'FLEET NODES', 'Node Inspector'],
-  ['map', '03', 'SYSTEM MAP', 'Network Topology'],
-  ['services', '04', 'SERVICES', '& Status'],
-  ['performance', '05', 'PERFORMANCE', 'Metrics & GPUs'],
-  ['alerts', '06', 'ALERTS', 'Active Alerts'],
-  ['logs', '07', 'LOGS', 'Event Console'],
-  ['settings', '08', 'SETTINGS', 'Policy & Config'],
-  ['terminal', '09', 'TERMINAL', 'Operator Console'],
-  ['ai-chat', '10', 'AI CHAT', 'Spot Interface']
-]
-
-const workerOrder = [
-  ['spot-worker-01', 'W-1', 'GENERAL LANE'],
-  ['spot-worker-02', 'W-2', 'UTILITY LANE'],
-  ['spot-worker-03', 'W-3', 'CODING LANE'],
-  ['spot-worker-04', 'W-4', 'HEAVY LANE'],
-  ['spot-worker-05', 'W-5', 'REVIEW LANE'],
-  ['spot-worker-06', 'W-6', 'REASONING LANE']
-]
-
-function statusDot(status) {
-  if (status === 'OK' || status === 'PASS') return 'bg-emerald-400 shadow-emerald-400'
-  if (status === 'WARN') return 'bg-yellow-300 shadow-yellow-300'
-  return 'bg-red-500 shadow-red-500'
-}
-
-function resultText(result) {
-  return result === 'PASS' ? 'ALL SYSTEMS NOMINAL' : `STATUS ${result || 'UNKNOWN'}`
-}
-
-function serviceList(services = {}) {
-  return Object.entries(services || {}).map(([port, state]) => `${port}:${state}`).join('  ')
-}
-
-function getHost(hosts, name) {
-  return hosts.find(h => h.host === name)
-}
-
-function HostStatus({ host }) {
-  return (
-    <span className="flex items-center gap-2">
-      <span className={`h-2.5 w-2.5 rounded-full shadow-lg ${statusDot(host?.health || 'FAIL')}`} />
-      <span>{host?.health || 'OFFLINE'}</span>
-    </span>
-  )
-}
-
-function PanelTitle({ title, subtitle, data }) {
-  return (
-    <div className="flex justify-between">
-      <div>
-        <div className="text-2xl text-indigo-300 tracking-widest font-black">{title}</div>
-        <div className="text-xs text-slate-400">{subtitle}</div>
-      </div>
-      <div className="text-right text-xs text-slate-500">
-        STARDATE<br />{data.timestamp_utc}
-      </div>
-    </div>
-  )
-}
-
-function MetricCards({ data }) {
-  return (
-    <div className="grid grid-cols-4 gap-3 mt-4">
-      <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-4">
-        <div className="text-xs text-slate-400">HOSTS ONLINE</div>
-        <div className="text-3xl text-emerald-400 font-black">{data.summary?.hosts_ping || '0/0'}</div>
-        <div className="text-xs text-emerald-400">PRIMARY GRID</div>
-      </div>
-      <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-4">
-        <div className="text-xs text-slate-400">SERVICES HEALTHY</div>
-        <div className="text-3xl text-emerald-400 font-black">{data.summary?.services || '0/0'}</div>
-        <div className="text-xs text-emerald-400">PORT MATRIX</div>
-      </div>
-      <div className="rounded-lg border border-yellow-500/30 bg-yellow-950/10 p-4">
-        <div className="text-xs text-slate-400">WARNINGS</div>
-        <div className="text-3xl text-yellow-300 font-black">{data.summary?.warnings ?? 0}</div>
-        <div className="text-xs text-yellow-300">ACTIVE ALERTS</div>
-      </div>
-      <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-4">
-        <div className="text-xs text-slate-400">CONTROL PLANE</div>
-        <div className="text-xl text-emerald-400 font-black mt-2">SPOT CORE OK</div>
-        <div className="text-xs text-emerald-400">POLICY AUTHORITY</div>
-      </div>
-    </div>
-  )
-}
-
-function StarMap({ hosts, tall = false }) {
-  const mapHosts = [
-    ['spot-core', 'SPOT-CORE', '50%', '50%'],
-    ['starfleet-core', 'STARFLEET-CORE', '50%', '14%'],
-    ['dns-core', 'DNS-CORE', '73%', '22%'],
-    ['unimatrix6', 'UNIMATRIX6', '82%', '50%'],
-    ['starfleet-tower', 'STARFLEET-TOWER', '24%', '34%'],
-    ['spot-worker-01', 'WORKER-01', '25%', '70%'],
-    ['spot-worker-02', 'WORKER-02', '18%', '58%'],
-    ['spot-worker-03', 'WORKER-03', '33%', '80%'],
-    ['spot-worker-04', 'WORKER-04', '74%', '70%'],
-    ['spot-worker-05', 'WORKER-05', '60%', '82%'],
-    ['spot-worker-06', 'WORKER-06', '50%', '78%']
-  ]
-
-  const stars = [
-    ['8%', '18%'], ['14%', '76%'], ['22%', '12%'], ['34%', '20%'], ['39%', '64%'],
-    ['66%', '13%'], ['88%', '28%'], ['91%', '73%'], ['76%', '84%'], ['58%', '25%'],
-    ['45%', '88%'], ['11%', '47%'], ['69%', '55%'], ['31%', '91%']
-  ]
-
-  return (
-    <div className={`relative ${tall ? 'h-[520px]' : 'h-[245px]'} rounded-xl overflow-hidden border border-cyan-500/30 bg-[#020817]`}>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#0ea5e944_0%,#0b3a7055_12%,transparent_13%),repeating-radial-gradient(circle_at_center,transparent_0_20px,#0ea5e933_21px,#0ea5e933_22px,transparent_23px_38px)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_49.7%,#0ea5e955_50%,transparent_50.3%),linear-gradient(0deg,transparent_49.7%,#0ea5e955_50%,transparent_50.3%)]" />
-
-      {stars.map(([left, top], i) => (
-        <span key={i} className="absolute h-1 w-1 rounded-full bg-yellow-200 shadow-[0_0_8px_rgba(250,204,21,0.9)]" style={{ left, top }} />
-      ))}
-
-      {mapHosts.map(([name, label, left, top]) => {
-        const host = getHost(hosts, name)
-        return (
-          <div key={name} className="absolute -translate-x-1/2 -translate-y-1/2 text-[10px] text-slate-200" style={{ left, top }}>
-            <div className="flex flex-col items-center gap-1">
-              <span className={`h-3 w-3 rounded-full shadow-lg ${statusDot(host?.health || 'OK')}`} />
-              <span>{label}</span>
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function WorkerCard({ host, label, lane, route }) {
-  const roleColors = {
-    'W-1': 'border-emerald-500/40 text-emerald-300',
-    'W-2': 'border-cyan-500/40 text-cyan-300',
-    'W-3': 'border-blue-500/40 text-blue-300',
-    'W-4': 'border-purple-500/40 text-purple-300',
-    'W-5': 'border-yellow-500/40 text-yellow-300',
-    'W-6': 'border-teal-500/40 text-teal-300'
+function useAuth() {
+  const [authed, setAuthed] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [authErr, setAuthErr] = useState(false);
+  async function tryAuth(passphrase) {
+    const hash = await sha256hex(passphrase.trim());
+    if (hash === "bc722a35347a3224ad4770057548560019c5bf023e92e50c8d6be2943cb0126d") { setAuthed(true); setShowLogin(false); setAuthErr(false); }
+    else { setAuthErr(true); }
   }
+  function logout() { setAuthed(false); setAuthErr(false); }
+  return { authed, showLogin, setShowLogin, authErr, setAuthErr, tryAuth, logout };
+}
 
+function LoginModal({ authErr, setAuthErr, tryAuth, onClose }) {
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function submit() {
+    if (!input.trim() || busy) return;
+    setBusy(true); await tryAuth(input); setBusy(false);
+  }
   return (
-    <div className={`rounded-xl border ${roleColors[label]} bg-slate-950/90 p-2 min-w-0 h-full overflow-hidden`}>
-      <div className="flex items-center justify-between">
-        <div className="text-lg font-black">{label}</div>
-        <HostStatus host={host} />
-      </div>
-      <div className="mt-1 text-white font-bold truncate">{host?.host || label}</div>
-      <div className="text-xs text-slate-400">{lane}</div>
-      <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
-        <div><div className="text-slate-500">MODEL</div><div className="text-emerald-400 truncate">{route?.selected_model || route?.final_model || 'idle'}</div></div>
-        <div><div className="text-slate-500">GPU</div><div className="text-emerald-400 truncate">{route?.final_gpu_label || 'idle'}</div></div>
-        <div><div className="text-slate-500">ROUTE</div><div className="text-emerald-400">{route?.route_class || 'standby'}</div></div>
-        <div><div className="text-slate-500">OWNER</div><div className="text-emerald-400">{route?.ownership_ok === false ? 'NO' : 'OK'}</div></div>
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget){onClose();setAuthErr(false);}}}>
+      <div className="login-card">
+        <div className="login-header">
+          <div className="login-logo"><img src="/spot-core-badge.png" alt="Spot Core" className="login-badge"/></div>
+          <div className="login-title-block">
+            <span className="login-title">OPERATOR ACCESS</span>
+            <span className="login-sub">STARFLEET COMMAND · SECURE CHANNEL</span>
+          </div>
+        </div>
+        <div className="login-divider"/>
+        <div className="login-body">
+          <div className="login-label">ENTER ACCESS CODE</div>
+          <div className="login-field-wrap">
+            <input className={`login-input${authErr?" login-input-err":""}`} type="password"
+              placeholder="Access code..." value={input}
+              onChange={e=>{setInput(e.target.value);setAuthErr(false);}}
+              onKeyDown={e=>e.key==="Enter"&&submit()} autoFocus/>
+            <button className="login-btn" onClick={submit} disabled={busy}>{busy?"...":"AUTHENTICATE"}</button>
+          </div>
+          {authErr&&<div className="login-err">ACCESS DENIED - INVALID CODE</div>}
+        </div>
+        <div className="login-footer"><span className="login-footer-text">AUTHORIZED PERSONNEL ONLY</span></div>
       </div>
     </div>
-  )
+  );
 }
 
-function FleetTable({ hosts, large = false }) {
-  return (
-    <div className="rounded-xl border border-cyan-500/30 bg-slate-950 overflow-hidden flex-1 flex flex-col min-h-0">
-      <div className="flex justify-between px-4 py-3 border-b border-cyan-500/20">
-        <div className="text-cyan-300 font-bold">FLEET NODES — LIVE STATUS</div>
-        <div className="text-xs text-slate-400">GREEN = GOOD / RED = BROKEN / YELLOW = WARNING</div>
-      </div>
-      <div className={large ? 'flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-1 starfleet-scroll' : 'flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-1 starfleet-scroll'}>
-        <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-slate-900 text-slate-400">
-            <tr>
-              <th className="text-left p-2">STATUS</th>
-              <th className="text-left p-2">HOST</th>
-              <th className="text-left p-2">ROLE</th>
-              <th className="text-left p-2">IP</th>
-              <th className="text-left p-2">LATENCY</th>
-              <th className="text-left p-2">SERVICES</th>
-            </tr>
-          </thead>
-          <tbody>
-            {hosts.map(h => (
-              <tr key={h.host} className="border-t border-slate-800 hover:bg-cyan-950/20">
-                <td className="p-2"><HostStatus host={h} /></td>
-                <td className="p-2 font-bold">{h.host}</td>
-                <td className="p-2">{h.role}</td>
-                <td className="p-2 text-cyan-300">{h.ip}</td>
-                <td className="p-2 text-orange-300">{h.latency_ms ?? '-'} ms</td>
-                <td className="p-2">{serviceList(h.services)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-function Overview({ data, hosts, workers }) {
-  return (
-    <>
-      <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4 shrink-0">
-        <PanelTitle title="BRIDGE OVERVIEW" subtitle="Real-time fleet command summary" data={data} />
-        <MetricCards data={data} />
-      </section>
-
-      <section className="grid grid-cols-2 gap-2">
-        <div className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4 min-h-[250px]">
-          <div className="text-cyan-300 font-bold mb-3">FLEET HEALTH MATRIX</div>
-          <div className="flex items-center gap-5">
-            <div className="h-36 w-36 rounded-full border-8 border-emerald-500 flex items-center justify-center shadow-[0_0_35px_rgba(16,185,129,.4)]">
-              <div className="text-center">
-                <div className="text-4xl text-emerald-400 font-black">100%</div>
-                <div className="text-xs text-emerald-400">FLEET HEALTH</div>
-              </div>
-            </div>
-            <div className="flex-1 space-y-3 text-sm">
-              <div className="flex justify-between"><span>Nodes Online</span><span>{data.summary?.hosts_ping}</span></div>
-              <div className="flex justify-between"><span>Services Healthy</span><span>{data.summary?.services}</span></div>
-              <div className="flex justify-between"><span>Quarantine</span><span>0</span></div>
-              <div className="flex justify-between"><span>Remediation</span><span>0 Active</span></div>
-              <div className="flex justify-between"><span>Review Gate</span><span>Clear</span></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
-          <div className="flex justify-between mb-3">
-            <div className="text-cyan-300 font-bold">GALACTIC SYSTEM MAP</div>
-            <div className="text-xs text-slate-400">LOCAL SECTOR / NODE COUNT: {hosts.length}</div>
-          </div>
-          <StarMap hosts={hosts} />
-        </div>
-      </section>
-
-      <FleetTable hosts={hosts} />
-    </>
-  )
-}
-
-function NodesView({ data, hosts, workers }) {
-  return (
-    <>
-      <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
-        <PanelTitle title="FLEET NODES" subtitle="Expanded node inspector and worker lane status" data={data} />
-        <div className="grid grid-cols-6 gap-2 mt-4">
-          {workers.map(w => <WorkerCard key={w.name} host={w.host} label={w.label} lane={w.lane} />)}
-        </div>
-      </section>
-      <FleetTable hosts={hosts} large />
-    </>
-  )
-}
-
-function MapView({ data, hosts }) {
-  return (
-    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
-      <PanelTitle title="SYSTEM MAP" subtitle="Expanded local-sector fleet topology" data={data} />
-      <div className="mt-4">
-        <StarMap hosts={hosts} tall />
-      </div>
-    </section>
-  )
-}
-
-function ServicesView({ data, hosts, ports }) {
-  return (
-    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
-      <PanelTitle title="SERVICES" subtitle="Port and service health matrix" data={data} />
-      <div className="grid grid-cols-8 gap-3 mt-5">
-        {ports.map(p => (
-          <div key={p} className="rounded-lg border border-cyan-500/20 bg-cyan-950/10 p-4 text-center">
-            <div className="text-xs text-slate-400">PORT</div>
-            <div className="text-xl text-cyan-300 font-black">{p}</div>
-            <div className="mx-auto mt-2 h-4 w-4 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400" />
-          </div>
-        ))}
-      </div>
-      <div className="mt-5">
-        <FleetTable hosts={hosts} large />
-      </div>
-    </section>
-  )
-}
-
-function PerformanceView({ data, workers }) {
-  return (
-    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
-      <PanelTitle title="PERFORMANCE" subtitle="Telemetry feed not wired yet — placeholders removed" data={data} />
-      <div className="grid grid-cols-3 gap-4 mt-5">
-        {workers.map(w => (
-          <div key={w.name} className="rounded-xl border border-blue-500/30 bg-blue-950/10 p-4">
-            <div className="flex justify-between">
-              <div className="text-cyan-300 font-bold">{w.label} {w.host?.host || w.name}</div>
-              <HostStatus host={w.host} />
-            </div>
-            <div className="mt-4 rounded-lg border border-yellow-500/20 bg-yellow-950/10 p-3 text-sm text-yellow-200">
-              Worker performance telemetry is not published to this UI feed yet.
-            </div>
-            <div className="mt-3 text-xs text-slate-400">
-              Status source available: {w.host?.health || 'OFFLINE'}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function AlertsView({ data, runtimeHealth, routingAudit, governanceEvents }) {
-  const warnings = data.summary?.warnings ?? 0
-  const findings = runtimeHealth?.findings || []
-  const fallbackCount = routingAudit?.fallback_count ?? routingAudit?.summary?.fallback_count ?? 0
-  const violationCount = routingAudit?.violation_count ?? routingAudit?.summary?.violation_count ?? 0
-  return (
-    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
-      <PanelTitle title="ALERTS" subtitle="Incident, quarantine, and warning state" data={data} />
-      <div className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-10 text-center">
-        <div className="text-6xl text-emerald-400">✓</div>
-        <div className="text-2xl text-emerald-400 font-black mt-4">{warnings} ACTIVE WARNINGS</div>
-        <div className="text-slate-400 mt-2">Runtime findings: {findings.length}</div>
-        <div className="text-slate-400 mt-1">Routing fallbacks: {fallbackCount} / violations: {violationCount}</div>
-        <div className="text-slate-400 mt-1">Governance events: {governanceEvents?.count ?? '--'}</div>
-      </div>
-    </section>
-  )
-}
-
-function LogsView({ data, lastPull, error, governanceEvents, routingAudit, apiError }) {
-  const rows = [
-    ['SYSTEM', `Fleet result: ${data.result || 'UNKNOWN'}`],
-    ['NETWORK', `${data.summary?.hosts_ping} hosts responding`],
-    ['SERVICES', `${data.summary?.services} services healthy`],
-    ['GOVERNANCE', `events=${governanceEvents?.count ?? '--'} invalid=${governanceEvents?.invalid_lines ?? '--'} mode=${governanceEvents?.mode ?? '--'}`],
-    ['AUTHORITY', `executor=${governanceEvents?.executor ?? 'spot-core'} mutation_authority=${String(governanceEvents?.mutation_authority ?? false)}`],
-    ['ROUTING', `fallbacks=${routingAudit?.fallback_count ?? routingAudit?.summary?.fallback_count ?? '--'} violations=${routingAudit?.violation_count ?? routingAudit?.summary?.violation_count ?? '--'}`]
-  ]
-  return (
-    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
-      <PanelTitle title="LOGS" subtitle="Live event console placeholder" data={data} />
-      <div className="mt-5 rounded-xl border border-blue-500/30 bg-black/60 p-4 h-[540px] overflow-auto text-sm">
-        {rows.map(([type, msg], i) => (
-          <div key={i} className="grid grid-cols-[120px_120px_1fr] border-b border-slate-800 py-3">
-            <span className="text-cyan-300">{lastPull}</span>
-            <span className="text-emerald-400">{type}</span>
-            <span>{msg}</span>
-          </div>
-        ))}
-        {error && <div className="text-yellow-300 mt-3">WARN UI pull: {error}</div>}
-        {apiError && <div className="text-yellow-300 mt-3">WARN API pull: {apiError}</div>}
-      </div>
-    </section>
-  )
-}
-
-function SettingsView({ data }) {
-  return (
-    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
-      <PanelTitle title="SETTINGS" subtitle="Read-only policy and config state" data={data} />
-      <div className="grid grid-cols-2 gap-4 mt-5">
-        <div className="rounded-xl border border-orange-500/30 bg-orange-950/10 p-4">
-          <div className="text-orange-300 font-bold">POLICY MODE</div>
-          <div className="text-2xl text-orange-400 mt-3">CONTROLLED / READ-ONLY UI</div>
-          <div className="text-slate-400 mt-2">No remediation from frontend. Spot Core remains authority.</div>
-        </div>
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-4">
-          <div className="text-emerald-300 font-bold">BACKUP GATE</div>
-          <div className="text-2xl text-emerald-400 mt-3">ENFORCED</div>
-          <div className="text-slate-400 mt-2">No backup, no change.</div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function TerminalView({ data }) {
-  const terminalSrc = "http://192.168.60.30:7681"
-
-  return (
-    <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4 flex flex-col min-h-0 h-full">
-      <PanelTitle title="OGRE OPERATOR TERMINAL" subtitle="Real ttyd shell terminal on spot-core" data={data} />
-
-      <div className="mt-4 rounded-xl border border-orange-500/30 bg-orange-950/10 p-3 text-xs text-orange-200">
-        Real terminal session. This is not AI chat. This is Ogre operator access.
-      </div>
-
-      <div className="mt-4 flex-1 min-h-0 overflow-hidden rounded-xl border border-cyan-500/30 bg-black">
-        <iframe
-          src={terminalSrc}
-          title="Spot Core ttyd Terminal"
-          className="h-full w-full border-0 bg-black"
-        />
-      </div>
-    </section>
-  )
-}
-
-function AiChatView({ data, spotCoreBase }) {
-  const [messages, setMessages] = useState([
-    { role: 'spot', text: 'Spot interface online. Advisory mode only. No execution authority from chat.' }
-  ])
-  const [input, setInput] = useState('')
-  const [voiceEnabled, setVoiceEnabled] = useState(false)
-  const [soundEnabled, setSoundEnabled] = useState(false)
-  const [cameraEnabled, setCameraEnabled] = useState(false)
-  const [mediaError, setMediaError] = useState('')
-  const [chatBusy, setChatBusy] = useState(false)
-
-  async function sendMessage(textOverride = null) {
-    const text = (textOverride || input).trim()
-    if (!text) return
-
-    setMessages(prev => [...prev, { role: 'operator', text }])
-    setInput('')
-    setChatBusy(true)
-
-    try {
-      const res = await fetch(`${spotCoreBase}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          role: 'general',
-          mode: 'advisory',
-          source: 'starfleet-ui'
-        })
-      })
-
-      const json = await res.json().catch(() => ({}))
-      const reply = res.ok
-        ? (json.reply || 'No reply returned.')
-        : `HTTP ${res.status}: ${JSON.stringify(json)}`
-
-      setMessages(prev => [...prev, {
-        role: 'spot',
-        text: `${reply}\n\nworker=${json.worker || 'n/a'} model=${json.model || 'n/a'} execution_allowed=${String(json.execution_allowed ?? false)}`
-      }])
-
-      if (soundEnabled && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel()
-        window.speechSynthesis.speak(new SpeechSynthesisUtterance(reply))
-      }
-    } catch (err) {
-      setMessages(prev => [...prev, { role: 'spot', text: `ERROR: ${String(err.message || err)}` }])
-    } finally {
-      setChatBusy(false)
+function useFleet() {
+  const [data,setData]=useState(null);
+  const [error,setError]=useState(false);
+  useEffect(()=>{
+    async function poll(){
+      try{const r=await fetch(READINESS_URL);if(!r.ok)throw new Error();setData(await r.json());setError(false);}
+      catch{setError(true);}
     }
-  }
+    poll();const id=setInterval(poll,POLL_MS);return()=>clearInterval(id);
+  },[]);
+  return{data,error};
+}
 
-  async function enableCamera() {
-    try {
-      setMediaError('')
-      await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      setCameraEnabled(true)
-    } catch (err) {
-      setMediaError(String(err.message || err))
-      setCameraEnabled(false)
-    }
-  }
+function useAlerts() {
+  const [alerts,setAlerts]=useState([]);
+  const fetchAlerts=useCallback(async()=>{
+    try{
+      const r=await fetch(ALERTS_LOG);if(!r.ok)throw new Error();
+      const text=await r.text();
+      const parsed=text.trim().split("\n").filter(Boolean).map(l=>{try{return JSON.parse(l);}catch{return null;}}).filter(Boolean);
+      const alertEvents=["recover_fail","recover_success","recover_attempt_start","wake_send","wake_sent","recover_ping_fail","recover_cooldown_skip","spot_assessment"];
+      setAlerts(parsed.filter(e=>alertEvents.includes(e.event)).slice(-50).reverse());
+    }catch{}
+  },[]);
+  useEffect(()=>{fetchAlerts();const id=setInterval(fetchAlerts,ALERTS_POLL);return()=>clearInterval(id);},[fetchAlerts]);
+  return alerts;
+}
 
-  async function enableVoice() {
-    try {
-      setMediaError('')
-      await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-      setVoiceEnabled(true)
+function useClock(){
+  const [now,setNow]=useState(new Date());
+  useEffect(()=>{const id=setInterval(()=>setNow(new Date()),1000);return()=>clearInterval(id);},[]);
+  return now;
+}
 
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-      if (SpeechRecognition) {
-        const rec = new SpeechRecognition()
-        rec.lang = 'en-US'
-        rec.interimResults = false
-        rec.maxAlternatives = 1
-        rec.onresult = event => {
-          const spoken = event.results?.[0]?.[0]?.transcript || ''
-          if (spoken) sendMessage(spoken)
-        }
-        rec.onerror = event => setMediaError(`speech recognition: ${event.error}`)
-        rec.start()
-      } else {
-        setMediaError('speech recognition unavailable in this browser')
-      }
-    } catch (err) {
-      setMediaError(String(err.message || err))
-      setVoiceEnabled(false)
-    }
-  }
+function fmt(d){return d?d.toISOString().replace("T"," ").slice(0,19):"—";}
+function healthPct(fleet){
+  if(!fleet)return 100;
+  const t=fleet.worker_count||1,b=(fleet.worker_failures||0)+(fleet.quarantined||0);
+  return Math.round(((t-b)/t)*100);
+}
+function workerStatus(w){
+  if(!w)return{label:"—",cls:"dim"};
+  if(w.quarantined)return{label:"QUARANTINE",cls:"bad"};
+  if(w.degraded)return{label:"DEGRADED",cls:"warn"};
+  if(!w.ok)return{label:"OFFLINE",cls:"bad"};
+  if((w.latency?.p50_total_ms||0)>5000)return{label:"SLOW",cls:"warn"};
+  return{label:"ONLINE",cls:"ok"};
+}
+function alertMeta(event){
+  const m={
+    recover_fail:{cls:"bad",label:"RECOVERY FAILED",icon:"X"},
+    recover_ping_fail:{cls:"bad",label:"PING FAILED",icon:"X"},
+    recover_success:{cls:"ok",label:"RECOVERED",icon:"OK"},
+    recover_attempt_start:{cls:"warn",label:"RECOVERY ATTEMPT",icon:">>"},
+    wake_send:{cls:"warn",label:"WOL PACKET SENT",icon:"!"},
+    wake_sent:{cls:"ok",label:"WOL SENT OK",icon:"!"},
+    recover_cooldown_skip:{cls:"dim",label:"COOLDOWN",icon:"-"},
+    spot_assessment:{cls:"warn",label:"SPOT ASSESSMENT",icon:"*"},
+  };
+  return m[event]||{cls:"dim",label:event.toUpperCase(),icon:"."};
+}
+function relTime(ts){
+  const d=Math.floor((Date.now()-new Date(ts).getTime())/1000);
+  if(d<60)return`${d}s ago`;if(d<3600)return`${Math.floor(d/60)}m ago`;
+  return`${Math.floor(d/3600)}h ago`;
+}
+function parseSpotAction(text){
+  const m=text.match(/```spot_action\s*([\s\S]*?)```/);if(!m)return null;
+  try{return JSON.parse(m[1].trim());}catch{return null;}
+}
+function stripSpotAction(text){return text.replace(/```spot_action[\s\S]*?```/g,"").trim();}
 
-  return (
-    <section className="grid grid-cols-[360px_minmax(0,1fr)] gap-2 min-h-0 flex-1">
-      <div className="rounded-xl border border-cyan-500/30 bg-[#020817] p-4 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-cyan-300 text-xl font-black">SPOT AI</div>
-            <div className="text-xs text-slate-400">Conversational interface / advisory mode</div>
-          </div>
-          <div className="text-emerald-400 text-xs">● ONLINE</div>
-        </div>
+const NAV_ITEMS_PUBLIC=[["DASHBOARD","#FFB347"],["ASSETS","#CC44FF"]];
+const NAV_ITEMS_OPERATOR=[["DASHBOARD","#FFB347"],["SYSTEMS","#3399FF"],["ASSETS","#CC44FF"],["ALERTS","#FF3366"],["LOGS","#00FFCC"],["SETTINGS","#446688"],["DOCS","#335566"]];
 
-        <div className="relative mt-4 flex-1 min-h-[360px] rounded-xl border border-cyan-500/20 bg-black overflow-hidden flex items-center justify-center">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,.22),transparent_50%)]" />
-          <div className="absolute inset-0 opacity-25 bg-[linear-gradient(rgba(34,211,238,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,.08)_1px,transparent_1px)] bg-[size:28px_28px]" />
-
-          <div className="relative w-52 h-64 rounded-[45%] border border-cyan-300/40 bg-cyan-950/20 shadow-[0_0_50px_rgba(34,211,238,.25)]">
-            <div className="absolute left-1/2 top-8 h-6 w-20 -translate-x-1/2 rounded-full border border-orange-400/60 text-[9px] text-orange-300 flex items-center justify-center">
-              STARFLEET
-            </div>
-            <div className="absolute left-12 top-28 h-4 w-10 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,.9)]" />
-            <div className="absolute right-12 top-28 h-4 w-10 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,.9)]" />
-            <div className="absolute left-1/2 top-40 h-10 w-24 -translate-x-1/2 rounded-b-full border-b border-cyan-300/50" />
-            <div className="absolute inset-3 rounded-[45%] border border-cyan-400/15" />
-          </div>
-        </div>
-
-        <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-          <button onClick={enableVoice} className={`rounded-lg border p-2 ${voiceEnabled ? 'border-emerald-400 text-emerald-300' : 'border-cyan-500/30 text-cyan-300'}`}>VOICE</button>
-          <button onClick={enableCamera} className={`rounded-lg border p-2 ${cameraEnabled ? 'border-emerald-400 text-emerald-300' : 'border-cyan-500/30 text-cyan-300'}`}>CAMERA</button>
-          <button onClick={() => setSoundEnabled(v => !v)} className={`rounded-lg border p-2 ${soundEnabled ? 'border-emerald-400 text-emerald-300' : 'border-cyan-500/30 text-cyan-300'}`}>SOUND</button>
-        </div>
-
-        {mediaError && <div className="mt-2 text-xs text-yellow-300">MEDIA: {mediaError}</div>}
+function NavRail({active,setActive,authed}){
+  const items=authed?NAV_ITEMS_OPERATOR:NAV_ITEMS_PUBLIC;
+  return(
+    <aside className="nav-rail">
+      <div className="lcars-elbow-top"><div className="elbow-body"/><div className="elbow-cutout"/></div>
+      <div className="nav-brand">
+        <span className="brand-sf">STARFLEET</span><span className="brand-cmd">COMMAND</span>
+        <span className="brand-net">OPERATIONS NETWORK</span>
       </div>
-
-      <div className="rounded-xl border border-cyan-500/30 bg-slate-950 flex flex-col min-h-0 overflow-hidden">
-        <div className="border-b border-cyan-500/20 p-4 flex items-center justify-between">
-          <div>
-            <div className="text-cyan-300 text-xl font-black">STARFLEET AI CHANNEL</div>
-            <div className="text-xs text-slate-400">Chat path: advisory / no direct execution</div>
-          </div>
-          <div className="text-xs text-orange-300">SYSTEM: {data.result || 'UNKNOWN'}</div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto starfleet-scroll p-4 space-y-3">
-          {messages.map((m, i) => (
-            <div key={i} className={`rounded-xl border p-3 max-w-[82%] ${
-              m.role === 'operator'
-                ? 'ml-auto border-orange-500/30 bg-orange-950/20 text-orange-100'
-                : 'border-cyan-500/30 bg-cyan-950/20 text-cyan-100'
-            }`}>
-              <div className="text-[10px] text-slate-400 mb-1">{m.role === 'operator' ? 'OGRE' : 'SPOT'}</div>
-              <div className="text-sm">{m.text}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="border-t border-cyan-500/20 p-3 flex gap-2">
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') sendMessage() }}
-            className="flex-1 rounded-lg border border-cyan-500/30 bg-black/50 px-3 py-3 text-cyan-100 outline-none"
-            placeholder="Talk to Spot..."
-          />
-          <button disabled={chatBusy} onClick={() => sendMessage()} className="rounded-lg border border-cyan-400/40 bg-cyan-950/30 px-5 text-cyan-200 disabled:text-slate-600">
-            {chatBusy ? 'THINKING' : 'SEND'}
+      <div className="nav-list">
+        {items.map(([label,color],i)=>(
+          <button key={label} className={`nav-item${active===i?" active":""}`} onClick={()=>setActive(i)}>
+            <div className="nav-bar" style={{background:color}}>{label}</div>
           </button>
-        </div>
+        ))}
+      </div>
+      <div className="core-badge">
+        <img src="/spot-core-badge.png" alt="Spot Core"/>
+        <span className="badge-name">SPOT CORE</span>
+        <span className="badge-auth">{authed?"AUTHORITY: OPERATOR":"READ ONLY"}</span>
+      </div>
+      <div className="lcars-elbow-bot"><div className="elbow-body-bot"/><div className="elbow-cutout-bot"/></div>
+    </aside>
+  );
+}
+
+function TopBar({data,error,now,authed,onLoginClick,onLogout}){
+  const ok=data?.ok&&!error;
+  return(
+    <header className="top-bar">
+      <div className="top-seg seg-gold"/><div className="top-seg seg-violet">STARFLEET</div>
+      <div className="top-seg seg-blue">COMMAND</div>
+      <div className="top-title">OPERATIONS NETWORK</div>
+      <div className="top-seg seg-dark">SECTOR ALPHA-7</div>
+      <div className="top-status">
+        <span className={`sdot ${ok?"ok":"bad"}`}/>
+        <div><b className={ok?"c-teal":"c-alert"}>{ok?"ALL SYSTEMS NOMINAL":error?"CONNECTION LOST":"LOADING..."}</b><em>{fmt(now)}</em></div>
+      </div>
+      {authed
+        ?<button className="op-btn op-btn-out" onClick={onLogout}>LOGOUT</button>
+        :<button className="op-btn op-btn-in" onClick={onLoginClick}>OPERATOR</button>
+      }
+    </header>
+  );
+}
+
+function MetricsRow({data,error}){
+  const fleet=data?.fleet,core=data?.core,routing=data?.routing;
+  const healthy=fleet?fleet.worker_count-(fleet.worker_failures||0)-(fleet.quarantined||0):"—";
+  const total=fleet?.worker_count??"—",alerts=fleet?(fleet.worker_failures||0)+(fleet.slow_workers?.length||0):"—";
+  const uptime=core?.uptime_sec!=null?`${Math.floor(core.uptime_sec/3600)}h ${Math.floor((core.uptime_sec%3600)/60)}m`:"—";
+  return(
+    <div className="metrics-row">
+      <div className="metric" data-accent="teal"><div className="metric-label">WORKERS ONLINE</div><div className="metric-val c-teal">{error?"—":`${healthy}/${total}`}</div><div className="metric-sub">PRIMARY GRID</div></div>
+      <div className="metric" data-accent="blue"><div className="metric-label">ROUTING HEALTH</div><div className="metric-val c-blue">{routing?`${routing.primaries}P / ${routing.fallbacks}F`:"—"}</div><div className="metric-sub">{routing?.violations?`${routing.violations} VIOLATIONS`:"NO VIOLATIONS"}</div></div>
+      <div className="metric" data-accent="violet"><div className="metric-label">ACTIVE ALERTS</div><div className={`metric-val ${alerts>0?"c-gold":"c-violet"}`}>{error?"—":alerts}</div><div className="metric-sub">{alerts>0?"ATTENTION NEEDED":"NO ACTIVE ALERTS"}</div></div>
+      <div className="metric" data-accent="gold"><div className="metric-label">CONTROL PLANE</div><div className={`metric-val ${core?.ok?"c-gold":"c-alert"}`}>{error?"—":core?.ok?"NOMINAL":"ERROR"}</div><div className="metric-sub">UPTIME {uptime}</div></div>
+    </div>
+  );
+}
+
+const LEFT_TABS=["HEALTH","GOVERNANCE","ROUTING","ALERTS"];
+function LeftPanel({data}){
+  const [tab,setTab]=useState(0);
+  const fleet=data?.fleet,routing=data?.routing;
+  const pct=healthPct(fleet),slow=fleet?.slow_workers?.length||0,alerts=fleet?(fleet.worker_failures||0)+slow:0;
+  return(
+    <div className="panel left-panel">
+      <div className="tab-bar">{LEFT_TABS.map((t,i)=>(<button key={t} className={`tab${tab===i?" active":""}`} onClick={()=>setTab(i)}>{t}</button>))}</div>
+      {tab===0&&(<div className="tab-content">
+        <div className="gauge-bar" style={{"--pct":`${pct}%`}}><span>{pct}% FLEET HEALTH</span></div>
+        {[["Workers Online",fleet?`${fleet.worker_count-(fleet.worker_failures||0)}/${fleet.worker_count}`:"—",""],["Quarantined",fleet?.quarantined??"—",fleet?.quarantined?"warn":""],["Degraded",fleet?.degraded??"—",fleet?.degraded?"warn":""],["Slow Workers",slow,slow?"warn":""],["Review Gate",routing?.violations?"REVIEW":"CLEAR",routing?.violations?"warn":"ok"],["Core Uptime",data?.core?.uptime_sec!=null?`${Math.floor(data.core.uptime_sec/3600)}h ${Math.floor((data.core.uptime_sec%3600)/60)}m`:"—",""]].map(([k,v,cls])=>(<div className="info-row" key={k}><span>{k}</span><b className={cls}>{String(v)}</b></div>))}
+      </div>)}
+      {tab===1&&(<div className="tab-content">
+        {[["Compliance","100%","ok"],["Risk Posture","LOW","ok"],["Policy Drift",routing?.violations??0,routing?.violations?"warn":"ok"],["Exceptions","0","ok"],["Auto Review","ENABLED","ok"],["Gate State",routing?.violations?"REVIEW":"CLEAR",routing?.violations?"warn":"ok"],["Last Violation",routing?.last_violation_ts?new Date(routing.last_violation_ts*1000).toLocaleTimeString():"NONE","ok"],["Manual Ovr",routing?.manual_overrides??0,""]].map(([k,v,cls])=>(<div className="info-row" key={k}><span>{k}</span><b className={cls}>{String(v)}</b></div>))}
+      </div>)}
+      {tab===2&&(<div className="tab-content">
+        {[["Window",routing?.window_count??"—",""],["Primaries",routing?.primaries??"—","ok"],["Fallbacks",routing?.fallbacks??"—",routing?.fallbacks?"warn":"ok"],["Violations",routing?.violations??"—",routing?.violations?"bad":"ok"],["Manual Ovr",routing?.manual_overrides??"—",""]].map(([k,v,cls])=>(<div className="info-row" key={k}><span>{k}</span><b className={cls}>{String(v)}</b></div>))}
+      </div>)}
+      {tab===3&&(<div className="tab-content">
+        {alerts===0?(<div className="no-alerts"><span className="sdot ok lg"/><p>NO ACTIVE ALERTS</p></div>):(<>{slow>0&&fleet?.slow_workers?.map(sw=>(<div className="alert-item warn" key={sw.worker}><b>SLOW WORKER</b><span>{sw.worker}</span><em>P50: {(sw.p50_total_ms/1000).toFixed(1)}s</em></div>))}{fleet?.worker_failures>0&&(<div className="alert-item bad"><b>WORKER FAILURES</b><span>{fleet.worker_failures} workers offline</span></div>)}</>)}
+      </div>)}
+    </div>
+  );
+}
+
+function RadarMap({data}){
+  const workers=data?.fleet?.workers||[],wHealth={};
+  workers.forEach(w=>{const n=w.worker.replace("spot-worker-0","").replace("spot-worker-","");wHealth[n]=workerStatus(w).cls;});
+  const nc=cls=>cls==="ok"?"#00FFCC":cls==="warn"?"#FFD600":cls==="bad"?"#FF3366":"#334455";
+  const stars=[[32,22],[88,48],[145,18],[210,35],[328,20],[412,44],[488,28],[518,65],[18,95],[65,138],[492,85],[525,118],[28,188],[534,168],[12,288],[522,308],[42,368],[515,388],[85,438],[485,455],[208,468],[358,470],[448,425],[105,408],[175,388],[438,378],[125,65],[458,75],[308,55],[388,28],[58,248],[505,248],[278,15],[278,470],[158,158],[398,158],[158,338],[398,338],[250,90],[420,200],[80,320],[340,400],[480,150],[60,190],[290,470],[520,220],[170,480],[440,320],[100,150],[360,80]];
+  return(
+    <section className="panel map-panel">
+      <svg className="radar-svg" viewBox="0 20 540 470" preserveAspectRatio="none">
+        <defs>
+          <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#001835" stopOpacity="0.9"/><stop offset="100%" stopColor="#000810" stopOpacity="0"/></radialGradient>
+          <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#00FFCC" stopOpacity="0.2"/><stop offset="100%" stopColor="#00FFCC" stopOpacity="0"/></radialGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <rect x="0" y="0" width="540" height="500" fill="#000810" rx="8"/>
+        <ellipse cx="270" cy="240" rx="250" ry="220" fill="url(#bgGlow)"/>
+        {stars.map(([x,y],i)=>(<circle key={i} cx={x} cy={y} r={i%5===0?1.4:i%3===0?1.0:0.6} fill="#ffffff" opacity={0.15+((i*37)%100)/300}/>))}
+        {[70,120,170,220].map(r=>(<circle key={r} cx="270" cy="240" r={r} fill="none" stroke="#0a2850" strokeWidth="0.5"/>))}
+        <line x1="30" y1="240" x2="510" y2="240" stroke="#0a2850" strokeWidth="0.5"/>
+        <line x1="270" y1="15" x2="270" y2="465" stroke="#0a2850" strokeWidth="0.5"/>
+        {[[270,70],[110,125],[430,125],[492,240],[55,278],[110,362],[202,416],[338,416],[430,362],[485,278]].map(([x,y],i)=>(<line key={i} x1="270" y1="240" x2={x} y2={y} stroke="#1a4060" strokeWidth="0.5" strokeDasharray="4 5" opacity="0.7"/>))}
+        <ellipse cx="270" cy="240" rx="60" ry="60" fill="url(#coreGlow)"/>
+        <g transform="translate(270,240)" filter="url(#glow)">
+          <circle cx="0" cy="0" r="38" fill="none" stroke="#00FFCC" strokeWidth="5" opacity="0.7"/>
+          <circle cx="0" cy="0" r="38" fill="none" stroke="#001a30" strokeWidth="3" opacity="0.5"/>
+          {[0,30,60,90,120,150,180,210,240,270,300,330].map((deg,i)=>{const r=deg*Math.PI/180;return <circle key={i} cx={Math.cos(r)*38} cy={Math.sin(r)*38} r="2.5" fill="#001a30" stroke="#00FFCC" strokeWidth="1"/>;  })}
+          <circle cx="0" cy="0" r="14" fill="#001a30" stroke="#00FFCC" strokeWidth="2"/>
+          <circle cx="0" cy="0" r="9" fill="#002535" stroke="#00FFCC" strokeWidth="1.5"/>
+          <circle cx="0" cy="0" r="5" fill="#003a50" stroke="#00FFCC" strokeWidth="1"/>
+          <circle cx="0" cy="0" r="2" fill="#00FFCC" opacity="0.9"/>
+          {[270,30,150].map((deg,i)=>{const r=deg*Math.PI/180,ix=Math.cos(r)*14,iy=Math.sin(r)*14,ox=Math.cos(r)*38,oy=Math.sin(r)*38,c1=Math.cos(r)*24+Math.sin(r)*10,c2=Math.sin(r)*24-Math.cos(r)*10;return(<g key={i}><path d={"M"+ix+","+iy+" Q"+c1+","+c2+" "+ox+","+oy} fill="none" stroke="#00FFCC" strokeWidth="2.5"/><ellipse cx={ox*1.12} cy={oy*1.12} rx="5" ry="3" transform={"rotate("+deg+" "+ox*1.12+" "+oy*1.12+")"} fill="#001a30" stroke="#00FFCC" strokeWidth="1.2"/><circle cx={ox*1.12} cy={oy*1.12} r="2" fill="#00FFCC" opacity="0.8"/></g>);})}
+          <text x="0" y="62" textAnchor="middle" fill="#00FFCC" fontFamily="Orbitron,monospace" fontSize="8" fontWeight="700" letterSpacing="1">SPOT CORE</text>
+        </g>
+        <g transform="translate(270,70)" filter="url(#glow)">
+          <ellipse cx="0" cy="0" rx="16" ry="6" fill="#001830" stroke="#66CCFF" strokeWidth="1.2"/>
+          <ellipse cx="0" cy="0" rx="8" ry="3.5" fill="#001830" stroke="#66CCFF" strokeWidth="0.8"/>
+          <rect x="-3" y="5" width="6" height="8" fill="#001830" stroke="#66CCFF" strokeWidth="0.8" rx="1"/>
+          <line x1="-7" y1="6" x2="-22" y2="12" stroke="#66CCFF" strokeWidth="1.2"/>
+          <line x1="7" y1="6" x2="22" y2="12" stroke="#66CCFF" strokeWidth="1.2"/>
+          <ellipse cx="-22" cy="12" rx="4" ry="2" fill="#001830" stroke="#66CCFF" strokeWidth="1"/>
+          <ellipse cx="22" cy="12" rx="4" ry="2" fill="#001830" stroke="#66CCFF" strokeWidth="1"/>
+          <circle cx="-22" cy="12" r="1.2" fill="#66CCFF" opacity="0.9"/>
+          <circle cx="22" cy="12" r="1.2" fill="#66CCFF" opacity="0.9"/>
+          <circle cx="0" cy="0" r="2" fill="#66CCFF" opacity="0.9"/>
+          <text x="0" y="-16" textAnchor="middle" fill="#66CCFF" fontFamily="Rajdhani,sans-serif" fontSize="9" fontWeight="700">STARFLEET CORE</text>
+        </g>
+        <g transform="translate(110,120) scale(1.25)" filter="url(#glow)">
+          <ellipse cx="0" cy="0" rx="13" ry="5" fill="#001830" stroke="#66CCFF" strokeWidth="1"/>
+          <rect x="-2.5" y="4" width="5" height="9" fill="#001830" stroke="#66CCFF" strokeWidth="0.8" rx="1"/>
+          <line x1="-5" y1="5" x2="-18" y2="10" stroke="#66CCFF" strokeWidth="1"/>
+          <line x1="5" y1="5" x2="18" y2="10" stroke="#66CCFF" strokeWidth="1"/>
+          <ellipse cx="-18" cy="10" rx="3.5" ry="1.8" fill="#001830" stroke="#66CCFF" strokeWidth="0.8"/>
+          <ellipse cx="18" cy="10" rx="3.5" ry="1.8" fill="#001830" stroke="#66CCFF" strokeWidth="0.8"/>
+          <circle cx="-18" cy="10" r="1" fill="#66CCFF" opacity="0.7"/>
+          <circle cx="18" cy="10" r="1" fill="#66CCFF" opacity="0.7"/>
+          <text x="0" y="-13" textAnchor="middle" fill="#66CCFF" fontFamily="Rajdhani,sans-serif" fontSize="9" fontWeight="700">SF TOWER</text>
+        </g>
+        <g transform="translate(430,120) scale(1.25)" filter="url(#glow)">
+          <ellipse cx="0" cy="0" rx="15" ry="5.5" fill="#001830" stroke="#3399FF" strokeWidth="1.2"/>
+          <ellipse cx="0" cy="0" rx="7" ry="3" fill="#001830" stroke="#3399FF" strokeWidth="1"/>
+          <line x1="-7" y1="2.5" x2="-17" y2="7" stroke="#3399FF" strokeWidth="1.2"/>
+          <line x1="7" y1="2.5" x2="17" y2="7" stroke="#3399FF" strokeWidth="1.2"/>
+          <circle cx="-17" cy="7" r="2" fill="#3399FF" opacity="0.8"/>
+          <circle cx="17" cy="7" r="2" fill="#3399FF" opacity="0.8"/>
+          <circle cx="0" cy="0" r="2.5" fill="#3399FF" opacity="0.9"/>
+          <text x="0" y="-13" textAnchor="middle" fill="#3399FF" fontFamily="Rajdhani,sans-serif" fontSize="9" fontWeight="700">DNS CORE</text>
+        </g>
+        <g transform="translate(492,240)" filter="url(#glow)">
+          <rect x="-13" y="-13" width="26" height="26" fill="#001020" stroke="#3399FF" strokeWidth="1.2"/>
+          {[-6,0,6].map(v=>(<g key={v}><line x1="-13" y1={v} x2="13" y2={v} stroke="#3399FF" strokeWidth="0.4" opacity="0.5"/><line x1={v} y1="-13" x2={v} y2="13" stroke="#3399FF" strokeWidth="0.4" opacity="0.5"/></g>))}
+          <rect x="-4" y="-4" width="8" height="8" fill="#3399FF" opacity="0.3"/>
+          <text x="0" y="-18" textAnchor="middle" fill="#3399FF" fontFamily="Rajdhani,sans-serif" fontSize="9" fontWeight="700">UNIMATRIX</text>
+        </g>
+        {[{id:"1",x:38,y:310,label:"W-01"},{id:"2",x:85,y:395,label:"W-02"},{id:"3",x:175,y:440,label:"W-03"},{id:"4",x:318,y:448,label:"W-04"},{id:"5",x:420,y:400,label:"W-05"},{id:"6",x:490,y:318,label:"W-06"}].map(({id,x,y,label})=>{
+          const c=nc(wHealth[id]||"dim");
+          return(<g key={id} transform={"translate("+x+","+y+")"} filter="url(#glow)">
+            <ellipse cx="0" cy="0" rx="22" ry="8" fill="#001520" stroke={c} strokeWidth="1.5"/>
+            <ellipse cx="4" cy="-2" rx="8" ry="4" fill="#001a28" stroke={c} strokeWidth="1"/>
+            <circle cx="20" cy="0" r="3" fill="#001520" stroke={c} strokeWidth="1"/>
+            <line x1="-8" y1="3" x2="-18" y2="10" stroke={c} strokeWidth="1.5"/>
+            <line x1="-8" y1="-3" x2="-18" y2="-10" stroke={c} strokeWidth="1.5"/>
+            <rect x="-28" y="8" width="20" height="5" fill="#001020" stroke={c} strokeWidth="1" rx="2"/>
+            <rect x="-28" y="-13" width="20" height="5" fill="#001020" stroke={c} strokeWidth="1" rx="2"/>
+            <circle cx="-26" cy="10.5" r="2" fill={c} opacity="0.9"/>
+            <circle cx="-26" cy="-10.5" r="2" fill={c} opacity="0.9"/>
+            <text x="0" y="-22" textAnchor="middle" fill={c} fontFamily="Rajdhani,sans-serif" fontSize="11" fontWeight="700">{label}</text>
+          </g>);
+        })}
+      </svg>
+    </section>
+  );
+}
+
+const ROLE_COLORS_MAP={general:"#00FFCC",utility:"#66CCFF",coding:"#CC44FF",heavy:"#FFB347",review:"#FF3366",reasoning:"#3399FF"};
+function WorkerLanes({data}){
+  const workers=data?.fleet?.workers||[{worker:"spot-worker-01",primary_role:"general",ok:null},{worker:"spot-worker-02",primary_role:"utility",ok:null},{worker:"spot-worker-03",primary_role:"coding",ok:null},{worker:"spot-worker-04",primary_role:"heavy",ok:null},{worker:"spot-worker-05",primary_role:"review",ok:null},{worker:"spot-worker-06",primary_role:"reasoning",ok:null}];
+  return(
+    <section className="worker-section">
+      <div className="worker-header"><span className="worker-title">STARFLEET WORKER LANES</span><div className="worker-header-line"/></div>
+      <div className="worker-grid">
+        {workers.map((w,i)=>{
+          const st=workerStatus(w),role=w.primary_role||"",rc=ROLE_COLORS_MAP[role]||"#66CCFF";
+          const toks=w.latency?.avg_tok_per_sec!=null?`${w.latency.avg_tok_per_sec.toFixed(1)}`:"—";
+          const p50=w.latency?.p50_total_ms!=null?`${(w.latency.p50_total_ms/1000).toFixed(1)}s`:"—";
+          const stColor=st.cls==="ok"?"#00FFCC":st.cls==="warn"?"#FFD600":"#FF3366";
+          return(<div className="worker-card" key={w.worker} style={{"--role-color":rc}}>
+            <div className={`worker-dot ${st.cls}`}/><div className="worker-id">W-{i+1}</div>
+            <div className="worker-host">{w.worker}</div>
+            <div className="worker-rows">
+              <div className="wrow"><span>ROLE</span><b style={{color:rc}}>{role.toUpperCase()||"—"}</b></div>
+              <div className="wrow"><span>STATUS</span><b style={{color:stColor}}>{st.label}</b></div>
+              <div className="wrow"><span>P50</span><b>{p50}</b></div>
+              <div className="wrow"><span>TOK/S</span><b>{toks}</b></div>
+            </div>
+          </div>);
+        })}
       </div>
     </section>
-  )
+  );
 }
 
-
-function ReviewPanel({ governanceEvents }) {
-  const events = governanceEvents?.events || []
-  const reviewEvents = events.filter(e => e.event_type === 'review')
-  const counts = reviewEvents.reduce((acc, e) => {
-    const verdict = e.decision?.verdict || 'UNKNOWN'
-    acc[verdict] = (acc[verdict] || 0) + 1
-    return acc
-  }, {})
-  const last = reviewEvents[0]
-
-  return (
-    <section className="rounded-xl border border-purple-500/30 bg-purple-950/10 p-4 shrink-0">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-purple-300 font-bold">REVIEW GATE</div>
-          <div className="text-[11px] text-slate-500">Worker-05 / governance review feed</div>
+function AiPanel({authed}){
+  const [msgs,setMsgs]=useState([{from:"spot",text:"Systems online."},{from:"spot",text:"Awaiting operator input."}]);
+  const [input,setInput]=useState(""),[ busy,setBusy]=useState(false),boxRef=useRef(null);
+  useEffect(()=>{if(boxRef.current)boxRef.current.scrollTop=boxRef.current.scrollHeight;},[msgs]);
+  async function send(){
+    const text=input.trim();if(!text||busy)return;
+    setMsgs(m=>[...m,{from:"user",text}]);setInput("");setBusy(true);
+    try{
+      const r=await fetch(`${API_BASE}/chat`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text,role:"general",source:"starfleet-ui",mode:"advisory"})});
+      const d=await r.json();setMsgs(m=>[...m,{from:"spot",text:d.reply||"No response."}]);
+    }catch{setMsgs(m=>[...m,{from:"spot",text:"Comm channel error."}]);}
+    setBusy(false);
+  }
+  return(
+    <div className="ai-stack">
+      <section className="panel ai-panel">
+        <div className="panel-title-bar"><span className="panel-title c-violet">SPOT AI ASSISTANT</span></div>
+        <div className="accent-bars"><span style={{background:"#FFB347"}}/><span style={{background:"#FF3366"}}/><span style={{background:"#aa33ee"}}/><span style={{background:"#CC44FF"}}/><span style={{background:"#3399FF"}}/></div>
+        <div className="ai-avatar-wrap"><img src="/spot-avatar.png" alt="Spot AI" className="ai-avatar"/></div>
+        <div className="ai-state"><b><span className="sdot ok sm"/>SPOT ONLINE</b><span>{busy?"THINKING...":"IDLE"}</span></div>
+      </section>
+      <section className="panel chat-panel">
+        <div className="panel-title-bar"><span className="panel-title c-blue">SPOT CHAT</span></div>
+        <div className="chat-box" ref={boxRef}>
+          {msgs.map((m,i)=>(<p key={i} className={m.from==="user"?"chat-user":"chat-spot"}>{m.from==="spot"&&<em>SPOT: </em>}{m.text}</p>))}
+          {busy&&<p className="chat-spot"><em>SPOT: </em><span className="blink">|</span></p>}
         </div>
-        <div className="text-xs text-emerald-400">● LOCAL-FIRST</div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
-        <div className="rounded-lg border border-emerald-500/20 bg-emerald-950/10 p-2">
-          <div className="text-slate-500">PASS</div>
-          <div className="text-lg text-emerald-300 font-bold">{counts.PASS || 0}</div>
+        <div className="chat-row">
+          <input placeholder={authed?"Ask Spot...":"Operator access required"} value={input} disabled={!authed} onChange={e=>authed&&setInput(e.target.value)} onKeyDown={e=>authed&&e.key==="Enter"&&send()} style={{opacity:authed?1:0.4,cursor:authed?"text":"not-allowed"}}/>
+          <button onClick={send} disabled={!authed||busy} style={{opacity:authed?1:0.4,cursor:authed?"pointer":"not-allowed"}}>SEND</button>
         </div>
-        <div className="rounded-lg border border-yellow-500/20 bg-yellow-950/10 p-2">
-          <div className="text-slate-500">FIX</div>
-          <div className="text-lg text-yellow-300 font-bold">{counts.FIX || 0}</div>
-        </div>
-        <div className="rounded-lg border border-red-500/20 bg-red-950/10 p-2">
-          <div className="text-slate-500">NO</div>
-          <div className="text-lg text-red-300 font-bold">{counts.NO || 0}</div>
-        </div>
-        <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/10 p-2">
-          <div className="text-slate-500">TOTAL</div>
-          <div className="text-lg text-cyan-200 font-bold">{reviewEvents.length}</div>
-        </div>
-      </div>
-
-      <div className="mt-2 text-[11px] text-slate-300 break-all">
-        Last: {last ? `${last.source?.worker || 'unknown'} verdict=${last.decision?.verdict || 'UNKNOWN'} allowed=${String(last.decision?.allowed ?? false)}` : 'No review events loaded'}
-      </div>
-    </section>
-  )
-}
-
-function SpotAssistant({ setActive }) {
-  return (
-    <div className="h-full rounded-xl border border-cyan-500/30 bg-[#020817] p-3 overflow-hidden shadow-[0_0_25px_rgba(14,165,233,.15)] flex flex-col">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-cyan-300 text-lg font-bold">SPOT AI ASSISTANT</div>
-        <div className="text-xs text-emerald-400">● STANDBY</div>
-      </div>
-
-    <div className="relative flex-1 min-h-[240px] rounded-xl border border-cyan-500/20 bg-black overflow-hidden flex items-center justify-center">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,.18),transparent_48%)]" />
-
-      <div className="absolute inset-0 opacity-30 bg-[linear-gradient(rgba(34,211,238,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,.08)_1px,transparent_1px)] bg-[size:32px_32px]" />
-
-      <div className="relative w-64 h-64 rounded-full border border-cyan-400/25 shadow-[0_0_50px_rgba(34,211,238,.18)]">
-
-        <div className="absolute inset-5 rounded-full border border-cyan-400/20" />
-        <div className="absolute inset-12 rounded-full border border-cyan-500/20" />
-        <div className="absolute inset-20 rounded-full border border-cyan-300/15" />
-
-        <div className="absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2 bg-cyan-300/25" />
-        <div className="absolute top-1/2 left-0 right-0 h-px -translate-y-1/2 bg-cyan-300/25" />
-
-        <div className="absolute inset-0 rounded-full border-t border-cyan-300/60 animate-spin [animation-duration:10s]" />
-
-        <div className="absolute inset-10 rounded-full border-r border-teal-300/40 animate-spin [animation-duration:16s] [animation-direction:reverse]" />
-
-        <div className="absolute left-1/2 top-1/2 w-5 h-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300 shadow-[0_0_25px_rgba(34,211,238,.85)]" />
-
-      </div>
+      </section>
     </div>
-
-      <div className="mt-2 text-center text-emerald-400 text-sm tracking-widest">AWAITING COMMAND</div>
-
-      <button
-        onClick={() => setActive('ai-chat')}
-        className="mt-3 w-full rounded-lg border border-cyan-500/30 py-2 text-cyan-300 hover:bg-cyan-950/30"
-      >
-        OPEN AI CHAT
-      </button>
-    </div>
-  )
+  );
 }
 
-export default function App() {
-  const [data, setData] = useState(fallback)
-  const [active, setActive] = useState('overview')
-  const [lastPull, setLastPull] = useState('never')
-  const [error, setError] = useState('')
-  const [runtimeMetrics, setRuntimeMetrics] = useState(null)
-  const [runtimeHealth, setRuntimeHealth] = useState(null)
-  const [governanceEvents, setGovernanceEvents] = useState(null)
-  const [routingAudit, setRoutingAudit] = useState(null)
-  const [telemetry, setTelemetry] = useState(null)
-  const [apiError, setApiError] = useState('')
-  const spotCoreBase = `${window.location.protocol}//${window.location.hostname}:8787`
+// RISK_META: maps allowlist risk levels to display color and confirm label
+const RISK_META={
+  low:  {color:"#00FFCC", label:"LOW RISK",    warn:null},
+  medium:{color:"#FFD600", label:"MEDIUM RISK", warn:"MEDIUM RISK — CONFIRM REQUIRED"},
+  high: {color:"#FF3366", label:"HIGH RISK",   warn:"HIGH RISK — OPERATOR CONFIRMATION REQUIRED"},
+};
+// Keys shown as dedicated rows — everything else goes into PARAMS block
+const ACTION_KNOWN_KEYS=new Set(["action","target","reason","risk","confirm_required"]);
 
-  async function loadStatus() {
-    try {
-      const res = await fetch(`/status.json?ts=${Date.now()}`, { cache: 'no-store' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = await res.json()
-      setData(json)
-      setLastPull(new Date().toLocaleTimeString())
-      setError('')
-    } catch (err) {
-      setError(String(err.message || err))
-      setLastPull(new Date().toLocaleTimeString())
-    }
+function SpotActionCard({action,onExecute,onDismiss}){
+  const [executing,setExecuting]=useState(false),[result,setResult]=useState(null);
+  const risk=(action.risk||"low").toLowerCase();
+  const meta=RISK_META[risk]||RISK_META.low;
+  const riskColor=meta.color;
+
+  // Collect extra params not shown as dedicated rows
+  const extraParams=Object.entries(action).filter(([k])=>!ACTION_KNOWN_KEYS.has(k));
+
+  async function execute(){
+    setExecuting(true);
+    try{
+      const r=await fetch(`${API_BASE}/chat/execute`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:ADMIN_TOKEN,action:action.action,target:action.target||null,reason:action.reason||"operator_confirmed",confirmed:true})});
+      const d=await r.json();setResult(d.ok?"OK: EXECUTED":"FAILED");
+      if(d.ok)setTimeout(()=>onExecute(d),1800);
+    }catch{setResult("COMM ERROR");}
+    setExecuting(false);
   }
-
-  useEffect(() => {
-    loadStatus()
-    const id = setInterval(loadStatus, 5000)
-    return () => clearInterval(id)
-  }, [])
-
-  async function loadRuntimeApis() {
-    try {
-      const [govRes, routeRes, telemetryRes] = await Promise.all([
-        fetch(`${spotCoreBase}/stats/runtime/governance-events?limit=25`, { cache: 'no-store' }),
-        fetch(`${spotCoreBase}/stats/routing-audit?limit=25`, { cache: 'no-store' }),
-        fetch(`${spotCoreBase}/stats/runtime/telemetry`, { cache: 'no-store' })
-      ])
-
-      const gov = govRes.ok ? await govRes.json() : null
-      const route = routeRes.ok ? await routeRes.json() : null
-      const tel = telemetryRes.ok ? await telemetryRes.json() : null
-
-      setGovernanceEvents(gov)
-      setRoutingAudit(route)
-      setTelemetry(tel)
-
-      setRuntimeMetrics({
-        queue: {
-          total: gov?.queue?.total ?? gov?.count ?? 0,
-          leased: gov?.queue?.leased ?? 0,
-          receipt_count: gov?.queue?.receipt_count ?? gov?.count ?? 0
-        },
-        routing: {
-          fallback_count: route?.fallback_count ?? route?.summary?.fallback_count ?? 0
-        }
-      })
-
-      const findings = []
-      if (gov?.mutation_authority === true) findings.push('mutation_authority=true')
-      if (gov?.invalid_lines > 0) findings.push(`invalid governance lines=${gov.invalid_lines}`)
-      if ((route?.violation_count ?? route?.summary?.violation_count ?? 0) > 0) findings.push('routing violations detected')
-
-      setRuntimeHealth({
-        status: findings.length ? 'warn' : 'ok',
-        findings
-      })
-
-      setApiError('')
-    } catch (err) {
-      setApiError(String(err.message || err))
-    }
-  }
-
-  useEffect(() => {
-    loadRuntimeApis()
-    const id = setInterval(loadRuntimeApis, 7000)
-    return () => clearInterval(id)
-  }, [])
-
-  const hosts = data.hosts || []
-  const workers = useMemo(() => workerOrder.map(([name, label, lane]) => ({
-    name, label, lane, host: getHost(hosts, name)
-  })), [hosts])
-
-  const ports = useMemo(() => {
-    const out = new Set()
-    hosts.forEach(h => Object.keys(h.services || {}).forEach(p => out.add(p)))
-    return [...out].sort((a, b) => Number(a) - Number(b))
-  }, [hosts])
-
-  function renderCenter() {
-    if (active === 'nodes') return <NodesView data={data} hosts={hosts} workers={workers} />
-    if (active === 'map') return <MapView data={data} hosts={hosts} />
-    if (active === 'services') return <ServicesView data={data} hosts={hosts} ports={ports} />
-    if (active === 'performance') return <PerformanceView data={data} workers={workers} />
-    if (active === 'alerts') return <AlertsView data={data} runtimeHealth={runtimeHealth} routingAudit={routingAudit} governanceEvents={governanceEvents} />
-    if (active === 'logs') return <LogsView data={data} lastPull={lastPull} error={error} governanceEvents={governanceEvents} routingAudit={routingAudit} apiError={apiError} />
-    if (active === 'settings') return <SettingsView data={data} />
-    if (active === 'terminal') return <TerminalView data={data} />
-    if (active === 'ai-chat') return <AiChatView data={data} spotCoreBase={spotCoreBase} />
-    return <Overview data={data} hosts={hosts} workers={workers} />
-  }
-
-  return (
-    <div className="h-screen bg-black text-slate-100 font-mono overflow-hidden">
-      <div className="h-full p-2 grid grid-cols-[225px_minmax(0,1fr)_430px] grid-rows-[66px_minmax(0,1fr)_170px_50px] gap-2 overflow-hidden">
-
-        <header className="col-span-3 rounded-xl border border-cyan-500/40 bg-slate-950 flex items-center justify-between px-5">
-          <div>
-            <div className="text-2xl text-orange-400 font-black tracking-wider">STARFLEET COMMAND</div>
-            <div className="text-xs text-slate-400">LOCAL OPERATIONS / SPOT CORE</div>
-          </div>
-          <div className="text-center">
-            <div className="text-xl text-cyan-400 tracking-widest">STARFLEET OPERATIONS NETWORK</div>
-            <div className="text-xs text-slate-400">LIVE READ-ONLY FLEET VIEW</div>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/40 bg-emerald-950/30 px-4 py-3">
-            <span className={`h-5 w-5 rounded-full shadow-lg ${statusDot(data.result)}`} />
-            <div>
-              <div className="text-emerald-400 font-bold">{resultText(data.result)}</div>
-              <div className="text-xs text-slate-400">UI pull: {lastPull}</div>
-            </div>
-          </div>
-        </header>
-
-        <aside className="row-start-2 rounded-xl border border-blue-500/40 bg-slate-950 p-3 space-y-2 overflow-hidden">
-          <div className="rounded-lg bg-blue-950/50 px-3 py-2 text-xs text-slate-400">LCARS 47-741</div>
-          {navItems.map(([id, num, title, sub]) => (
-            <button
-              key={id}
-              onClick={() => setActive(id)}
-              className={`w-full text-left rounded-lg border px-3 py-3 transition ${
-                active === id
-                  ? 'border-orange-400 bg-orange-500/20 text-orange-300'
-                  : 'border-blue-500/30 bg-slate-900/80 text-cyan-300 hover:bg-blue-950/60'
-              }`}
-            >
-              <div className="flex gap-3">
-                <div className="font-black">{num}</div>
-                <div>
-                  <div className="font-bold">{title}</div>
-                  <div className="text-xs text-slate-400">{sub}</div>
-                </div>
+  return(
+    <div className="spot-action-card" style={{borderColor:riskColor}}>
+      <div className="spot-action-header">
+        <span className="spot-action-title" style={{color:riskColor}}>SPOT PROPOSES ACTION</span>
+        <span className="spot-action-risk" style={{color:riskColor}}>{meta.label}</span>
+      </div>
+      <div className="spot-action-body">
+        <div className="spot-action-row"><span>ACTION</span><b>{action.action}</b></div>
+        {action.target&&<div className="spot-action-row"><span>TARGET</span><b>{action.target}</b></div>}
+        {action.reason&&<div className="spot-action-row"><span>REASON</span><b>{action.reason}</b></div>}
+        {action.confirm_required!=null&&(
+          <div className="spot-action-row"><span>CONFIRM REQ</span><b style={{color:action.confirm_required?meta.color:"#446688"}}>{action.confirm_required?"YES":"NO"}</b></div>
+        )}
+        {extraParams.length>0&&(
+          <div className="spot-action-params">
+            <div className="spot-action-params-label">PARAMS</div>
+            {extraParams.map(([k,v])=>(
+              <div className="spot-action-row spot-action-param-row" key={k}>
+                <span>{k.toUpperCase()}</span>
+                <b>{typeof v==="object"?JSON.stringify(v):String(v)}</b>
               </div>
-            </button>
-          ))}
-        </aside>
-
-        <main className="min-w-0 row-start-2 col-start-2 h-full pr-1 flex flex-col">
-          <div className="space-y-2 flex-1 flex flex-col">
-            {renderCenter()}
-          </div>
-        </main>
-
-        <aside className="row-start-2 col-start-3 flex flex-col gap-2 h-full min-h-0 overflow-hidden">
-          <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4 h-[180px] shrink-0">
-            <div className="flex justify-between">
-              <div className="text-cyan-300 text-lg font-bold">SYSTEM FEED</div>
-              <div className="text-emerald-400 text-xs">● LIVE</div>
-            </div>
-            <div className="mt-3 space-y-2 text-xs">
-              <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">SYSTEM</span> Fleet status nominal</div>
-              <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">NETWORK</span> {data.summary?.hosts_ping} hosts responding</div>
-              <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">SERVICES</span> {data.summary?.services} services healthy</div>
-              <div><span className="text-cyan-300">{lastPull}</span> <span className="text-emerald-400">POLICY</span> mutation_authority={String(governanceEvents?.mutation_authority ?? false)}</div>
-              {error && <div className="text-yellow-300">WARN UI pull: {error}</div>}
-              {apiError && <div className="text-yellow-300">WARN API pull: {apiError}</div>}
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-3 shrink-0">
-            <div className="grid grid-cols-4 gap-2">
-              <button onClick={() => setActive('services')} className="rounded-lg border border-cyan-500/30 p-3 text-cyan-300">SERVICE HEALTH</button>
-              <button onClick={() => setActive('alerts')} className="rounded-lg border border-red-500/30 p-3 text-red-400">ALERTS</button>
-              <button onClick={() => setActive('logs')} className="rounded-lg border border-blue-500/30 p-3 text-blue-300">LOGS</button>
-              <button onClick={() => setActive('settings')} className="rounded-lg border border-slate-600 p-3 text-slate-300">SETTINGS</button>
-            </div>
-          </section>
-            <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4 shrink-0">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-cyan-300 font-bold">RUNTIME GOVERNANCE</div>
-                  <div className="text-[11px] text-slate-500">Queue telemetry / replay safety / lease state</div>
-                </div>
-                <div className={`h-3 w-3 rounded-full shadow-lg ${runtimeHealth?.status === 'warn' ? 'bg-yellow-300 shadow-yellow-300' : 'bg-emerald-400 shadow-emerald-400'}`} />
-              </div>
-
-              <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
-                <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-2">
-                  <div className="text-slate-500">QUEUE</div>
-                  <div className="text-lg text-cyan-200 font-bold">{runtimeMetrics?.queue?.total ?? '--'}</div>
-                </div>
-                <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-2">
-                  <div className="text-slate-500">LEASED</div>
-                  <div className="text-lg text-cyan-200 font-bold">{runtimeMetrics?.queue?.leased ?? '--'}</div>
-                </div>
-                <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-2">
-                  <div className="text-slate-500">RECEIPTS</div>
-                  <div className="text-lg text-cyan-200 font-bold">{runtimeMetrics?.queue?.receipt_count ?? '--'}</div>
-                </div>
-                <div className="rounded-lg border border-cyan-500/20 bg-cyan-950/20 p-2">
-                  <div className="text-slate-500">FALLBACKS</div>
-                  <div className="text-lg text-cyan-200 font-bold">{runtimeMetrics?.routing?.fallback_count ?? '--'}</div>
-                </div>
-              </div>
-
-              <div className="mt-2 text-[11px] text-cyan-100/80 break-all">
-                {(runtimeHealth?.findings?.length ?? 0) > 0 ? runtimeHealth.findings.join(' | ') : 'No governance anomalies detected'}
-              </div>
-            </section>
-
-          <ReviewPanel governanceEvents={governanceEvents} />
-
-          <section className="flex-1 min-h-[260px] overflow-hidden"><SpotAssistant setActive={setActive} /></section>
-
-          <section className="rounded-xl border border-cyan-500/30 bg-slate-950 p-4">
-            <div className="text-cyan-300 font-bold">OPERATOR TERMINAL</div>
-            <div className="mt-2 text-sm text-slate-300">
-              TOKEN-GATED SPOT CORE COMMAND BROKER
-            </div>
-            <button onClick={() => setActive('terminal')} className="mt-3 w-full rounded-lg border border-blue-500/30 bg-black/40 px-3 py-2 text-left text-slate-400">
-              Open tactical terminal... <span className="float-right text-blue-400">➤</span>
-            </button>
-          </section>
-        </aside>
-
-        <section className="col-span-3 row-start-3 rounded-xl border border-orange-500/30 bg-slate-950 p-2 overflow-hidden">
-          <div className="text-orange-400 font-black mb-2">STARFLEET WORKER LANES</div>
-          <div className="grid grid-cols-6 gap-2 h-[130px]">
-            {workers.map(w => (
-              <WorkerCard
-                key={w.name}
-                host={w.host}
-                label={w.label}
-                lane={w.lane}
-                route={(routingAudit?.items || []).find(r => r.selected_worker === w.name || r.final_worker === w.name)}
-              />
             ))}
           </div>
-        </section>
+        )}
+      </div>
+      {result?(<div className="spot-action-result">{result}</div>):(
+        <div className="spot-action-buttons">
+          {meta.warn&&<div className="spot-action-warn" style={{color:riskColor,borderColor:riskColor}}>{meta.warn}</div>}
+          <button className="spot-exec-btn" onClick={execute} disabled={executing} style={{borderColor:riskColor,color:riskColor}}>{executing?"EXECUTING...":"EXECUTE"}</button>
+          <button className="spot-dismiss-btn" onClick={onDismiss}>DISMISS</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
-        <footer className="col-span-3 row-start-4 rounded-xl border border-orange-500/40 bg-slate-950 flex items-center justify-between px-5">
-          <div className="text-emerald-400 font-bold">SYSTEM STATUS — {resultText(data.result)}</div>
-          <div className="text-slate-400 text-xs">Read-only monitor • No remediation from UI • Spot Core remains authority</div>
-          <div className="text-orange-400 font-bold">BACKUP GATE ENFORCED</div>
-        </footer>
+function SpotTab(){
+  const [msgs,setMsgs]=useState([{from:"spot",text:"Spot online. Full command interface ready."}]);
+  const [input,setInput]=useState(""),[ busy,setBusy]=useState(false),boxRef=useRef(null);
+  useEffect(()=>{if(boxRef.current)boxRef.current.scrollTop=boxRef.current.scrollHeight;},[msgs]);
+  function dismissAction(idx){setMsgs(m=>m.map((msg,i)=>i===idx?{...msg,action:null}:msg));}
+  function onExecuted(idx,res){setMsgs(m=>[...m.map((msg,i)=>i===idx?{...msg,action:null}:msg),{from:"system",text:res.ok?`OK: ${res.action} executed.`:`FAILED: ${res.action}`}]);}
+  async function send(){
+    const text=input.trim();if(!text||busy)return;
+    setMsgs(m=>[...m,{from:"user",text}]);setInput("");setBusy(true);
+    try{
+      const r=await fetch(`${API_BASE}/chat`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text,role:"general",source:"starfleet-ui-spot-tab",mode:"advisory"})});
+      const d=await r.json();const raw=d.reply||"No response.",action=parseSpotAction(raw),clean=stripSpotAction(raw);
+      setMsgs(m=>[...m,{from:"spot",text:clean,action}]);
+    }catch{setMsgs(m=>[...m,{from:"spot",text:"Comm channel error."}]);}
+    setBusy(false);
+  }
+  return(
+    <div className="spot-tab">
+      <div className="spot-tab-left">
+        <div className="spot-tab-avatar-wrap"><img src="/spot-avatar.png" alt="Spot" className="spot-tab-avatar"/></div>
+        <div className="spot-tab-info">
+          <div className="spot-tab-name">SPOT</div><div className="spot-tab-sub">AI OPERATIONS ASSISTANT</div>
+          <div className="spot-tab-status"><span className="sdot ok sm"/><span>ONLINE - STARFLEET COMMAND</span></div>
+          <div className="spot-tab-divider"/>
+          <div className="spot-tab-meta">
+            <div className="spot-meta-row"><span>MODE</span><b className="ok">ADVISORY</b></div>
+            <div className="spot-meta-row"><span>AUTHORITY</span><b>OPERATOR</b></div>
+            <div className="spot-meta-row"><span>FLEET</span><b className="ok">NOMINAL</b></div>
+          </div>
+        </div>
+      </div>
+      <div className="spot-tab-chat">
+        <div className="spot-tab-chat-header"><span className="panel-title c-blue">SPOT COMMAND INTERFACE</span><span className="panel-sub">SECURE CHANNEL</span></div>
+        <div className="spot-tab-messages" ref={boxRef}>
+          {msgs.map((m,i)=>(
+            <div key={i}>
+              <div className={"spot-msg "+(m.from==="user"?"spot-msg-user":m.from==="system"?"spot-msg-system":"spot-msg-spot")}>
+                <div className={"spot-msg-from"+(m.from==="user"?" user-from":m.from==="system"?" sys-from":"")}>{m.from==="user"?"OPERATOR":m.from==="system"?"SYSTEM":"SPOT"}</div>
+                <div className="spot-msg-text">{m.text}</div>
+              </div>
+              {m.action&&<SpotActionCard action={m.action} onExecute={r=>onExecuted(i,r)} onDismiss={()=>dismissAction(i)}/>}
+            </div>
+          ))}
+          {busy&&<div className="spot-msg spot-msg-spot"><div className="spot-msg-from">SPOT</div><div className="spot-msg-text"><span className="blink">|</span> Processing...</div></div>}
+        </div>
+        <div className="spot-tab-input-row">
+          <input className="spot-tab-input" placeholder="Enter command or query..." value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
+          <button className="spot-tab-send" onClick={send} disabled={busy}>{busy?"...":"TRANSMIT"}</button>
+        </div>
       </div>
     </div>
-  )
+  );
+}
+
+function AlertsView({data,alerts}){
+  const fleet=data?.fleet,workers=fleet?.workers||[];
+  const offline=workers.filter(w=>!w.ok&&!w.quarantined);
+  const slow=fleet?.slow_workers||[];
+  const assessments=alerts.filter(a=>a.event==="spot_assessment").slice(0,10);
+  const log=alerts.filter(a=>a.event!=="recover_cooldown_skip").slice(0,50);
+  return(
+    <div className="alerts-view">
+      <div className="alerts-queue-row">
+        <div className="alerts-queue-panel">
+          <div className="alerts-queue-header"><span className="aq-dot active-dot"/><span className="aq-title">AUTONOMOUS ACTIONS</span><span className="aq-count">{offline.length+slow.length}</span></div>
+          <div className="aq-body">
+            {offline.length===0&&slow.length===0?(<div className="aq-empty"><span className="sdot ok"/>ALL WORKERS NOMINAL</div>):(<>
+              {offline.map(w=>(<div className="aq-item active" key={w.worker}><span className="aq-icon">R</span><div className="aq-detail"><b>{w.worker}</b><span>RECOVERY IN PROGRESS</span></div><span className="aq-badge warn">AUTO</span></div>))}
+              {slow.map(sw=>(<div className="aq-item slow" key={sw.worker}><span className="aq-icon">!</span><div className="aq-detail"><b>{sw.worker}</b><span>SLOW - P50 {(sw.p50_total_ms/1000).toFixed(1)}s</span></div><span className="aq-badge warn">WATCH</span></div>))}
+            </>)}
+          </div>
+        </div>
+        <div className="alerts-queue-panel">
+          <div className="alerts-queue-header"><span className="aq-dot needs-dot"/><span className="aq-title">SPOT ASSESSMENTS</span><span className={`aq-count ${assessments.length>0?"bad-count":""}`}>{assessments.length}</span></div>
+          <div className="aq-body">
+            {assessments.length===0?(<div className="aq-empty"><span className="sdot ok"/>NO PENDING ASSESSMENTS</div>):assessments.map((a,i)=>(
+              <div className="aq-item warn" key={i}><span className="aq-icon">*</span><div className="aq-detail"><b>{a.worker||"fleet"}</b><span>{a.detail||"assessment logged"}</span>{a.action&&<span className="aq-proposed">ACTION: {a.action}</span>}</div><span className="aq-badge warn">{a.action?"ACTION":"INFO"}</span></div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="alerts-log-panel">
+        <div className="alerts-log-header"><span className="panel-title c-alert">ALERT LOG</span><span className="panel-sub">LAST {log.length} EVENTS</span></div>
+        <div className="alerts-log-body">
+          {log.length===0?(<div className="aq-empty" style={{padding:"20px"}}><span className="sdot ok"/>NO ALERT EVENTS</div>):(
+            <table className="alert-table">
+              <thead><tr><th>TIME</th><th>AGO</th><th>EVENT</th><th>HOST</th><th>DETAIL</th></tr></thead>
+              <tbody>{log.map((a,i)=>{const meta=alertMeta(a.event);return(<tr key={i} className={`alert-row ${meta.cls}`}><td className="at-time">{a.ts?.slice(11,19)||"—"}</td><td className="at-ago">{a.ts?relTime(a.ts):"—"}</td><td className="at-event">{meta.label}</td><td className="at-host">{a.worker||"—"}</td><td className="at-detail">{a.detail||a.reason||""}</td></tr>);})}</tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PublicBanner(){
+  return(
+    <div className="public-banner">
+      <span className="sdot ok sm"/>
+      <span>STARFLEET COMMAND - LIVE FLEET STATUS - READ ONLY</span>
+    </div>
+  );
+}
+
+export default function App(){
+  const{authed,showLogin,setShowLogin,authErr,setAuthErr,tryAuth,logout}=useAuth();
+  const{data,error}=useFleet();
+  const alerts=useAlerts();
+  const now=useClock();
+  const[activeNav,setActiveNav]=useState(0);
+  function handleLogout(){logout();setActiveNav(0);}
+  const mainContent=()=>{
+    if(authed){
+      if(activeNav===1)return <SpotTab/>;
+      if(activeNav===3)return <div className="alerts-main"><AlertsView data={data} alerts={alerts}/></div>;
+      return(<div className="dashboard-grid"><LeftPanel data={data}/><RadarMap data={data}/><AiPanel authed={authed}/></div>);
+    }
+    return(
+      <div className="dashboard-grid"><LeftPanel data={data}/><RadarMap data={data}/><AiPanel authed={false}/></div>
+    );
+  };
+  return(
+    <div className="app-shell">
+      {showLogin&&<LoginModal authErr={authErr} setAuthErr={setAuthErr} tryAuth={tryAuth} onClose={()=>setShowLogin(false)}/>}
+      <NavRail active={activeNav} setActive={setActiveNav} authed={authed}/>
+      <div className="main-console">
+        <TopBar data={data} error={error} now={now} authed={authed} onLoginClick={()=>setShowLogin(true)} onLogout={handleLogout}/>
+        <MetricsRow data={data} error={error}/>
+        <div className="content-area">{mainContent()}</div>
+        <WorkerLanes data={data}/>
+      </div>
+    </div>
+  );
 }
 

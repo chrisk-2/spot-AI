@@ -1,0 +1,1 @@
+/home/ogre/spot-stack/watch/spot-wake.sh

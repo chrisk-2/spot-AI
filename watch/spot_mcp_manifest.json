@@ -1,0 +1,95 @@
+{
+  "name": "spot-core",
+  "version": "1.0.0",
+  "description": "MCP manifest exposing Spot-Core tools with dangerous operations disabled.",
+  "tools": [
+    {
+      "name": "spot_health",
+      "description": "Get Spot-Core health status.",
+      "enabled": true,
+      "input_schema": { "type": "object", "properties": {} }
+    },
+    {
+      "name": "spot_route",
+      "description": "Get routing table and worker assignment logic.",
+      "enabled": true,
+      "input_schema": { "type": "object", "properties": {} }
+    },
+    {
+      "name": "spot_fleet",
+      "description": "Ping all workers and return fleet health.",
+      "enabled": true,
+      "input_schema": { "type": "object", "properties": {} }
+    },
+    {
+      "name": "spot_audit",
+      "description": "Get routing audit history.",
+      "enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer", "default": 20 }
+        }
+      }
+    },
+    {
+      "name": "spot_validate",
+      "description": "Validate commands against Spot governance rules.",
+      "enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "worker": { "type": "string" },
+          "commands": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["worker", "commands"]
+      }
+    },
+    {
+      "name": "spot_read",
+      "description": "Read a file from a worker.",
+      "enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "worker": { "type": "string" },
+          "path": { "type": "string" }
+        },
+        "required": ["worker", "path"]
+      }
+    },
+
+    /* ============================
+       DANGEROUS TOOLS (DISABLED)
+       ============================ */
+
+    {
+      "name": "spot_write",
+      "description": "Write a file to a worker. DISABLED for safety.",
+      "enabled": false
+    },
+    {
+      "name": "spot_restart",
+      "description": "Restart a worker service. DISABLED for safety.",
+      "enabled": false
+    },
+    {
+      "name": "spot_quarantine",
+      "description": "Quarantine a worker. DISABLED for safety.",
+      "enabled": false
+    },
+    {
+      "name": "spot_release",
+      "description": "Release a quarantined worker. DISABLED for safety.",
+      "enabled": false
+    },
+    {
+      "name": "spot_exec",
+      "description": "Execute arbitrary commands. HARD DISABLED.",
+      "enabled": false
+    }
+  ]
+}

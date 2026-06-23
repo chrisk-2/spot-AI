@@ -7,6 +7,7 @@ LOG_DIR="${BASE_DIR}/logs"
 POLICY_FILE="${BASE_DIR}/fleet-policy.json"
 REMEDIATION_STATE_FILE="${BASE_DIR}/state/remediation-state.json"
 ROUTING_AUDIT_SUMMARY_FILE="${STATE_DIR}/routing-audit-summary.json"
+UNIMATRIX6_STATE_FILE="${STATE_DIR}/unimatrix6-nfs-state.json"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR"
 [[ -f "$REMEDIATION_STATE_FILE" ]] || echo "{}" > "$REMEDIATION_STATE_FILE"
@@ -33,6 +34,7 @@ declare -A HOST_IPS=(
   ["starfleet-tower"]="192.168.30.5"
   ["starfleet-core"]="192.168.60.20"
   ["dns-core"]="192.168.60.10"
+  ["unimatrix6"]="192.168.50.10"
 )
 
 HOSTS=(
@@ -47,6 +49,7 @@ HOSTS=(
   "starfleet-tower"
   "starfleet-core"
   "dns-core"
+  "unimatrix6"
 )
 
 GOOD_DNS_1="192.168.60.10"
@@ -93,6 +96,14 @@ CORE_HEALTH_RAW="$(curl -fsS --max-time 5 http://127.0.0.1:8787/health 2>/dev/nu
 if echo "$CORE_HEALTH_RAW" | jq -e '.ok' >/dev/null 2>&1; then CORE_HEALTH_JSON="$CORE_HEALTH_RAW"; else CORE_HEALTH_JSON='{"ok":false,"uptime_sec":0}'; fi
 DNS_FIX_QUEUE=()
 
+# Track unimatrix6 previous state for NFS recovery detection
+UNIMATRIX6_PREV_OK="null"
+if [[ -f "$UNIMATRIX6_STATE_FILE" ]]; then
+  UNIMATRIX6_PREV_OK="$(jq -r '.ssh_ok // "null"' "$UNIMATRIX6_STATE_FILE" 2>/dev/null || echo "null")"
+fi
+
+UNIMATRIX6_CURRENT_OK="false"
+
 {
   echo "{"
   echo "  \"timestamp\": $(json_escape "$STAMP"),"
@@ -121,7 +132,12 @@ DNS_FIX_QUEUE=()
         dns_mode="static"; expected_dns="$(printf '%s\n%s\n' "$GOOD_DNS_1" "$GOOD_DNS_2" | sort | tr '\n' ' ')"; [[ "$dns_list" == "$expected_dns" ]] && dns_ok=true || dns_ok=false
       fi
     fi
-    if [[ "$host" == spot-worker-* ]]; then
+    if [[ "$host" == "unimatrix6" ]]; then
+      # NAS - ping only via SSH, no ollama service
+      ssh_ok=false
+      if ping -c1 -W2 "${HOST_IPS[$host]}" >/dev/null 2>&1; then ssh_ok=true; UNIMATRIX6_CURRENT_OK="true"; fi
+      service_ok=null
+    elif [[ "$host" == spot-worker-* ]]; then
       if check_http "http://${HOST_IPS[$host]}:11434/api/tags"; then service_ok=true; models_json="$(curl -fsS --max-time 5 "http://${HOST_IPS[$host]}:11434/api/tags" | jq -c '[.models[].name]')"; else service_ok=false; fi
       if [[ "$ssh_ok" == true ]]; then
         load_1="$(ssh_quick "$host" "awk '{print \$1}' /proc/loadavg" 2>/dev/null | tr -d '\r' || true)"; [[ -z "$load_1" ]] && load_1=null
@@ -180,6 +196,19 @@ if ! python3 -m json.tool "$TMP_FILE" >/dev/null 2>&1; then
   exit 1
 fi
 mv -f "$TMP_FILE" "$STATE_FILE"
+
+# NFS recovery detection: trigger sync if unimatrix6 transitioned offline -> online
+if [[ "$UNIMATRIX6_CURRENT_OK" == "true" ]]; then
+  if [[ "$UNIMATRIX6_PREV_OK" == "false" || "$UNIMATRIX6_PREV_OK" == "null" ]]; then
+    echo "[${STAMP}] [NFS] unimatrix6 recovered (prev=${UNIMATRIX6_PREV_OK}) — triggering nfs sync" | tee -a "$LOG_FILE"
+    bash "${BASE_DIR}/spot-nfs-sync.sh" >> "$LOG_FILE" 2>&1 || \
+      echo "[${STAMP}] [NFS] sync failed — check nfs-sync.log" | tee -a "$LOG_FILE"
+  fi
+  echo "{\"ssh_ok\": true}" > "$UNIMATRIX6_STATE_FILE"
+else
+  echo "{\"ssh_ok\": false}" > "$UNIMATRIX6_STATE_FILE"
+fi
+
 if (( ${#DNS_FIX_QUEUE[@]} > 0 )); then
   for host in "${DNS_FIX_QUEUE[@]}"; do echo "[ACTION] dns_bad on $host" | tee -a "$LOG_FILE"; ~/spot-stack/watch/fix-dns.sh "$host" >> "$LOG_FILE" 2>&1 || true; done
 fi

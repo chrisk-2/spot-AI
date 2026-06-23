@@ -23,6 +23,7 @@ TOOLS = [
     {"name": "spot_read_local_file", "method": "POST", "path": "/spot/read-local-file"},
     {"name": "spot_write_local_file", "method": "POST", "path": "/spot/write-local-file"},
     {"name": "spot_restart_service", "method": "POST", "path": "/spot/restart-service"},
+    {"name": "spot_write_ui_file", "method": "POST", "path": "/spot/write-ui-file"},
 ]
 
 
@@ -51,6 +52,11 @@ class WriteLocalFileRequest(BaseModel):
     path: str
     content: str
 
+
+
+class WriteUiFileRequest(BaseModel):
+    filename: str
+    content: str
 
 class RestartServiceRequest(BaseModel):
     worker: str
@@ -105,3 +111,7 @@ def spot_write_local_file(req: WriteLocalFileRequest) -> dict[str, Any]:
 @app.post("/spot/restart-service")
 def spot_restart_service(req: RestartServiceRequest) -> dict[str, Any]:
     return get_client().restart_service(worker=req.worker, service=req.service)
+
+@app.post("/spot/write-ui-file")
+def spot_write_ui_file(req: WriteUiFileRequest) -> dict[str, Any]:
+    return get_client().write_ui_file(filename=req.filename, content=req.content)

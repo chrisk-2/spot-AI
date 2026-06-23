@@ -251,7 +251,7 @@ main(){
         policy: {
           autonomy_level: (if $mode == "apply" then "level_1_assisted_allowlisted" else "level_0_1_preview" end),
           apply_enabled: ($mode == "apply"),
-          apply_allowlist: ["republish_dashboard", "restart_mcp"],
+          apply_allowlist: ["republish_dashboard", "restart_mcp", "recover_worker"],
           gated_not_allowlisted: ["refresh_validation_stamp"],
           backup_required_for_mutation: true,
           log_file: $log_file

@@ -67,6 +67,13 @@ class SpotClient:
             admin=True,
         )
 
+    def write_ui_file(self, filename: str, content: str) -> dict[str, Any]:
+        return self._post(
+            "/admin/write-ui-file",
+            {"filename": filename, "content": content},
+            admin=True,
+        )
+
     def restart_service(self, worker: str, service: str) -> dict[str, Any]:
         return self._post(
             "/admin/restart-service",

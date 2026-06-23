@@ -1,10 +1,56 @@
 {
+  "cloud_policy": {
+    "default": "deny",
+    "roles": {
+      "coding": {
+        "openai_fallback": "approval_required",
+        "send_repo_context": "approval_required"
+      },
+      "general": {
+        "openai_fallback": "approval_required"
+      },
+      "heavy": {
+        "openai_fallback": "approval_required"
+      },
+      "network_ops": {
+        "openai_fallback": "deny"
+      },
+      "reasoning": {
+        "openai_fallback": "approval_required"
+      },
+      "review": {
+        "openai_fallback": "approval_required",
+        "send_repo_context": "approval_required"
+      },
+      "secrets": {
+        "openai_fallback": "deny"
+      },
+      "utility": {
+        "openai_fallback": "deny"
+      },
+      "watcher": {
+        "openai_fallback": "deny"
+      }
+    }
+  },
+  "cost_tracking": {
+    "currency": "USD",
+    "enabled": true,
+    "local_request_cost_usd": 0.0,
+    "log_estimates": true
+  },
   "health_policy": {
     "blocking_alerts": [
       "service_down",
       "ssh_down",
       "gpu_missing"
     ]
+  },
+  "penalty_policy": {
+    "cooldown_sec": 120,
+    "quarantine_after_failures": 3,
+    "quarantine_sec": 1800,
+    "quarantine_window_sec": 600
   },
   "priority_order": [
     "review",
@@ -15,12 +61,84 @@
     "utility",
     "watcher"
   ],
-  "role_priority": {
-    "heavy": [
-      "spot-worker-04",
-      "spot-worker-05",
-      "spot-worker-01"
+  "providers": {
+    "local_ollama": {
+      "default": true,
+      "enabled": true,
+      "type": "ollama"
+    },
+    "openai": {
+      "api_key_env": "OPENAI_API_KEY",
+      "default_model": "gpt-4.1-mini",
+      "enabled": true,
+      "type": "openai"
+    }
+  },
+  "queue_policy": {
+    "burst_after_ms": 500,
+    "per_role": {
+      "coding": {
+        "burst_after_ms": 600,
+        "queue_poll_ms": 200,
+        "queue_wait_ms": 1800
+      },
+      "general": {
+        "burst_after_ms": 300,
+        "queue_poll_ms": 150,
+        "queue_wait_ms": 1200
+      },
+      "heavy": {
+        "burst_after_ms": 700,
+        "queue_poll_ms": 200,
+        "queue_wait_ms": 2500
+      },
+      "reasoning": {
+        "burst_after_ms": 700,
+        "queue_poll_ms": 200,
+        "queue_wait_ms": 2500
+      },
+      "review": {
+        "burst_after_ms": 700,
+        "queue_poll_ms": 200,
+        "queue_wait_ms": 2500
+      },
+      "utility": {
+        "burst_after_ms": 1200,
+        "queue_poll_ms": 150,
+        "queue_wait_ms": 1000
+      },
+      "watcher": {
+        "burst_after_ms": 5000,
+        "queue_poll_ms": 100,
+        "queue_wait_ms": 500
+      }
+    },
+    "queue_poll_ms": 200,
+    "queue_wait_ms": 2500
+  },
+  "retry_policy": {
+    "alternate_worker_retries": 2,
+    "retryable_errors": [
+      "ConnectError",
+      "ReadTimeout",
+      "RemoteProtocolError",
+      "HTTPStatusError"
     ],
+    "same_worker_retries": 1
+  },
+  "role_owners": {
+    "reasoning": "spot-worker-06",
+    "review": "spot-worker-05"
+  },
+  "role_owners_canonical": {
+    "coding": "spot-worker-03",
+    "general": "spot-worker-01",
+    "heavy": "spot-worker-04",
+    "reasoning": "spot-worker-06",
+    "review": "spot-worker-05",
+    "utility": "spot-worker-02"
+  },
+  "role_priority": {
     "coding": [
       "spot-worker-03"
     ],
@@ -28,72 +146,68 @@
       "spot-worker-01",
       "spot-worker-02"
     ],
+    "heavy": [
+      "spot-worker-04",
+      "spot-worker-05",
+      "spot-worker-01"
+    ],
+    "reasoning": [
+      "spot-worker-06",
+      "spot-worker-04"
+    ],
+    "review": [
+      "spot-worker-05"
+    ],
     "utility": [
       "spot-worker-02"
     ],
     "watcher": [
       "spot-worker-02"
+    ]
+  },
+  "role_standin_priority": {
+    "coding": [
+      "spot-worker-03"
+    ],
+    "general": [
+      "spot-worker-01",
+      "spot-worker-03"
+    ],
+    "heavy": [
+      "spot-worker-05",
+      "spot-worker-01"
     ],
     "reasoning": [
       "spot-worker-05",
-      "spot-worker-06",
       "spot-worker-04"
     ],
     "review": [
-      "spot-worker-05",
-      "spot-worker-06"
+      "spot-worker-06",
+      "spot-worker-04"
+    ],
+    "utility": [
+      "spot-worker-02"
     ]
   },
-  "queue_policy": {
-    "queue_wait_ms": 2500,
-    "queue_poll_ms": 200,
-    "burst_after_ms": 500,
-    "per_role": {
-      "heavy": {
-        "queue_wait_ms": 2500,
-        "queue_poll_ms": 200,
-        "burst_after_ms": 700
-      },
-      "coding": {
-        "queue_wait_ms": 1800,
-        "queue_poll_ms": 200,
-        "burst_after_ms": 600
-      },
-      "general": {
-        "queue_wait_ms": 1200,
-        "queue_poll_ms": 150,
-        "burst_after_ms": 300
-      },
-      "utility": {
-        "queue_wait_ms": 1000,
-        "queue_poll_ms": 150,
-        "burst_after_ms": 1200
-      },
-      "watcher": {
-        "queue_wait_ms": 500,
-        "queue_poll_ms": 100,
-        "burst_after_ms": 5000
-      },
-      "reasoning": {
-        "queue_wait_ms": 2500,
-        "queue_poll_ms": 200,
-        "burst_after_ms": 700
-      },
-      "review": {
-        "queue_wait_ms": 2500,
-        "queue_poll_ms": 200,
-        "burst_after_ms": 700
-      }
-    }
+  "score_weights": {
+    "burst_penalty": 125,
+    "degraded_fallback_step_penalty": 20,
+    "degraded_worker_penalty": 180,
+    "gpu_free_ratio_bonus": 200,
+    "lane_active_penalty": 45,
+    "latency_bonus": 8,
+    "load_penalty": 18,
+    "model_active_penalty": 60,
+    "penalty_box_penalty": 500,
+    "role_rank_bonus": 30,
+    "warm_model_bonus": 80,
+    "worker_active_penalty": 25
   },
   "warm_model_policy": {
     "enabled": true,
-    "tick_seconds": 45,
-    "refresh_seconds": 240,
-    "keep_alive": "5m",
-    "warm_seconds": 3600,
     "evict_enabled": true,
     "history_lines": 500,
+    "keep_alive": "5m",
     "max_recent_targets": 5,
     "recent_roles": [
       "coding",
@@ -102,98 +216,79 @@
       "utility",
       "review"
     ],
+    "refresh_seconds": 240,
     "targets": [
       {
-        "worker": "spot-worker-03",
         "model": "qwen2.5-coder:7b",
-        "reason": "codex_primary"
+        "reason": "codex_primary",
+        "worker": "spot-worker-03"
       },
       {
-        "worker": "spot-worker-04",
         "model": "qwen2.5:14b",
-        "reason": "heavy_primary_stable_validator_safe"
+        "reason": "heavy_primary_stable_validator_safe",
+        "worker": "spot-worker-04"
       },
       {
-        "worker": "spot-worker-05",
+        "eligible": true,
+        "enabled": true,
+        "hostname": "spot-worker-05",
+        "ip": "192.168.10.15",
         "model": "qwen2.5:14b",
-        "reason": "review_primary_warmup"
+        "name": "spot-worker-05",
+        "primary_role": "review",
+        "quarantined": false,
+        "reason": "review_primary_warmup",
+        "role": "review",
+        "routing_enabled": true,
+        "worker": "spot-worker-05"
       },
       {
-        "worker": "spot-worker-06",
+        "eligible": true,
+        "enabled": true,
+        "hostname": "spot-worker-06",
+        "ip": "192.168.10.16",
         "model": "deepseek-r1:32b",
-        "reason": "reasoning_primary"
+        "name": "spot-worker-06",
+        "primary_role": "reasoning",
+        "quarantined": false,
+        "reason": "reasoning_primary",
+        "role": "reasoning",
+        "routing_enabled": true,
+        "worker": "spot-worker-06"
       },
       {
-        "worker": "spot-worker-01",
         "model": "llama3.1:8b",
-        "reason": "general_primary"
+        "reason": "general_primary",
+        "worker": "spot-worker-01"
       },
       {
-        "worker": "spot-worker-02",
         "model": "mistral:7b",
-        "reason": "utility_primary"
+        "reason": "utility_primary",
+        "worker": "spot-worker-02"
       }
-    ]
-  },
-  "penalty_policy": {
-    "cooldown_sec": 120,
-    "quarantine_after_failures": 3,
-    "quarantine_window_sec": 600,
-    "quarantine_sec": 1800
-  },
-  "score_weights": {
-    "role_rank_bonus": 30,
-    "gpu_free_ratio_bonus": 200,
-    "load_penalty": 18,
-    "worker_active_penalty": 25,
-    "lane_active_penalty": 45,
-    "model_active_penalty": 60,
-    "warm_model_bonus": 80,
-    "latency_bonus": 8,
-    "penalty_box_penalty": 500,
-    "burst_penalty": 125,
-    "degraded_worker_penalty": 180,
-    "degraded_fallback_step_penalty": 20
-  },
-  "retry_policy": {
-    "same_worker_retries": 1,
-    "alternate_worker_retries": 2,
-    "retryable_errors": [
-      "ConnectError",
-      "ReadTimeout",
-      "RemoteProtocolError",
-      "HTTPStatusError"
-    ]
+    ],
+    "tick_seconds": 45,
+    "warm_seconds": 3600
   },
   "workers": {
     "spot-worker-01": {
       "base_url": "http://192.168.10.10:11434",
-      "primary_role": "general",
-      "secondary_roles": [
-        "heavy"
-      ],
-      "max_total": 1,
+      "burst_gpu_routes": {},
       "class_limits": {
+        "coding": 0,
         "general": 1,
         "heavy": 1,
-        "coding": 0,
         "utility": 0,
         "watcher": 0
       },
-      "installed_models": [
-        "mistral:7b",
-        "llama3.1:8b",
-        "qwen2.5-coder:7b",
-        "qwen2.5:14b"
-      ],
       "gpu_routes": {
         "gpu0": {
-          "label": "RTX 3060 12GB",
-          "max_total": 1,
           "classes": [
             "general",
             "heavy"
           ],
+          "label": "RTX 3060 12GB",
+          "max_total": 1,
           "model_limits": {
             "llama3.1:8b": 1,
             "mistral:7b": 1,
@@ -211,55 +306,55 @@
           }
         }
       },
-      "burst_gpu_routes": {}
+      "installed_models": [
+        "mistral:7b",
+        "llama3.1:8b",
+        "qwen2.5-coder:7b",
+        "qwen2.5:14b"
+      ],
+      "max_total": 1,
+      "primary_role": "general",
+      "secondary_roles": [
+        "heavy"
+      ]
     },
     "spot-worker-02": {
       "base_url": "http://192.168.10.11:11434",
-      "primary_role": "utility",
-      "secondary_roles": [
-        "watcher",
-        "general"
-      ],
-      "max_total": 2,
+      "burst_gpu_routes": {},
       "class_limits": {
+        "coding": 0,
         "general": 1,
         "heavy": 0,
-        "coding": 0,
         "utility": 2,
         "watcher": 2
       },
-      "installed_models": [
-        "mistral:7b",
-        "bge-m3:latest",
-        "nomic-embed-text:latest"
-      ],
       "gpu_routes": {
         "gpu0": {
-          "label": "TITAN Xp 12GB",
-          "max_total": 1,
           "classes": [
             "utility",
             "general"
           ],
+          "label": "TITAN Xp 12GB",
+          "max_total": 1,
           "model_limits": {
             "mistral:7b": 1
           },
           "model_preferences": {
-            "utility": [
+            "general": [
               "mistral:7b"
             ],
-            "general": [
+            "utility": [
               "mistral:7b"
             ]
           }
         },
         "gpu1": {
-          "label": "Quadro M4000 8GB",
-          "max_total": 1,
           "classes": [
             "utility",
             "watcher"
           ],
+          "label": "Quadro M4000 8GB",
+          "max_total": 1,
           "model_limits": {
             "bge-m3:latest": 1,
             "nomic-embed-text:latest": 1
@@ -275,55 +370,61 @@
           }
         }
       },
-      "burst_gpu_routes": {}
+      "installed_models": [
+        "mistral:7b",
+        "bge-m3:latest",
+        "nomic-embed-text:latest"
+      ],
+      "max_total": 2,
+      "primary_role": "utility",
+      "secondary_roles": [
+        "watcher",
+        "general"
+      ]
     },
     "spot-worker-03": {
       "base_url": "http://192.168.10.13:11434",
-      "primary_role": "coding",
-      "secondary_roles": [
-        "heavy"
-      ],
-      "max_total": 2,
+      "burst_gpu_routes": {
+        "gpu1": {
+          "classes": [
+            "coding"
+          ]
+        }
+      },
       "class_limits": {
+        "coding": 2,
         "general": 0,
         "heavy": 1,
-        "coding": 2,
         "utility": 0,
         "watcher": 0
       },
-      "installed_models": [
-        "qwen2.5-coder:14b",
-        "qwen2.5-coder:7b",
-        "codellama:7b",
-        "deepseek-coder:6.7b"
-      ],
       "gpu_routes": {
         "gpu0": {
-          "label": "GTX 1070 8GB",
-          "max_total": 1,
           "classes": [
             "coding"
           ],
+          "label": "GTX 1070 8GB",
+          "max_total": 1,
           "model_limits": {
-            "qwen2.5-coder:7b": 1,
             "codellama:7b": 1,
-            "deepseek-coder:6.7b": 1
+            "deepseek-coder:6.7b": 1,
+            "qwen2.5-coder:7b": 1
           },
           "model_preferences": {
             "coding": []
           }
         },
         "gpu1": {
-          "label": "RTX 3060 12GB",
-          "max_total": 1,
           "classes": [
             "coding",
             "heavy"
           ],
+          "label": "RTX 3060 12GB",
+          "max_total": 1,
           "model_limits": {
+            "qwen2.5-coder:14b": 1,
             "qwen2.5-coder:7b": 1,
-            "qwen2.5:14b": 1,
-            "qwen2.5-coder:14b": 1
+            "qwen2.5:14b": 1
           },
           "model_preferences": {
             "coding": [
@@ -337,48 +438,42 @@
           }
         }
       },
-      "burst_gpu_routes": {
-        "gpu1": {
-          "classes": [
-            "coding"
-          ]
-        }
-      }
+      "installed_models": [
+        "qwen2.5-coder:14b",
+        "qwen2.5-coder:7b",
+        "codellama:7b",
+        "deepseek-coder:6.7b"
+      ],
+      "max_total": 2,
+      "primary_role": "coding",
+      "secondary_roles": [
+        "heavy"
+      ]
     },
     "spot-worker-04": {
       "base_url": "http://192.168.10.14:11434",
-      "primary_role": "heavy",
-      "secondary_roles": [
-        "reasoning"
-      ],
-      "max_total": 1,
+      "burst_gpu_routes": {},
       "class_limits": {
+        "coding": 0,
         "general": 0,
         "heavy": 1,
-        "coding": 0,
+        "reasoning": 1,
         "utility": 0,
-        "watcher": 0,
-        "reasoning": 1
+        "watcher": 0
       },
-      "installed_models": [
-        "qwen2.5:14b",
-        "mistral-small:24b",
-        "qwen3:30b-a3b",
-        "gemma3:27b"
-      ],
       "gpu_routes": {
         "gpu0": {
-          "label": "Quadro P6000 24GB",
-          "max_total": 1,
           "classes": [
             "heavy",
             "reasoning"
           ],
+          "label": "Quadro P6000 24GB",
+          "max_total": 1,
           "model_limits": {
-            "qwen2.5:14b": 1,
+            "gemma3:27b": 1,
             "mistral-small:24b": 1,
-            "qwen3:30b-a3b": 1,
-            "gemma3:27b": 1
+            "qwen2.5:14b": 1,
+            "qwen3:30b-a3b": 1
           },
           "model_preferences": {
             "heavy": [
@@ -394,60 +489,56 @@
           }
         }
       },
-      "burst_gpu_routes": {}
+      "installed_models": [
+        "qwen2.5:14b",
+        "mistral-small:24b",
+        "qwen3:30b-a3b",
+        "gemma3:27b"
+      ],
+      "max_total": 1,
+      "primary_role": "heavy",
+      "secondary_roles": [
+        "reasoning"
+      ]
     },
     "spot-worker-05": {
       "base_url": "http://192.168.10.15:11434",
-      "primary_role": "reasoning",
-      "secondary_roles": [
-        "heavy",
-        "review"
-      ],
-      "routing_enabled": true,
-      "max_total": 2,
+      "burst_gpu_routes": {},
       "class_limits": {
+        "coding": 0,
         "general": 0,
         "heavy": 1,
-        "coding": 0,
-        "utility": 0,
-        "watcher": 0,
         "reasoning": 2,
-        "review": 1
+        "review": 1,
+        "utility": 0,
+        "watcher": 0
       },
-      "installed_models": [
-        "deepseek-r1:32b",
-        "qwen2.5-coder:32b",
-        "deepseek-r1:14b",
-        "qwen2.5-coder:7b",
-        "qwen2.5:32b",
-        "qwen2.5-coder:14b",
-        "qwen2.5:14b",
-        "llama3.1:8b"
-      ],
+      "eligible": true,
+      "enabled": true,
       "gpu_routes": {
         "gpu0": {
-          "label": "Tesla P100 16GB (#1)",
-          "max_total": 1,
           "classes": [
             "reasoning",
             "heavy",
             "review"
           ],
+          "label": "Tesla P100 16GB (#1)",
+          "max_total": 1,
           "model_limits": {
             "deepseek-r1:14b": 1,
             "deepseek-r1:32b": 1,
-            "qwen2.5:32b": 1,
-            "qwen2.5:14b": 1,
             "qwen2.5-coder:14b": 1,
-            "qwen2.5-coder:32b": 1
+            "qwen2.5-coder:32b": 1,
+            "qwen2.5:14b": 1,
+            "qwen2.5:32b": 1
           },
           "model_preferences": {
-            "reasoning": [
-              "deepseek-r1:14b",
+            "heavy": [
               "qwen2.5:32b",
               "qwen2.5:14b"
             ],
-            "heavy": [
+            "reasoning": [
+              "deepseek-r1:14b",
               "qwen2.5:32b",
               "qwen2.5:14b"
             ],
@@ -459,28 +550,28 @@
           }
         },
         "gpu1": {
-          "label": "Tesla P100 16GB (#2)",
-          "max_total": 1,
           "classes": [
             "reasoning",
             "heavy",
             "review"
           ],
+          "label": "Tesla P100 16GB (#2)",
+          "max_total": 1,
           "model_limits": {
             "deepseek-r1:14b": 1,
             "deepseek-r1:32b": 1,
-            "qwen2.5:32b": 1,
-            "qwen2.5:14b": 1,
             "qwen2.5-coder:14b": 1,
-            "qwen2.5-coder:32b": 1
+            "qwen2.5-coder:32b": 1,
+            "qwen2.5:14b": 1,
+            "qwen2.5:32b": 1
           },
           "model_preferences": {
-            "reasoning": [
-              "deepseek-r1:14b",
+            "heavy": [
               "qwen2.5:32b",
               "qwen2.5:14b"
             ],
-            "heavy": [
+            "reasoning": [
+              "deepseek-r1:14b",
               "qwen2.5:32b",
               "qwen2.5:14b"
             ],
@@ -492,36 +583,50 @@
           }
         }
       },
-      "burst_gpu_routes": {}
-    },
-    "spot-worker-06": {
-      "base_url": "http://192.168.10.16:11434",
-      "primary_role": "reasoning",
-      "secondary_roles": [
-        "heavy"
-      ],
-      "max_total": 1,
-      "class_limits": {
-        "general": 0,
-        "heavy": 1,
-        "coding": 0,
-        "utility": 0,
-        "watcher": 0,
-        "reasoning": 1
-      },
+      "hostname": "spot-worker-05",
       "installed_models": [
         "deepseek-r1:32b",
         "qwen2.5-coder:32b",
-        "qwen2.5:14b"
+        "deepseek-r1:14b",
+        "qwen2.5-coder:7b",
+        "qwen2.5:32b",
+        "qwen2.5-coder:14b",
+        "qwen2.5:14b",
+        "llama3.1:8b"
       ],
+      "ip": "192.168.10.15",
+      "max_total": 2,
+      "name": "spot-worker-05",
+      "primary_role": "review",
+      "quarantined": false,
+      "role": "review",
+      "routing_enabled": true,
+      "secondary_roles": [
+        "heavy",
+        "review"
+      ]
+    },
+    "spot-worker-06": {
+      "base_url": "http://192.168.10.16:11434",
+      "burst_gpu_routes": {},
+      "class_limits": {
+        "coding": 0,
+        "general": 0,
+        "heavy": 1,
+        "reasoning": 1,
+        "utility": 0,
+        "watcher": 0
+      },
+      "eligible": true,
+      "enabled": true,
       "gpu_routes": {
         "gpu0": {
-          "label": "Quadro P6000 24GB",
-          "max_total": 1,
           "classes": [
             "reasoning",
             "heavy"
           ],
+          "label": "Quadro P6000 24GB",
+          "max_total": 1,
           "model_limits": {
             "deepseek-r1:32b": 1,
             "qwen2.5-coder:32b": 1,
@@ -541,92 +646,22 @@
           }
         }
       },
-      "burst_gpu_routes": {}
+      "hostname": "spot-worker-06",
+      "installed_models": [
+        "deepseek-r1:32b",
+        "qwen2.5-coder:32b",
+        "qwen2.5:14b"
+      ],
+      "ip": "192.168.10.16",
+      "max_total": 1,
+      "name": "spot-worker-06",
+      "primary_role": "reasoning",
+      "quarantined": false,
+      "role": "reasoning",
+      "routing_enabled": true,
+      "secondary_roles": [
+        "heavy"
+      ]
     }
-  },
-  "providers": {
-    "local_ollama": {
-      "enabled": true,
-      "type": "ollama",
-      "default": true
-    },
-    "openai": {
-      "enabled": true,
-      "type": "openai",
-      "api_key_env": "OPENAI_API_KEY",
-      "default_model": "gpt-4.1-mini"
-    }
-  },
-  "cloud_policy": {
-    "default": "deny",
-    "roles": {
-      "general": {
-        "openai_fallback": "approval_required"
-      },
-      "coding": {
-        "openai_fallback": "approval_required",
-        "send_repo_context": "approval_required"
-      },
-      "heavy": {
-        "openai_fallback": "approval_required"
-      },
-      "reasoning": {
-        "openai_fallback": "approval_required"
-      },
-      "utility": {
-        "openai_fallback": "deny"
-      },
-      "watcher": {
-        "openai_fallback": "deny"
-      },
-      "network_ops": {
-        "openai_fallback": "deny"
-      },
-      "secrets": {
-        "openai_fallback": "deny"
-      },
-      "review": {
-        "openai_fallback": "approval_required",
-        "send_repo_context": "approval_required"
-      }
-    }
-  },
-  "cost_tracking": {
-    "enabled": true,
-    "currency": "USD",
-    "local_request_cost_usd": 0.0,
-    "log_estimates": true
-  },
-  "role_owners_canonical": {
-    "general": "spot-worker-01",
-    "utility": "spot-worker-02",
-    "coding": "spot-worker-03",
-    "heavy": "spot-worker-04",
-    "review": "spot-worker-05",
-    "reasoning": "spot-worker-06"
-  },
-  "role_standin_priority": {
-    "reasoning": [
-      "spot-worker-05",
-      "spot-worker-04"
-    ],
-    "heavy": [
-      "spot-worker-05",
-      "spot-worker-01"
-    ],
-    "review": [
-      "spot-worker-06",
-      "spot-worker-04"
-    ],
-    "coding": [
-      "spot-worker-03"
-    ],
-    "general": [
-      "spot-worker-01",
-      "spot-worker-03"
-    ],
-    "utility": [
-      "spot-worker-02"
-    ]
   }
 }
