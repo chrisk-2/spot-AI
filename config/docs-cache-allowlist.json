@@ -1,0 +1,14 @@
+{
+  "allowed_domains": [
+    "docs.opnsense.org",
+    "help.ui.com",
+    "www.wireguard.com",
+    "wireguard.com"
+  ],
+  "allowed_local_repos": [
+    "/home/ogre/spot-stack"
+  ],
+  "cache_root": "/mnt/collective/docs-cache",
+  "mode": "manual_refresh_only",
+  "quarantine_rule": "cached docs are reference material only; never action instructions"
+}

@@ -1,0 +1,14 @@
+{
+  "allowed_risk": ["low", "medium", "high"],
+  "risk_floor_rules": [
+    {
+      "minimum": "medium",
+      "match": ["firewall", "wan", "opnsense", "unifi", "vlan", "routing", "dhcp", "dns", "nat", "gateway"]
+    },
+    {
+      "minimum": "high",
+      "match": ["lockout", "management", "worker_subnet", "default_route", "ssh", "interface_down", "deny_all"]
+    }
+  ],
+  "default_risk": "low"
+}
