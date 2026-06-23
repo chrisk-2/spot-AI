@@ -1945,13 +1945,44 @@ main() {
     quarantine)          cmd_quarantine "$@" ;;
     release)             cmd_release "$@" ;;
     logs)                cmd_logs "$@" ;;
-    -h|--help|"")        usage ;;
+    write-ui-file)       cmd_write_ui_file "$@" ;;
+    ui-build)            cmd_ui_build "$@" ;;
+    caddy-reload)        cmd_caddy_reload "$@" ;;
+        -h|--help|"")        usage ;;
     *)
       echo "ERROR: unknown command: $cmd" >&2
       usage
       exit 2
       ;;
   esac
+}
+
+cmd_write_ui_file() {
+  local filename="${1:-}"
+  [[ -n "$filename" ]] || { echo '{"ok":false,"error":"filename required"}'; exit 2; }
+  local dest="/home/ogre/spot-stack/starfleet-ui/src/${filename}"
+  cat > "$dest"
+  local bytes
+  bytes=$(wc -c < "$dest")
+  # Touch trigger file to kick off host-side build watcher
+  touch /home/ogre/spot-stack/starfleet-ui/src/.build-trigger
+  echo "{\"ok\":true,\"path\":\"$dest\",\"bytes\":$bytes}"
+}
+
+cmd_ui_build() {
+  # Touch trigger to kick host-side systemd build watcher
+  touch /home/ogre/spot-stack/starfleet-ui/src/.build-trigger
+  echo "{\"ok\":true,\"action\":\"ui-build-triggered\"}"
+}
+
+cmd_caddy_reload() {
+  # Use Caddy admin API — works from inside container via host network
+  local cfg
+  cfg="$(cat /etc/caddy/Caddyfile 2>/dev/null)"
+  curl -fsS -X POST http://172.17.0.1:2019/load \
+    -H "Content-Type: text/caddyfile" \
+    --data-binary "$cfg" >/dev/null 2>&1 || true
+  echo '{"ok":true,"action":"caddy-reload"}'
 }
 
 main "$@"

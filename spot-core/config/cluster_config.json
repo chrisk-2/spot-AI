@@ -18,13 +18,15 @@
   "role_priority": {
     "heavy": [
       "spot-worker-04",
+      "spot-worker-05",
       "spot-worker-01"
     ],
     "coding": [
       "spot-worker-03"
     ],
     "general": [
-      "spot-worker-01"
+      "spot-worker-01",
+      "spot-worker-02"
     ],
     "utility": [
       "spot-worker-02"
@@ -33,6 +35,7 @@
       "spot-worker-02"
     ],
     "reasoning": [
+      "spot-worker-05",
       "spot-worker-06",
       "spot-worker-04"
     ],
@@ -111,9 +114,14 @@
         "reason": "heavy_primary_stable_validator_safe"
       },
       {
+        "worker": "spot-worker-05",
+        "model": "qwen2.5:14b",
+        "reason": "review_primary_warmup"
+      },
+      {
         "worker": "spot-worker-06",
-        "model": "qwen2.5-coder:32b",
-        "reason": "premium_reasoning_secondary"
+        "model": "deepseek-r1:32b",
+        "reason": "reasoning_primary"
       },
       {
         "worker": "spot-worker-01",
@@ -209,11 +217,12 @@
       "base_url": "http://192.168.10.11:11434",
       "primary_role": "utility",
       "secondary_roles": [
-        "watcher"
+        "watcher",
+        "general"
       ],
       "max_total": 2,
       "class_limits": {
-        "general": 0,
+        "general": 1,
         "heavy": 0,
         "coding": 0,
         "utility": 2,
@@ -229,13 +238,17 @@
           "label": "TITAN Xp 12GB",
           "max_total": 1,
           "classes": [
-            "utility"
+            "utility",
+            "general"
           ],
           "model_limits": {
             "mistral:7b": 1
           },
           "model_preferences": {
             "utility": [
+              "mistral:7b"
+            ],
+            "general": [
               "mistral:7b"
             ]
           }
@@ -279,7 +292,7 @@
         "watcher": 0
       },
       "installed_models": [
-        "qwen2.5:14b",
+        "qwen2.5-coder:14b",
         "qwen2.5-coder:7b",
         "codellama:7b",
         "deepseek-coder:6.7b"
@@ -297,11 +310,7 @@
             "deepseek-coder:6.7b": 1
           },
           "model_preferences": {
-            "coding": [
-              "qwen2.5-coder:7b",
-              "deepseek-coder:6.7b",
-              "codellama:7b"
-            ]
+            "coding": []
           }
         },
         "gpu1": {
@@ -313,14 +322,17 @@
           ],
           "model_limits": {
             "qwen2.5-coder:7b": 1,
-            "qwen2.5:14b": 1
+            "qwen2.5:14b": 1,
+            "qwen2.5-coder:14b": 1
           },
           "model_preferences": {
             "coding": [
-              "qwen2.5-coder:7b"
+              "qwen2.5-coder:14b",
+              "qwen2.5-coder:7b",
+              "codellama:7b"
             ],
             "heavy": [
-              "qwen2.5:14b"
+              "qwen2.5-coder:14b"
             ]
           }
         }
@@ -336,14 +348,17 @@
     "spot-worker-04": {
       "base_url": "http://192.168.10.14:11434",
       "primary_role": "heavy",
-      "secondary_roles": [],
+      "secondary_roles": [
+        "reasoning"
+      ],
       "max_total": 1,
       "class_limits": {
         "general": 0,
         "heavy": 1,
         "coding": 0,
         "utility": 0,
-        "watcher": 0
+        "watcher": 0,
+        "reasoning": 1
       },
       "installed_models": [
         "qwen2.5:14b",
@@ -356,18 +371,123 @@
           "label": "Quadro P6000 24GB",
           "max_total": 1,
           "classes": [
-            "heavy"
+            "heavy",
+            "reasoning"
           ],
           "model_limits": {
-            "qwen3:32b": 1,
-            "qwen2.5-coder:32b": 1,
-            "qwen2.5:14b": 1
+            "qwen2.5:14b": 1,
+            "mistral-small:24b": 1,
+            "qwen3:30b-a3b": 1,
+            "gemma3:27b": 1
           },
           "model_preferences": {
             "heavy": [
               "qwen2.5:14b",
               "mistral-small:24b",
               "qwen3:30b-a3b"
+            ],
+            "reasoning": [
+              "qwen3:30b-a3b",
+              "mistral-small:24b",
+              "qwen2.5:14b"
+            ]
+          }
+        }
+      },
+      "burst_gpu_routes": {}
+    },
+    "spot-worker-05": {
+      "base_url": "http://192.168.10.15:11434",
+      "primary_role": "reasoning",
+      "secondary_roles": [
+        "heavy",
+        "review"
+      ],
+      "routing_enabled": true,
+      "max_total": 2,
+      "class_limits": {
+        "general": 0,
+        "heavy": 1,
+        "coding": 0,
+        "utility": 0,
+        "watcher": 0,
+        "reasoning": 2,
+        "review": 1
+      },
+      "installed_models": [
+        "deepseek-r1:32b",
+        "qwen2.5-coder:32b",
+        "deepseek-r1:14b",
+        "qwen2.5-coder:7b",
+        "qwen2.5:32b",
+        "qwen2.5-coder:14b",
+        "qwen2.5:14b",
+        "llama3.1:8b"
+      ],
+      "gpu_routes": {
+        "gpu0": {
+          "label": "Tesla P100 16GB (#1)",
+          "max_total": 1,
+          "classes": [
+            "reasoning",
+            "heavy",
+            "review"
+          ],
+          "model_limits": {
+            "deepseek-r1:14b": 1,
+            "deepseek-r1:32b": 1,
+            "qwen2.5:32b": 1,
+            "qwen2.5:14b": 1,
+            "qwen2.5-coder:14b": 1,
+            "qwen2.5-coder:32b": 1
+          },
+          "model_preferences": {
+            "reasoning": [
+              "deepseek-r1:14b",
+              "qwen2.5:32b",
+              "qwen2.5:14b"
+            ],
+            "heavy": [
+              "qwen2.5:32b",
+              "qwen2.5:14b"
+            ],
+            "review": [
+              "qwen2.5-coder:32b",
+              "deepseek-r1:14b",
+              "qwen2.5:32b"
+            ]
+          }
+        },
+        "gpu1": {
+          "label": "Tesla P100 16GB (#2)",
+          "max_total": 1,
+          "classes": [
+            "reasoning",
+            "heavy",
+            "review"
+          ],
+          "model_limits": {
+            "deepseek-r1:14b": 1,
+            "deepseek-r1:32b": 1,
+            "qwen2.5:32b": 1,
+            "qwen2.5:14b": 1,
+            "qwen2.5-coder:14b": 1,
+            "qwen2.5-coder:32b": 1
+          },
+          "model_preferences": {
+            "reasoning": [
+              "deepseek-r1:14b",
+              "qwen2.5:32b",
+              "qwen2.5:14b"
+            ],
+            "heavy": [
+              "qwen2.5:32b",
+              "qwen2.5:14b"
+            ],
+            "review": [
+              "qwen2.5-coder:14b",
+              "deepseek-r1:14b",
+              "qwen2.5:14b"
             ]
           }
         }
@@ -417,71 +537,6 @@
               "deepseek-r1:32b",
               "qwen2.5-coder:32b",
               "qwen2.5:14b"
-            ]
-          }
-        }
-      },
-      "burst_gpu_routes": {}
-    },
-    "spot-worker-05": {
-      "base_url": "http://192.168.10.15:11434",
-      "primary_role": "review",
-      "secondary_roles": [
-        "heavy",
-        "reasoning"
-      ],
-      "routing_enabled": true,
-      "max_total": 1,
-      "class_limits": {
-        "general": 0,
-        "heavy": 1,
-        "coding": 0,
-        "utility": 0,
-        "watcher": 0,
-        "reasoning": 1,
-        "review": 1
-      },
-      "installed_models": [
-        "deepseek-r1:32b",
-        "qwen2.5-coder:32b",
-        "deepseek-r1:14b",
-        "qwen2.5-coder:7b",
-        "qwen2.5:32b",
-        "qwen2.5-coder:14b",
-        "qwen2.5:14b",
-        "llama3.1:8b"
-      ],
-      "gpu_routes": {
-        "gpu0": {
-          "label": "Tesla P100 16GB",
-          "max_total": 1,
-          "classes": [
-            "review",
-            "heavy",
-            "reasoning"
-          ],
-          "model_limits": {
-            "qwen2.5:14b": 1,
-            "qwen2.5-coder:14b": 1,
-            "qwen2.5:32b": 1,
-            "qwen2.5-coder:32b": 1,
-            "deepseek-r1:32b": 1,
-            "deepseek-r1:14b": 1,
-            "qwen2.5-coder:7b": 1
-          },
-          "model_preferences": {
-            "heavy": [
-              "qwen2.5:32b",
-              "qwen2.5:14b"
-            ],
-            "reasoning": [
-              "qwen2.5:32b"
-            ],
-            "review": [
-              "qwen2.5-coder:32b",
-              "deepseek-r1:32b",
-              "deepseek-r1:14b",
-              "qwen2.5:32b"
             ]
           }
         }
@@ -541,5 +596,37 @@
     "currency": "USD",
     "local_request_cost_usd": 0.0,
     "log_estimates": true
+  },
+  "role_owners_canonical": {
+    "general": "spot-worker-01",
+    "utility": "spot-worker-02",
+    "coding": "spot-worker-03",
+    "heavy": "spot-worker-04",
+    "review": "spot-worker-05",
+    "reasoning": "spot-worker-06"
+  },
+  "role_standin_priority": {
+    "reasoning": [
+      "spot-worker-05",
+      "spot-worker-04"
+    ],
+    "heavy": [
+      "spot-worker-05",
+      "spot-worker-01"
+    ],
+    "review": [
+      "spot-worker-06",
+      "spot-worker-04"
+    ],
+    "coding": [
+      "spot-worker-03"
+    ],
+    "general": [
+      "spot-worker-01",
+      "spot-worker-03"
+    ],
+    "utility": [
+      "spot-worker-02"
+    ]
   }
 }

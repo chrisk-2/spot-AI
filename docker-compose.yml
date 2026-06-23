@@ -9,9 +9,9 @@ services:
       - ./HANDOFF.md:/home/ogre/spot-stack/HANDOFF.md:rw
       - ./ROADMAP.md:/home/ogre/spot-stack/ROADMAP.md:rw
       - /mnt/collective:/mnt/collective
-      - /mnt/collective/fleet/spot-core/shared_memory:/srv/spot-core/shared_memory
       - ./watch:/watch
       - /home/ogre/.ssh:/host-ssh:ro
+      - /home/ogre:/home/ogre:ro
       - ./:/home/ogre/spot-stack:rw
     env_file:
       - ./spot-core/.env
@@ -21,30 +21,43 @@ services:
       SPOTCORE_WATCH_STATE: /srv/watch/state/fleet-status.json
       SPOTCORE_EXEC_HISTORY: /srv/spot-core/shared_memory/exec-history.jsonl
       SPOTCORE_DECISION_LOG: /srv/spot-core/shared_memory/decision-history.jsonl
+      OPNSENSE_HOST: "192.168.1.1"
+      OPNSENSE_KEY: "/sRRnVbIqH3mOuwdjDC6VJd6OUN4fgk0yh2iRyiAhS+6Sclx6q12ysfJ6poO3fPDArRWZIgOce72A/P7"
+      OPNSENSE_SECRET: "fbpoDHnoEDc5988R2D+2x/hQurrrXdlwjvqHQpXAzscKv64Gy/kraQ0UrsZOR03yYDswZozCSlU6oi0r"
+      UNIFI_HOST: "192.168.60.20"
+      UNIFI_PORT: "11443"
+      UNIFI_USER: "spot"
+      UNIFI_PASS: "Spot10187***"
+      UNIFI_SITE: "starfleet"
       PYTHONUNBUFFERED: "1"
-    command: >
-      bash -lc "
-        apt-get update &&
-        apt-get install -y --no-install-recommends openssh-client jq curl &&
-        rm -rf /var/lib/apt/lists/* &&
-          mkdir -p /root/.ssh &&
-          cp /host-ssh/spot_fleet /root/.ssh/spot_fleet &&
-          cp /host-ssh/spot_fleet.pub /root/.ssh/spot_fleet.pub 2>/dev/null || true &&
-          cp /host-ssh/id_ed25519 /root/.ssh/id_ed25519 2>/dev/null || true &&
-          cp /host-ssh/id_ed25519.pub /root/.ssh/id_ed25519.pub 2>/dev/null || true &&
-          cp /host-ssh/known_hosts /root/.ssh/known_hosts 2>/dev/null || true &&
-          printf 'Host *\\n    IdentityFile /root/.ssh/spot_fleet\\n    IdentitiesOnly yes\\n    UserKnownHostsFile /root/.ssh/known_hosts\\n' > /root/.ssh/config &&
-          chmod 700 /root/.ssh &&
-          chmod 600 /root/.ssh/spot_fleet &&
-          chmod 644 /root/.ssh/spot_fleet.pub 2>/dev/null || true &&
-          chmod 600 /root/.ssh/config &&
-          chmod 600 /root/.ssh/id_ed25519 2>/dev/null || true &&
-          chmod 644 /root/.ssh/id_ed25519.pub 2>/dev/null || true &&
-          chmod 644 /root/.ssh/known_hosts 2>/dev/null || true &&
-        pip install --no-cache-dir -r requirements.txt &&
-        uvicorn spotcore.app:app --host 0.0.0.0 --port 8787
-      "
-
+      SPOT_PROACTIVE_INTERVAL: "300"
+      SPOT_PROACTIVE_DEDUP: "1800"
+    entrypoint: []
+    command:
+      - bash
+      - -lc
+      - |
+        set -e
+        apt-get update
+        apt-get install -y --no-install-recommends openssh-client jq curl
+        rm -rf /var/lib/apt/lists/*
+        mkdir -p /root/.ssh
+        cp /host-ssh/spot_fleet /root/.ssh/spot_fleet
+        cp /host-ssh/spot_fleet.pub /root/.ssh/spot_fleet.pub 2>/dev/null || true
+        cp /host-ssh/id_ed25519 /root/.ssh/id_ed25519 2>/dev/null || true
+        cp /host-ssh/id_ed25519.pub /root/.ssh/id_ed25519.pub 2>/dev/null || true
+        cp /host-ssh/known_hosts /root/.ssh/known_hosts 2>/dev/null || true
+        printf 'Host *\n    IdentityFile /root/.ssh/spot_fleet\n    IdentitiesOnly yes\n    UserKnownHostsFile /root/.ssh/known_hosts\n' > /root/.ssh/config
+        chmod 700 /root/.ssh
+        chmod 600 /root/.ssh/spot_fleet
+        chmod 644 /root/.ssh/spot_fleet.pub 2>/dev/null || true
+        chmod 600 /root/.ssh/config
+        chmod 600 /root/.ssh/id_ed25519 2>/dev/null || true
+        chmod 644 /root/.ssh/id_ed25519.pub 2>/dev/null || true
+        chmod 644 /root/.ssh/known_hosts 2>/dev/null || true
+        pip install --no-cache-dir -r requirements.txt
+        python spotcore/spot-proactive.py &
+        exec python -m uvicorn spotcore.app:app --host 0.0.0.0 --port 8787
     ports:
       - "8787:8787"
     restart: unless-stopped

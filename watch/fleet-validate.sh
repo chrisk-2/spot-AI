@@ -140,7 +140,7 @@ run_role_route_checks() {
 
   fetch_fleet_ping "$review_ping" "$review_code" || true
 
-  if jq -e '.[\"spot-worker-05\"].quarantined == true' "$review_ping" >/dev/null 2>&1; then
+  if jq -e '.["spot-worker-05"].quarantined == true' "$review_ping" >/dev/null 2>&1; then
     warn "spot-worker-05 review lane quarantined; skipping eligibility check"
   else
     check_worker_registered spot-worker-05 review '[
@@ -208,20 +208,16 @@ check_admin_validate_endpoint() {
 }
 
 check_local_review_endpoint() {
-  local payload="$TMPDIR/local-review.json"
-  local response="$TMPDIR/local-review.response.json"
-  local code_file="$TMPDIR/local-review.http"
+  # BUG FIX: use absolute path — relative path 'watch/review/review-local-health.py'
+  # fails when validator runs from /srv/spot-core inside the container.
+  local health_script="/home/ogre/spot-stack/watch/review/review-local-health.py"
 
-  jq -n \
-    --arg prompt "Review proposal only: restart ollama on spot-worker-03 after backup verification." \
-    '{
-      prompt:$prompt,
-      review_type:"policy_review",
-      worker:"spot-worker-05",
-      model:"qwen2.5-coder:32b"
-    }' > "$payload"
+  if [[ ! -f "$health_script" ]]; then
+    warn "/review/local health script missing: $health_script"
+    return 0
+  fi
 
-  if watch/review/review-local-health.py >/tmp/spot-review-local-health.json 2>/tmp/spot-review-local-health.err; then
+  if python3 "$health_script" >/tmp/spot-review-local-health.json 2>/tmp/spot-review-local-health.err; then
     pass "/review/local route reachable"
   else
     warn "/review/local route unreachable or unhealthy"
@@ -254,7 +250,7 @@ check_secret_regression() {
   fi
 
   (
-    git -C "$repo_root" grep -n -E 'SPOTCORE_ADMIN_API_TOKEN[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9_./+-]{16,}' -- \
+    git -C "$repo_root" grep -n -E 'SPOTCORE_ADMIN_API_TOKEN[[:space:]]*[:=][[:space:]]*["\x27]?[A-Za-z0-9_./+-]{16,}' -- \
       ':!*.env' \
       ':!*.pyc' \
       ':!*__pycache__*' \
