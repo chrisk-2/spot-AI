@@ -275,7 +275,7 @@ ROLE_OWNERS: dict[str, str] = {
     "coding": "spot-worker-03",
     "heavy": "spot-worker-04",
     "review": "spot-worker-05",
-    "reasoning": "spot-worker-05",  # stand-in: canonical owner is spot-worker-06
+    "reasoning": "spot-worker-06",  # stand-in: canonical owner is spot-worker-06
 }
 
 
