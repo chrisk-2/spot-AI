@@ -3,45 +3,38 @@
   "node_count": 11,
   "nodes": [
     {
-      "identity": {
-        "hostname": "dns-core",
-        "reported_hostname": "dns-core",
-        "ip": "192.168.60.10",
-        "category": "INFRASTRUCTURE",
-        "switch_port": "22",
-        "description": "Primary DNS / AdGuard",
-        "reachable": true,
-        "collected_at": "2026-05-08T14:43:28+00:00"
-      },
-      "system": {
-        "os": "Ubuntu 22.04.5 LTS",
-        "kernel": "5.15.0-176-generic",
-        "uptime": "up 1 week, 4 days, 1 hour, 55 minutes",
-        "vendor": "",
-        "product": "",
-        "board_vendor": "",
-        "board_product": "",
-        "bios_version": "",
-        "bios_date": ""
-      },
       "cpu": {
-        "model": "AMD Ryzen 5 PRO 2400G with Radeon Vega Graphics",
-        "threads": "8",
         "cores_per_socket": "4",
-        "sockets": "1"
+        "model": "AMD Ryzen 5 PRO 2400G with Radeon Vega Graphics",
+        "sockets": "1",
+        "threads": "8"
+      },
+      "gpu": {
+        "summary": [],
+        "topology": []
+      },
+      "identity": {
+        "category": "INFRASTRUCTURE",
+        "collected_at": "2026-05-08T14:43:28+00:00",
+        "description": "Primary DNS / AdGuard",
+        "hostname": "dns-core",
+        "ip": "192.168.60.10",
+        "reachable": true,
+        "reported_hostname": "dns-core",
+        "switch_port": "22"
       },
       "memory": {
-        "total": "6.7Gi",
-        "used": "386Mi",
         "available": "6.0Gi",
+        "devices": [],
         "swap_total": "4.0Gi",
         "swap_used": "0B",
-        "devices": []
+        "total": "6.7Gi",
+        "used": "386Mi"
       },
       "network": {
-        "primary_ip": "192.168.60.10",
         "all_ips": "192.168.60.10",
         "default_route": "192.168.60.1 via eno1",
+        "dns": [],
         "nic_brief": [
           "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
           "eno1 UP f8:b4:6a:a4:2b:8d <BROADCAST,MULTICAST,UP,LOWER_UP> "
@@ -49,7 +42,30 @@
         "nic_speeds": [
           "eno1=1000"
         ],
-        "dns": []
+        "primary_ip": "192.168.60.10"
+      },
+      "ollama": {
+        "models": [],
+        "version": ""
+      },
+      "services": {
+        "docker_running": "",
+        "docker_version": "",
+        "failed_count": "0",
+        "failed_names": "",
+        "ollama_active": "inactive",
+        "python_version": "Python 3.10.12",
+        "ssh_active": "active",
+        "tools": [
+          "curl=yes",
+          "jq=no",
+          "git=yes",
+          "docker=no",
+          "nvidia-smi=no",
+          "ollama=no",
+          "sensors=no",
+          "nvme=no"
+        ]
       },
       "storage": {
         "disks": [
@@ -74,103 +90,86 @@
           "/dev/nvme0n1|"
         ]
       },
-      "gpu": {
-        "summary": [],
-        "topology": []
-      },
-      "services": {
-        "failed_count": "0",
-        "failed_names": "",
-        "ssh_active": "active",
-        "ollama_active": "inactive",
-        "docker_version": "",
-        "docker_running": "",
-        "python_version": "Python 3.10.12",
-        "tools": [
-          "curl=yes",
-          "jq=no",
-          "git=yes",
-          "docker=no",
-          "nvidia-smi=no",
-          "ollama=no",
-          "sensors=no",
-          "nvme=no"
-        ]
-      },
-      "ollama": {
-        "version": "",
-        "models": []
+      "system": {
+        "bios_date": "",
+        "bios_version": "",
+        "board_product": "",
+        "board_vendor": "",
+        "kernel": "5.15.0-176-generic",
+        "os": "Ubuntu 22.04.5 LTS",
+        "product": "",
+        "uptime": "up 1 week, 4 days, 1 hour, 55 minutes",
+        "vendor": ""
       },
       "thermal": {
         "temps": []
       }
     },
     {
-      "identity": {
-        "hostname": "sentinel-core",
-        "reported_hostname": "sentinel-core",
-        "ip": "192.168.1.3",
-        "category": "HOUSE",
-        "switch_port": "",
-        "description": "Proxmox host",
-        "reachable": false,
-        "collected_at": "2026-05-08T14:43:32+00:00"
-      },
-      "system": {},
       "cpu": {},
-      "memory": {},
-      "network": {},
-      "storage": {},
       "gpu": {
         "summary": [],
         "topology": []
       },
-      "services": {},
+      "identity": {
+        "category": "HOUSE",
+        "collected_at": "2026-05-08T14:43:32+00:00",
+        "description": "Proxmox host",
+        "hostname": "sentinel-core",
+        "ip": "192.168.1.3",
+        "reachable": false,
+        "reported_hostname": "sentinel-core",
+        "switch_port": ""
+      },
+      "memory": {},
+      "network": {},
       "ollama": {
         "models": []
       },
+      "services": {},
+      "storage": {},
+      "system": {},
       "thermal": {}
     },
     {
-      "identity": {
-        "hostname": "spot-core",
-        "reported_hostname": "spot-core",
-        "ip": "192.168.60.30",
-        "category": "INFRASTRUCTURE",
-        "switch_port": "24",
-        "description": "Primary orchestrator",
-        "reachable": true,
-        "collected_at": "2026-05-08T14:43:26+00:00"
-      },
-      "system": {
-        "os": "Ubuntu 24.04.4 LTS",
-        "kernel": "6.8.0-110-generic",
-        "uptime": "up 6 days, 13 hours, 20 minutes",
-        "vendor": "",
-        "product": "",
-        "board_vendor": "",
-        "board_product": "",
-        "bios_version": "",
-        "bios_date": ""
-      },
       "cpu": {
-        "model": "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz",
-        "threads": "8",
         "cores_per_socket": "4",
-        "sockets": "1"
+        "model": "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz",
+        "sockets": "1",
+        "threads": "8"
+      },
+      "gpu": {
+        "summary": [],
+        "topology": []
+      },
+      "identity": {
+        "category": "INFRASTRUCTURE",
+        "collected_at": "2026-05-08T14:43:26+00:00",
+        "description": "Primary orchestrator",
+        "hostname": "spot-core",
+        "ip": "192.168.60.30",
+        "reachable": true,
+        "reported_hostname": "spot-core",
+        "switch_port": "24"
       },
       "memory": {
-        "total": "31Gi",
-        "used": "1.1Gi",
         "available": "30Gi",
+        "devices": [],
         "swap_total": "8.0Gi",
         "swap_used": "0B",
-        "devices": []
+        "total": "31Gi",
+        "used": "1.1Gi"
       },
       "network": {
-        "primary_ip": "192.168.60.30",
         "all_ips": "192.168.60.30 172.18.0.1 172.17.0.1",
         "default_route": "192.168.60.1 via eno1",
+        "dns": [
+          "Global:",
+          "Link 2 (eno1): 192.168.60.10 192.168.60.20",
+          "Link 3 (br-2e14c7e2b038):",
+          "Link 4 (docker0):",
+          "Link 5 (veth1a7175e):"
+        ],
         "nic_brief": [
           "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
           "eno1 UP 4c:cc:6a:be:97:47 <BROADCAST,MULTICAST,UP,LOWER_UP> ",
@@ -181,12 +180,29 @@
         "nic_speeds": [
           "br-2e14c7e2b038=10000"
         ],
-        "dns": [
-          "Global:",
-          "Link 2 (eno1): 192.168.60.10 192.168.60.20",
-          "Link 3 (br-2e14c7e2b038):",
-          "Link 4 (docker0):",
-          "Link 5 (veth1a7175e):"
+        "primary_ip": "192.168.60.30"
+      },
+      "ollama": {
+        "models": [],
+        "version": ""
+      },
+      "services": {
+        "docker_running": "spot-core",
+        "docker_version": "Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2",
+        "failed_count": "0",
+        "failed_names": "",
+        "ollama_active": "inactive",
+        "python_version": "Python 3.12.3",
+        "ssh_active": "active",
+        "tools": [
+          "curl=yes",
+          "jq=yes",
+          "git=yes",
+          "docker=yes",
+          "nvidia-smi=no",
+          "ollama=no",
+          "sensors=no",
+          "nvme=no"
         ]
       },
       "storage": {
@@ -208,80 +224,61 @@
         ],
         "nvme_health": []
       },
-      "gpu": {
-        "summary": [],
-        "topology": []
-      },
-      "services": {
-        "failed_count": "0",
-        "failed_names": "",
-        "ssh_active": "active",
-        "ollama_active": "inactive",
-        "docker_version": "Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2",
-        "docker_running": "spot-core",
-        "python_version": "Python 3.12.3",
-        "tools": [
-          "curl=yes",
-          "jq=yes",
-          "git=yes",
-          "docker=yes",
-          "nvidia-smi=no",
-          "ollama=no",
-          "sensors=no",
-          "nvme=no"
-        ]
-      },
-      "ollama": {
-        "version": "",
-        "models": []
+      "system": {
+        "bios_date": "",
+        "bios_version": "",
+        "board_product": "",
+        "board_vendor": "",
+        "kernel": "6.8.0-110-generic",
+        "os": "Ubuntu 24.04.4 LTS",
+        "product": "",
+        "uptime": "up 6 days, 13 hours, 20 minutes",
+        "vendor": ""
       },
       "thermal": {
         "temps": []
       }
     },
     {
-      "identity": {
-        "hostname": "spot-ui-01",
-        "reported_hostname": "spot-ui-01",
-        "ip": "192.168.10.12",
-        "category": "ENGINEERING",
-        "switch_port": "7",
-        "description": "Interface / dashboard",
-        "reachable": true,
-        "collected_at": "2026-05-08T09:43:12-05:00"
-      },
-      "system": {
-        "os": "Ubuntu 24.04.4 LTS",
-        "kernel": "6.17.0-22-generic",
-        "uptime": "up 1 week, 3 days, 11 hours, 58 minutes",
-        "vendor": "Dell Inc.",
-        "product": "Inspiron 7700 AIO",
-        "board_vendor": "Dell Inc.",
-        "board_product": "0H1TR9",
-        "bios_version": "1.39.0",
-        "bios_date": "08/05/2025"
-      },
       "cpu": {
-        "model": "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz",
-        "threads": "8",
         "cores_per_socket": "4",
-        "sockets": "1"
+        "model": "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz",
+        "sockets": "1",
+        "threads": "8"
+      },
+      "gpu": {
+        "summary": [],
+        "topology": []
+      },
+      "identity": {
+        "category": "ENGINEERING",
+        "collected_at": "2026-05-08T09:43:12-05:00",
+        "description": "Interface / dashboard",
+        "hostname": "spot-ui-01",
+        "ip": "192.168.10.12",
+        "reachable": true,
+        "reported_hostname": "spot-ui-01",
+        "switch_port": "7"
       },
       "memory": {
-        "total": "30Gi",
-        "used": "3.9Gi",
         "available": "27Gi",
-        "swap_total": "8.0Gi",
-        "swap_used": "0B",
         "devices": [
           "DIMM1|16 GB|DDR4||TIMETEC-SD4-2666",
           "DIMM2|16 GB|DDR4||TIMETEC-SD4-2666"
-        ]
+        ],
+        "swap_total": "8.0Gi",
+        "swap_used": "0B",
+        "total": "30Gi",
+        "used": "3.9Gi"
       },
       "network": {
-        "primary_ip": "192.168.10.12",
         "all_ips": "192.168.10.12",
         "default_route": "192.168.10.1 via enp2s0",
+        "dns": [
+          "Global:",
+          "Link 2 (enp2s0): 192.168.60.10 192.168.60.20",
+          "Link 3 (wlo1):"
+        ],
         "nic_brief": [
           "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
           "enp2s0 UP 30:d0:42:e8:b2:3b <BROADCAST,MULTICAST,UP,LOWER_UP> ",
@@ -290,10 +287,29 @@
         "nic_speeds": [
           "enp2s0=1000"
         ],
-        "dns": [
-          "Global:",
-          "Link 2 (enp2s0): 192.168.60.10 192.168.60.20",
-          "Link 3 (wlo1):"
+        "primary_ip": "192.168.10.12"
+      },
+      "ollama": {
+        "models": [],
+        "version": ""
+      },
+      "services": {
+        "docker_running": "",
+        "docker_version": "Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.1",
+        "failed_count": "2",
+        "failed_names": "\u25cf,\u25cf",
+        "ollama_active": "inactive",
+        "python_version": "Python 3.12.3",
+        "ssh_active": "active",
+        "tools": [
+          "curl=yes",
+          "jq=yes",
+          "git=yes",
+          "docker=yes",
+          "nvidia-smi=no",
+          "ollama=no",
+          "sensors=yes",
+          "nvme=no"
         ]
       },
       "storage": {
@@ -322,32 +338,16 @@
           "/dev/nvme0n1|"
         ]
       },
-      "gpu": {
-        "summary": [],
-        "topology": []
-      },
-      "services": {
-        "failed_count": "2",
-        "failed_names": "\u25cf,\u25cf",
-        "ssh_active": "active",
-        "ollama_active": "inactive",
-        "docker_version": "Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.1",
-        "docker_running": "",
-        "python_version": "Python 3.12.3",
-        "tools": [
-          "curl=yes",
-          "jq=yes",
-          "git=yes",
-          "docker=yes",
-          "nvidia-smi=no",
-          "ollama=no",
-          "sensors=yes",
-          "nvme=no"
-        ]
-      },
-      "ollama": {
-        "version": "",
-        "models": []
+      "system": {
+        "bios_date": "08/05/2025",
+        "bios_version": "1.39.0",
+        "board_product": "0H1TR9",
+        "board_vendor": "Dell Inc.",
+        "kernel": "6.17.0-22-generic",
+        "os": "Ubuntu 24.04.4 LTS",
+        "product": "Inspiron 7700 AIO",
+        "uptime": "up 1 week, 3 days, 11 hours, 58 minutes",
+        "vendor": "Dell Inc."
       },
       "thermal": {
         "temps": [
@@ -364,45 +364,50 @@
       }
     },
     {
-      "identity": {
-        "hostname": "spot-worker-01",
-        "reported_hostname": "spot-worker-01",
-        "ip": "192.168.10.10",
-        "category": "ENGINEERING",
-        "switch_port": "5",
-        "description": "Worker node",
-        "reachable": true,
-        "collected_at": "2026-05-08T14:43:13+00:00"
-      },
-      "system": {
-        "os": "Ubuntu 22.04.5 LTS",
-        "kernel": "5.15.0-176-generic",
-        "uptime": "up 1 week, 4 days, 2 hours, 4 minutes",
-        "vendor": "",
-        "product": "",
-        "board_vendor": "",
-        "board_product": "",
-        "bios_version": "",
-        "bios_date": ""
-      },
       "cpu": {
-        "model": "AMD EPYC 4245P 6-Core Processor",
-        "threads": "12",
         "cores_per_socket": "6",
-        "sockets": "1"
+        "model": "AMD EPYC 4245P 6-Core Processor",
+        "sockets": "1",
+        "threads": "12"
+      },
+      "gpu": {
+        "gpus": [
+          {
+            "name": "NVIDIA GeForce RTX 3060",
+            "vram_gb": 12
+          }
+        ],
+        "summary": "RTX 3060 12GB",
+        "total_vram_gb": 12
+      },
+      "identity": {
+        "category": "ENGINEERING",
+        "collected_at": "2026-05-08T14:43:13+00:00",
+        "description": "Worker node",
+        "hostname": "spot-worker-01",
+        "ip": "192.168.10.10",
+        "primary_role": "general",
+        "reachable": true,
+        "reported_hostname": "spot-worker-01",
+        "role": "general",
+        "switch_port": "5"
       },
       "memory": {
-        "total": "30Gi",
-        "used": "1.4Gi",
         "available": "28Gi",
+        "devices": [],
         "swap_total": "8.0Gi",
         "swap_used": "0B",
-        "devices": []
+        "total": "30Gi",
+        "used": "1.4Gi"
       },
       "network": {
-        "primary_ip": "192.168.10.10",
         "all_ips": "192.168.10.10",
         "default_route": "192.168.10.1 via enp4s0",
+        "dns": [
+          "Global:",
+          "Link 2 (enp4s0): 192.168.60.10 192.168.60.20",
+          "Link 3 (enp5s0):"
+        ],
         "nic_brief": [
           "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
           "enp4s0 UP d8:43:ae:a9:c2:4c <BROADCAST,MULTICAST,UP,LOWER_UP> ",
@@ -411,10 +416,34 @@
         "nic_speeds": [
           "enp4s0=100"
         ],
-        "dns": [
-          "Global:",
-          "Link 2 (enp4s0): 192.168.60.10 192.168.60.20",
-          "Link 3 (enp5s0):"
+        "primary_ip": "192.168.10.10"
+      },
+      "ollama": {
+        "models": [
+          "mistral:7b",
+          "llama3.1:8b"
+        ],
+        "version": "ollama version is 0.18.2"
+      },
+      "provision_enabled": true,
+      "restore_deferred": false,
+      "services": {
+        "docker_running": "",
+        "docker_version": "",
+        "failed_count": "1",
+        "failed_names": "\u25cf",
+        "ollama_active": "active",
+        "python_version": "Python 3.10.12",
+        "ssh_active": "active",
+        "tools": [
+          "curl=yes",
+          "jq=yes",
+          "git=yes",
+          "docker=no",
+          "nvidia-smi=yes",
+          "ollama=yes",
+          "sensors=no",
+          "nvme=no"
         ]
       },
       "storage": {
@@ -447,31 +476,96 @@
           "/dev/nvme0n1|"
         ]
       },
-      "gpu": {
-        "summary": [
-          "0, NVIDIA GeForce RTX 3060, 12288, 1, 12043, 535.288.01, 42, 37.94, 170.00, 4, 16, 94.06.25.00.80"
-        ],
-        "topology": [
-          " \u001b[4mGPU0 CPU Affinity NUMA Affinity GPU NUMA ID\u001b[0m",
-          "GPU0 X 0-11 0 N/A",
-          "Legend:",
-          " X = Self",
-          " SYS = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)",
-          " NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node",
-          " PHB = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)",
-          " PXB = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)",
-          " PIX = Connection traversing at most a single PCIe bridge",
-          " NV# = Connection traversing a bonded set of # NVLinks"
-        ]
+      "system": {
+        "bios_date": "",
+        "bios_version": "",
+        "board_product": "",
+        "board_vendor": "",
+        "kernel": "5.15.0-176-generic",
+        "os": "Ubuntu 22.04.5 LTS",
+        "product": "",
+        "uptime": "up 1 week, 4 days, 2 hours, 4 minutes",
+        "vendor": ""
       },
+      "thermal": {
+        "temps": []
+      }
+    },
+    {
+      "cpu": {
+        "cores_per_socket": "4",
+        "model": "Intel(R) Core(TM) i5-4570 CPU @ 3.20GHz",
+        "sockets": "1",
+        "threads": "4"
+      },
+      "gpu": {
+        "gpus": [
+          {
+            "name": "NVIDIA TITAN Xp",
+            "vram_gb": 12
+          },
+          {
+            "name": "NVIDIA Quadro M4000",
+            "vram_gb": 8
+          }
+        ],
+        "summary": "TITAN Xp 12GB + Quadro M4000 8GB",
+        "total_vram_gb": 20
+      },
+      "identity": {
+        "category": "ENGINEERING",
+        "collected_at": "2026-05-08T14:43:15+00:00",
+        "description": "Worker node",
+        "hostname": "spot-worker-02",
+        "ip": "192.168.10.11",
+        "primary_role": "utility/watcher",
+        "reachable": true,
+        "reported_hostname": "spot-worker-02",
+        "role": "utility/watcher",
+        "switch_port": "4"
+      },
+      "memory": {
+        "available": "14Gi",
+        "devices": [],
+        "swap_total": "4.0Gi",
+        "swap_used": "0B",
+        "total": "15Gi",
+        "used": "1.1Gi"
+      },
+      "network": {
+        "all_ips": "192.168.10.11",
+        "default_route": "192.168.10.1 via enp3s0",
+        "dns": [
+          "Global:",
+          "Link 2 (enp3s0): 192.168.60.10 192.168.60.20"
+        ],
+        "nic_brief": [
+          "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
+          "enp3s0 UP d8:cb:8a:3e:94:fa <BROADCAST,MULTICAST,UP,LOWER_UP> "
+        ],
+        "nic_speeds": [
+          "enp3s0=1000"
+        ],
+        "primary_ip": "192.168.10.11"
+      },
+      "ollama": {
+        "models": [
+          "bge-m3:latest",
+          "nomic-embed-text:latest",
+          "phi3.5:latest"
+        ],
+        "version": "ollama version is 0.23.1"
+      },
+      "provision_enabled": true,
+      "restore_deferred": false,
       "services": {
-        "failed_count": "1",
-        "failed_names": "\u25cf",
-        "ssh_active": "active",
-        "ollama_active": "active",
-        "docker_version": "",
         "docker_running": "",
-        "python_version": "Python 3.10.12",
+        "docker_version": "",
+        "failed_count": "0",
+        "failed_names": "",
+        "ollama_active": "active",
+        "python_version": "Python 3.12.3",
+        "ssh_active": "active",
         "tools": [
           "curl=yes",
           "jq=yes",
@@ -481,71 +575,6 @@
           "ollama=yes",
           "sensors=no",
           "nvme=no"
-        ]
-      },
-      "ollama": {
-        "version": "ollama version is 0.18.2",
-        "models": [
-          "qwen2.5-coder:7b 4.7 GB",
-          "qwen2.5:14b 9.0 GB",
-          "llama3.1:8b 4.9 GB",
-          "mistral:7b 4.4 GB"
-        ]
-      },
-      "thermal": {
-        "temps": []
-      }
-    },
-    {
-      "identity": {
-        "hostname": "spot-worker-02",
-        "reported_hostname": "spot-worker-02",
-        "ip": "192.168.10.11",
-        "category": "ENGINEERING",
-        "switch_port": "4",
-        "description": "Worker node",
-        "reachable": true,
-        "collected_at": "2026-05-08T14:43:15+00:00"
-      },
-      "system": {
-        "os": "Ubuntu 24.04.4 LTS",
-        "kernel": "6.8.0-111-generic",
-        "uptime": "up 57 minutes",
-        "vendor": "",
-        "product": "",
-        "board_vendor": "",
-        "board_product": "",
-        "bios_version": "",
-        "bios_date": ""
-      },
-      "cpu": {
-        "model": "Intel(R) Core(TM) i5-4570 CPU @ 3.20GHz",
-        "threads": "4",
-        "cores_per_socket": "4",
-        "sockets": "1"
-      },
-      "memory": {
-        "total": "15Gi",
-        "used": "1.1Gi",
-        "available": "14Gi",
-        "swap_total": "4.0Gi",
-        "swap_used": "0B",
-        "devices": []
-      },
-      "network": {
-        "primary_ip": "192.168.10.11",
-        "all_ips": "192.168.10.11",
-        "default_route": "192.168.10.1 via enp3s0",
-        "nic_brief": [
-          "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
-          "enp3s0 UP d8:cb:8a:3e:94:fa <BROADCAST,MULTICAST,UP,LOWER_UP> "
-        ],
-        "nic_speeds": [
-          "enp3s0=1000"
-        ],
-        "dns": [
-          "Global:",
-          "Link 2 (enp3s0): 192.168.60.10 192.168.60.20"
         ]
       },
       "storage": {
@@ -566,33 +595,96 @@
         ],
         "nvme_health": []
       },
-      "gpu": {
-        "summary": [
-          "0, NVIDIA TITAN Xp, 12288, 3831, 8351, 580.142, 31, 17.29, 250.00, 1, 16, 86.02.3D.00.01",
-          "1, Quadro M4000, 8192, 5, 8110, 580.142, 33, 10.51, 120.00, 1, 4, 84.04.88.00.06"
-        ],
-        "topology": [
-          " \u001b[4mGPU0 GPU1 CPU Affinity NUMA Affinity GPU NUMA ID\u001b[0m",
-          "GPU0 X PHB 0-3 0 N/A",
-          "GPU1 PHB X 0-3 0 N/A",
-          "Legend:",
-          " X = Self",
-          " SYS = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)",
-          " NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node",
-          " PHB = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)",
-          " PXB = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)",
-          " PIX = Connection traversing at most a single PCIe bridge",
-          " NV# = Connection traversing a bonded set of # NVLinks"
-        ]
+      "system": {
+        "bios_date": "",
+        "bios_version": "",
+        "board_product": "",
+        "board_vendor": "",
+        "kernel": "6.8.0-111-generic",
+        "os": "Ubuntu 24.04.4 LTS",
+        "product": "",
+        "uptime": "up 57 minutes",
+        "vendor": ""
       },
+      "thermal": {
+        "temps": []
+      }
+    },
+    {
+      "cpu": {
+        "cores_per_socket": "8",
+        "model": "AMD Ryzen 7 2700X Eight-Core Processor",
+        "sockets": "1",
+        "threads": "16"
+      },
+      "gpu": {
+        "gpus": [
+          {
+            "name": "NVIDIA GeForce GTX 1070",
+            "vram_gb": 8
+          },
+          {
+            "name": "NVIDIA GeForce RTX 3060",
+            "vram_gb": 12
+          }
+        ],
+        "summary": "GTX 1070 8GB + RTX 3060 12GB",
+        "total_vram_gb": 20
+      },
+      "identity": {
+        "category": "ENGINEERING",
+        "collected_at": "2026-05-08T14:43:16+00:00",
+        "description": "Worker node",
+        "hostname": "spot-worker-03",
+        "ip": "192.168.10.13",
+        "primary_role": "coding",
+        "reachable": true,
+        "reported_hostname": "spot-worker-03",
+        "role": "coding",
+        "switch_port": "6"
+      },
+      "memory": {
+        "available": "29Gi",
+        "devices": [],
+        "swap_total": "4.0Gi",
+        "swap_used": "0B",
+        "total": "31Gi",
+        "used": "1.6Gi"
+      },
+      "network": {
+        "all_ips": "192.168.10.13",
+        "default_route": "192.168.10.1 via eno1",
+        "dns": [
+          "Global: 192.168.60.10 192.168.60.20",
+          "Link 2 (eno1): 192.168.60.10 192.168.60.20"
+        ],
+        "nic_brief": [
+          "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
+          "eno1 UP b4:2e:99:a5:17:ef <BROADCAST,MULTICAST,UP,LOWER_UP> "
+        ],
+        "nic_speeds": [
+          "eno1=1000"
+        ],
+        "primary_ip": "192.168.10.13"
+      },
+      "ollama": {
+        "models": [
+          "qwen2.5-coder:7b",
+          "codellama:7b",
+          "deepseek-coder:6.7b"
+        ],
+        "version": "ollama version is 0.18.2"
+      },
+      "provision_enabled": true,
+      "restore_deferred": false,
       "services": {
+        "docker_running": "",
+        "docker_version": "",
         "failed_count": "0",
         "failed_names": "",
-        "ssh_active": "active",
         "ollama_active": "active",
-        "docker_version": "",
-        "docker_running": "",
         "python_version": "Python 3.12.3",
+        "ssh_active": "active",
         "tools": [
           "curl=yes",
           "jq=yes",
@@ -602,71 +694,6 @@
           "ollama=yes",
           "sensors=no",
           "nvme=no"
-        ]
-      },
-      "ollama": {
-        "version": "ollama version is 0.23.1",
-        "models": [
-          "mistral:7b 4.4 GB",
-          "phi3.5:latest 2.2 GB",
-          "bge-m3:latest 1.2 GB",
-          "nomic-embed-text:latest 274 MB"
-        ]
-      },
-      "thermal": {
-        "temps": []
-      }
-    },
-    {
-      "identity": {
-        "hostname": "spot-worker-03",
-        "reported_hostname": "spot-worker-03",
-        "ip": "192.168.10.13",
-        "category": "ENGINEERING",
-        "switch_port": "6",
-        "description": "Worker node",
-        "reachable": true,
-        "collected_at": "2026-05-08T14:43:16+00:00"
-      },
-      "system": {
-        "os": "Ubuntu 24.04.4 LTS",
-        "kernel": "6.8.0-111-generic",
-        "uptime": "up 23 hours, 59 minutes",
-        "vendor": "",
-        "product": "",
-        "board_vendor": "",
-        "board_product": "",
-        "bios_version": "",
-        "bios_date": ""
-      },
-      "cpu": {
-        "model": "AMD Ryzen 7 2700X Eight-Core Processor",
-        "threads": "16",
-        "cores_per_socket": "8",
-        "sockets": "1"
-      },
-      "memory": {
-        "total": "31Gi",
-        "used": "1.6Gi",
-        "available": "29Gi",
-        "swap_total": "4.0Gi",
-        "swap_used": "0B",
-        "devices": []
-      },
-      "network": {
-        "primary_ip": "192.168.10.13",
-        "all_ips": "192.168.10.13",
-        "default_route": "192.168.10.1 via eno1",
-        "nic_brief": [
-          "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
-          "eno1 UP b4:2e:99:a5:17:ef <BROADCAST,MULTICAST,UP,LOWER_UP> "
-        ],
-        "nic_speeds": [
-          "eno1=1000"
-        ],
-        "dns": [
-          "Global: 192.168.60.10 192.168.60.20",
-          "Link 2 (eno1): 192.168.60.10 192.168.60.20"
         ]
       },
       "storage": {
@@ -685,97 +712,66 @@
         ],
         "nvme_health": []
       },
-      "gpu": {
-        "summary": [
-          "0, NVIDIA GeForce GTX 1070, 8192, 3, 8105, 580.126.09, 36, 33.75, 151.00, 2, 4, 86.04.50.40.1F",
-          "1, NVIDIA GeForce RTX 3060, 12288, 1, 11907, 580.126.09, 38, 20.81, 170.00, 3, 16, 94.06.2F.40.80"
-        ],
-        "topology": [
-          " \u001b[4mGPU0 GPU1 CPU Affinity NUMA Affinity GPU NUMA ID\u001b[0m",
-          "GPU0 X PHB 0-15 0 N/A",
-          "GPU1 PHB X 0-15 0 N/A",
-          "Legend:",
-          " X = Self",
-          " SYS = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)",
-          " NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node",
-          " PHB = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)",
-          " PXB = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)",
-          " PIX = Connection traversing at most a single PCIe bridge",
-          " NV# = Connection traversing a bonded set of # NVLinks"
-        ]
-      },
-      "services": {
-        "failed_count": "0",
-        "failed_names": "",
-        "ssh_active": "active",
-        "ollama_active": "active",
-        "docker_version": "",
-        "docker_running": "",
-        "python_version": "Python 3.12.3",
-        "tools": [
-          "curl=yes",
-          "jq=yes",
-          "git=yes",
-          "docker=no",
-          "nvidia-smi=yes",
-          "ollama=yes",
-          "sensors=no",
-          "nvme=no"
-        ]
-      },
-      "ollama": {
-        "version": "ollama version is 0.18.2",
-        "models": [
-          "codellama:7b 3.8 GB",
-          "deepseek-coder:6.7b 3.8 GB",
-          "qwen2.5:14b 9.0 GB",
-          "qwen2.5-coder:7b 4.7 GB"
-        ]
+      "system": {
+        "bios_date": "",
+        "bios_version": "",
+        "board_product": "",
+        "board_vendor": "",
+        "kernel": "6.8.0-111-generic",
+        "os": "Ubuntu 24.04.4 LTS",
+        "product": "",
+        "uptime": "up 23 hours, 59 minutes",
+        "vendor": ""
       },
       "thermal": {
         "temps": []
       }
     },
     {
-      "identity": {
-        "hostname": "spot-worker-04",
-        "reported_hostname": "spot-worker-04",
-        "ip": "192.168.10.14",
-        "category": "ENGINEERING",
-        "switch_port": "8",
-        "description": "Worker node",
-        "reachable": true,
-        "collected_at": "2026-05-08T14:43:17+00:00"
-      },
-      "system": {
-        "os": "Ubuntu 24.04.4 LTS",
-        "kernel": "6.8.0-111-generic",
-        "uptime": "up 2 days, 19 hours, 31 minutes",
-        "vendor": "",
-        "product": "",
-        "board_vendor": "",
-        "board_product": "",
-        "bios_version": "",
-        "bios_date": ""
-      },
       "cpu": {
-        "model": "13th Gen Intel(R) Core(TM) i7-13700KF",
-        "threads": "24",
         "cores_per_socket": "16",
-        "sockets": "1"
+        "model": "13th Gen Intel(R) Core(TM) i7-13700KF",
+        "sockets": "1",
+        "threads": "24"
+      },
+      "gpu": {
+        "gpus": [
+          {
+            "name": "NVIDIA Quadro P6000",
+            "vram_gb": 24
+          }
+        ],
+        "summary": "Quadro P6000 24GB",
+        "total_vram_gb": 24
+      },
+      "identity": {
+        "category": "ENGINEERING",
+        "collected_at": "2026-05-08T14:43:17+00:00",
+        "description": "Worker node",
+        "hostname": "spot-worker-04",
+        "ip": "192.168.10.14",
+        "primary_role": "heavy",
+        "reachable": true,
+        "reported_hostname": "spot-worker-04",
+        "role": "heavy",
+        "switch_port": "8"
       },
       "memory": {
-        "total": "62Gi",
-        "used": "2.1Gi",
         "available": "60Gi",
+        "devices": [],
         "swap_total": "8.0Gi",
         "swap_used": "0B",
-        "devices": []
+        "total": "62Gi",
+        "used": "2.1Gi"
       },
       "network": {
-        "primary_ip": "192.168.10.14",
         "all_ips": "192.168.10.14",
         "default_route": "192.168.10.1 via enp5s0",
+        "dns": [
+          "Global:",
+          "Link 2 (enp5s0): 192.168.60.10 192.168.60.20",
+          "Link 3 (wlo1):"
+        ],
         "nic_brief": [
           "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
           "enp5s0 UP d8:43:ae:1f:88:2b <BROADCAST,MULTICAST,UP,LOWER_UP> ",
@@ -784,10 +780,33 @@
         "nic_speeds": [
           "enp5s0=1000"
         ],
-        "dns": [
-          "Global:",
-          "Link 2 (enp5s0): 192.168.60.10 192.168.60.20",
-          "Link 3 (wlo1):"
+        "primary_ip": "192.168.10.14"
+      },
+      "ollama": {
+        "models": [
+          "qwen2.5:14b"
+        ],
+        "version": "ollama version is 0.20.6"
+      },
+      "provision_enabled": true,
+      "restore_deferred": false,
+      "services": {
+        "docker_running": "",
+        "docker_version": "",
+        "failed_count": "0",
+        "failed_names": "",
+        "ollama_active": "active",
+        "python_version": "Python 3.12.3",
+        "ssh_active": "active",
+        "tools": [
+          "curl=yes",
+          "jq=yes",
+          "git=yes",
+          "docker=no",
+          "nvidia-smi=yes",
+          "ollama=yes",
+          "sensors=yes",
+          "nvme=yes"
         ]
       },
       "storage": {
@@ -812,47 +831,16 @@
           "/dev/nvme1n1|"
         ]
       },
-      "gpu": {
-        "summary": [
-          "0, Quadro P6000, 24576, 14801, 9637, 580.126.09, 26, 8.90, 250.00, 1, 16, 86.02.1D.00.01"
-        ],
-        "topology": [
-          " \u001b[4mGPU0 CPU Affinity NUMA Affinity GPU NUMA ID\u001b[0m",
-          "GPU0 X 0-23 0 N/A",
-          "Legend:",
-          " X = Self",
-          " SYS = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)",
-          " NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node",
-          " PHB = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)",
-          " PXB = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)",
-          " PIX = Connection traversing at most a single PCIe bridge",
-          " NV# = Connection traversing a bonded set of # NVLinks"
-        ]
-      },
-      "services": {
-        "failed_count": "0",
-        "failed_names": "",
-        "ssh_active": "active",
-        "ollama_active": "active",
-        "docker_version": "",
-        "docker_running": "",
-        "python_version": "Python 3.12.3",
-        "tools": [
-          "curl=yes",
-          "jq=yes",
-          "git=yes",
-          "docker=no",
-          "nvidia-smi=yes",
-          "ollama=yes",
-          "sensors=yes",
-          "nvme=yes"
-        ]
-      },
-      "ollama": {
-        "version": "ollama version is 0.20.6",
-        "models": [
-          "qwen2.5:14b 9.0 GB"
-        ]
+      "system": {
+        "bios_date": "",
+        "bios_version": "",
+        "board_product": "",
+        "board_vendor": "",
+        "kernel": "6.8.0-111-generic",
+        "os": "Ubuntu 24.04.4 LTS",
+        "product": "",
+        "uptime": "up 2 days, 19 hours, 31 minutes",
+        "vendor": ""
       },
       "thermal": {
         "temps": [
@@ -881,71 +869,87 @@
       }
     },
     {
-      "identity": {
-        "hostname": "spot-worker-05",
-        "reported_hostname": "spot-worker-05",
-        "ip": "192.168.10.15",
-        "category": "ENGINEERING",
-        "switch_port": "",
-        "description": "Worker node",
-        "reachable": false,
-        "collected_at": "2026-05-08T14:43:25+00:00"
-      },
-      "system": {},
       "cpu": {},
+      "gpu": {
+        "gpus": [
+          {
+            "name": "NVIDIA Tesla P100",
+            "vram_gb": 16
+          },
+          {
+            "name": "NVIDIA Tesla P100",
+            "vram_gb": 16
+          }
+        ],
+        "summary": "2x Tesla P100",
+        "total_vram_gb": 32
+      },
+      "identity": {
+        "category": "ENGINEERING",
+        "collected_at": "2026-05-08T14:43:25+00:00",
+        "description": "Worker node",
+        "hostname": "spot-worker-05",
+        "ip": "192.168.10.15",
+        "primary_role": "review",
+        "reachable": false,
+        "reported_hostname": "spot-worker-05",
+        "role": "review",
+        "switch_port": ""
+      },
       "memory": {},
       "network": {},
+      "ollama": {
+        "models": [
+          "deepseek-r1:32b",
+          "qwen2.5-coder:32b",
+          "deepseek-r1:14b",
+          "qwen2.5-coder:7b",
+          "qwen2.5:32b",
+          "qwen2.5-coder:14b",
+          "qwen2.5:14b",
+          "llama3.1:8b"
+        ]
+      },
+      "provision_enabled": true,
+      "restore_deferred": false,
+      "services": {},
       "storage": {},
+      "system": {},
+      "thermal": {}
+    },
+    {
+      "cpu": {
+        "cores_per_socket": "4",
+        "model": "Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz",
+        "sockets": "1",
+        "threads": "4"
+      },
       "gpu": {
         "summary": [],
         "topology": []
       },
-      "services": {},
-      "ollama": {
-        "models": []
-      },
-      "thermal": {}
-    },
-    {
       "identity": {
-        "hostname": "starfleet-core",
-        "reported_hostname": "starfleet-core",
-        "ip": "192.168.60.20",
         "category": "INFRASTRUCTURE",
-        "switch_port": "21",
+        "collected_at": "2026-05-08T14:43:29+00:00",
         "description": "NPM + UniFi + Secondary DNS + NTP",
+        "hostname": "starfleet-core",
+        "ip": "192.168.60.20",
         "reachable": true,
-        "collected_at": "2026-05-08T14:43:29+00:00"
-      },
-      "system": {
-        "os": "Ubuntu 24.04.4 LTS",
-        "kernel": "6.8.0-110-generic",
-        "uptime": "up 1 week, 4 days, 1 hour, 55 minutes",
-        "vendor": "",
-        "product": "",
-        "board_vendor": "",
-        "board_product": "",
-        "bios_version": "",
-        "bios_date": ""
-      },
-      "cpu": {
-        "model": "Intel(R) Core(TM) i5-7500T CPU @ 2.70GHz",
-        "threads": "4",
-        "cores_per_socket": "4",
-        "sockets": "1"
+        "reported_hostname": "starfleet-core",
+        "switch_port": "21"
       },
       "memory": {
-        "total": "7.6Gi",
-        "used": "2.9Gi",
         "available": "4.8Gi",
+        "devices": [],
         "swap_total": "4.0Gi",
         "swap_used": "0B",
-        "devices": []
+        "total": "7.6Gi",
+        "used": "2.9Gi"
       },
       "network": {
-        "primary_ip": "192.168.60.20",
         "all_ips": "192.168.60.20 172.18.0.1 172.19.0.1 172.17.0.1",
         "default_route": "192.168.60.1 via enp0s31f6",
+        "dns": [],
         "nic_brief": [
           "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
           "enp0s31f6 UP d8:9e:f3:7f:40:66 <BROADCAST,MULTICAST,UP,LOWER_UP> ",
@@ -958,7 +962,30 @@
         "nic_speeds": [
           "br-59d43f40c141=-1"
         ],
-        "dns": []
+        "primary_ip": "192.168.60.20"
+      },
+      "ollama": {
+        "models": [],
+        "version": ""
+      },
+      "services": {
+        "docker_running": "npm",
+        "docker_version": "Docker version 29.3.1, build c2be9cc",
+        "failed_count": "0",
+        "failed_names": "",
+        "ollama_active": "inactive",
+        "python_version": "Python 3.12.3",
+        "ssh_active": "active",
+        "tools": [
+          "curl=yes",
+          "jq=yes",
+          "git=yes",
+          "docker=yes",
+          "nvidia-smi=no",
+          "ollama=no",
+          "sensors=no",
+          "nvme=no"
+        ]
       },
       "storage": {
         "disks": [
@@ -979,77 +1006,65 @@
           "/dev/nvme0n1|"
         ]
       },
-      "gpu": {
-        "summary": [],
-        "topology": []
-      },
-      "services": {
-        "failed_count": "0",
-        "failed_names": "",
-        "ssh_active": "active",
-        "ollama_active": "inactive",
-        "docker_version": "Docker version 29.3.1, build c2be9cc",
-        "docker_running": "npm",
-        "python_version": "Python 3.12.3",
-        "tools": [
-          "curl=yes",
-          "jq=yes",
-          "git=yes",
-          "docker=yes",
-          "nvidia-smi=no",
-          "ollama=no",
-          "sensors=no",
-          "nvme=no"
-        ]
-      },
-      "ollama": {
-        "version": "",
-        "models": []
+      "system": {
+        "bios_date": "",
+        "bios_version": "",
+        "board_product": "",
+        "board_vendor": "",
+        "kernel": "6.8.0-110-generic",
+        "os": "Ubuntu 24.04.4 LTS",
+        "product": "",
+        "uptime": "up 1 week, 4 days, 1 hour, 55 minutes",
+        "vendor": ""
       },
       "thermal": {
         "temps": []
       }
     },
     {
-      "identity": {
-        "hostname": "starfleet-tower",
-        "reported_hostname": "starfleet-tower",
-        "ip": "192.168.30.5",
-        "category": "SECTION 31",
-        "switch_port": "13",
-        "description": "Homarr / Portainer / Uptime Kuma / Glances / Netdata",
-        "reachable": true,
-        "collected_at": "2026-05-08T14:43:31+00:00"
-      },
-      "system": {
-        "os": "Ubuntu 22.04.5 LTS",
-        "kernel": "5.15.0-176-generic",
-        "uptime": "up 1 week, 1 day, 18 hours, 27 minutes",
-        "vendor": "",
-        "product": "",
-        "board_vendor": "",
-        "board_product": "",
-        "bios_version": "",
-        "bios_date": ""
-      },
       "cpu": {
-        "model": "Intel(R) Core(TM) i5-3427U CPU @ 1.80GHz",
-        "threads": "4",
         "cores_per_socket": "2",
-        "sockets": "1"
+        "model": "Intel(R) Core(TM) i5-3427U CPU @ 1.80GHz",
+        "sockets": "1",
+        "threads": "4"
+      },
+      "gpu": {
+        "summary": [],
+        "topology": []
+      },
+      "identity": {
+        "category": "SECTION 31",
+        "collected_at": "2026-05-08T14:43:31+00:00",
+        "description": "Homarr / Portainer / Uptime Kuma / Glances / Netdata",
+        "hostname": "starfleet-tower",
+        "ip": "192.168.30.5",
+        "reachable": true,
+        "reported_hostname": "starfleet-tower",
+        "switch_port": "13"
       },
       "memory": {
-        "total": "7.6Gi",
-        "used": "947Mi",
         "available": "6.4Gi",
+        "devices": [],
         "swap_total": "4.0Gi",
         "swap_used": "0B",
-        "devices": []
+        "total": "7.6Gi",
+        "used": "947Mi"
       },
       "network": {
-        "primary_ip": "192.168.30.5",
         "all_ips": "192.168.30.5 172.17.0.1",
         "default_route": "192.168.30.1 via enp2s0",
+        "dns": [
+          "Global: 192.168.60.10",
+          "Link 2 (enp1s0):",
+          "Link 3 (enp2s0): 192.168.60.10 192.168.60.20",
+          "Link 4 (wlp3s0):",
+          "Link 5 (docker0):",
+          "Link 6 (veth16db96f):",
+          "Link 7 (veth7564acf):",
+          "Link 8 (vethe5e6e88):",
+          "Link 9 (vethfaec09b):",
+          "Link 10 (veth1d1aa26):"
+        ],
         "nic_brief": [
           "lo UNKNOWN 00:00:00:00:00:00 <LOOPBACK,UP,LOWER_UP> ",
           "enp1s0 DOWN 00:e8:4c:68:5e:24 <BROADCAST,MULTICAST> ",
@@ -1065,17 +1080,29 @@
         "nic_speeds": [
           "docker0=10000"
         ],
-        "dns": [
-          "Global: 192.168.60.10",
-          "Link 2 (enp1s0):",
-          "Link 3 (enp2s0): 192.168.60.10 192.168.60.20",
-          "Link 4 (wlp3s0):",
-          "Link 5 (docker0):",
-          "Link 6 (veth16db96f):",
-          "Link 7 (veth7564acf):",
-          "Link 8 (vethe5e6e88):",
-          "Link 9 (vethfaec09b):",
-          "Link 10 (veth1d1aa26):"
+        "primary_ip": "192.168.30.5"
+      },
+      "ollama": {
+        "models": [],
+        "version": ""
+      },
+      "services": {
+        "docker_running": "netdata,homarr,glances,portainer,uptime-kuma",
+        "docker_version": "Docker version 29.3.1, build c2be9cc",
+        "failed_count": "0",
+        "failed_names": "",
+        "ollama_active": "inactive",
+        "python_version": "Python 3.10.12",
+        "ssh_active": "active",
+        "tools": [
+          "curl=yes",
+          "jq=yes",
+          "git=yes",
+          "docker=yes",
+          "nvidia-smi=no",
+          "ollama=no",
+          "sensors=no",
+          "nvme=no"
         ]
       },
       "storage": {
@@ -1098,32 +1125,16 @@
         ],
         "nvme_health": []
       },
-      "gpu": {
-        "summary": [],
-        "topology": []
-      },
-      "services": {
-        "failed_count": "0",
-        "failed_names": "",
-        "ssh_active": "active",
-        "ollama_active": "inactive",
-        "docker_version": "Docker version 29.3.1, build c2be9cc",
-        "docker_running": "netdata,homarr,glances,portainer,uptime-kuma",
-        "python_version": "Python 3.10.12",
-        "tools": [
-          "curl=yes",
-          "jq=yes",
-          "git=yes",
-          "docker=yes",
-          "nvidia-smi=no",
-          "ollama=no",
-          "sensors=no",
-          "nvme=no"
-        ]
-      },
-      "ollama": {
-        "version": "",
-        "models": []
+      "system": {
+        "bios_date": "",
+        "bios_version": "",
+        "board_product": "",
+        "board_vendor": "",
+        "kernel": "5.15.0-176-generic",
+        "os": "Ubuntu 22.04.5 LTS",
+        "product": "",
+        "uptime": "up 1 week, 1 day, 18 hours, 27 minutes",
+        "vendor": ""
       },
       "thermal": {
         "temps": []

@@ -1,0 +1,50 @@
+{
+  "core": {
+    "spot-core": {
+      "primary_role": "executor/policy",
+      "purpose": "sole executor and policy authority"
+    }
+  },
+  "schema": "starfleet.inventory.roles.v1",
+  "source": "operator-corrected fleet rebuild baseline",
+  "workers": {
+    "spot-worker-01": {
+      "primary_role": "general",
+      "provision_enabled": true,
+      "purpose": "general requests and lightweight summaries",
+      "restore_deferred": false
+    },
+    "spot-worker-02": {
+      "primary_role": "utility/watcher",
+      "provision_enabled": true,
+      "purpose": "embeddings, utility tasks, watcher support",
+      "restore_deferred": false
+    },
+    "spot-worker-03": {
+      "primary_role": "coding",
+      "provision_enabled": true,
+      "purpose": "patch/code generation; builder lane",
+      "restore_deferred": false
+    },
+    "spot-worker-04": {
+      "primary_role": "heavy",
+      "provision_enabled": true,
+      "purpose": "primary heavy local inference",
+      "restore_deferred": false
+    },
+    "spot-worker-05": {
+      "primary_role": "review",
+      "provision_enabled": true,
+      "purpose": "primary independent reviewer",
+      "restore_deferred": false
+    },
+    "spot-worker-06": {
+      "defer_reason": "node down; provision after backup",
+      "primary_role": "reasoning",
+      "provision_enabled": false,
+      "purpose": "reasoning / heavy overflow",
+      "quarantined": true,
+      "restore_deferred": true
+    }
+  }
+}

@@ -128,6 +128,11 @@ check_worker_registered() {
     || { fail "${worker} missing required models"; return 1; }
 }
 
+
+spot_worker_06_restore_deferred() {
+  python3 -c 'import json, sys; from pathlib import Path; cfg=json.loads(Path("spot-core/config/cluster_config.json").read_text()); w=cfg.get("workers",{}).get("spot-worker-06",{}); sys.exit(0 if w.get("restore_deferred") is True and w.get("provision_enabled") is False else 1)'
+}
+
 run_role_route_checks() {
   local before_lines=0
   [[ -f "$AUDIT_FILE" ]] && before_lines="$(wc -l < "$AUDIT_FILE")"
@@ -157,6 +162,8 @@ run_role_route_checks() {
 
   if jq -e '.["spot-worker-06"].quarantined == true' "$reasoning_ping" >/dev/null 2>&1; then
     warn "spot-worker-06 reasoning lane quarantined; skipping eligibility check"
+  elif spot_worker_06_restore_deferred; then
+    warn "spot-worker-06 restore deferred; skipping reasoning eligibility check"
   else
     check_worker_registered spot-worker-06 reasoning '["deepseek-r1:32b","qwen2.5-coder:32b","qwen2.5:14b"]' || true
   fi

@@ -1,39 +1,4 @@
 {
-  "required_models": {
-    "spot-worker-01": [
-      "mistral:7b",
-      "llama3.1:8b"
-    ],
-    "spot-worker-02": [
-      "mistral:7b",
-      "bge-m3:latest",
-      "nomic-embed-text:latest"
-    ],
-    "spot-worker-03": [
-      "qwen2.5-coder:7b",
-      "codellama:7b",
-      "deepseek-coder:6.7b",
-      "qwen2.5:14b"
-    ],
-    "spot-worker-04": [
-      "qwen2.5:14b",
-      "mistral-small:24b",
-      "qwen3:30b-a3b",
-      "gemma3:27b"
-    ],
-    "spot-worker-05": [
-      "deepseek-r1:32b",
-      "qwen2.5-coder:32b",
-      "qwen2.5:14b",
-      "deepseek-r1:14b"
-    ],
-    "spot-worker-06": [
-      "deepseek-r1:32b",
-      "qwen2.5-coder:32b",
-      "qwen2.5:14b"
-    ]
-  },
-  "gpu_temp_alert_c": 80,
   "gpu_min_free_mb": {
     "spot-worker-01": 2000,
     "spot-worker-02": 1000,
@@ -42,6 +7,7 @@
     "spot-worker-05": 2000,
     "spot-worker-06": 2000
   },
+  "gpu_temp_alert_c": 80,
   "required_gpu_counts": {
     "spot-worker-01": 1,
     "spot-worker-02": 2,
@@ -50,17 +16,47 @@
     "spot-worker-05": 2,
     "spot-worker-06": 1
   },
+  "required_models": {
+    "spot-worker-01": [
+      "mistral:7b",
+      "llama3.1:8b"
+    ],
+    "spot-worker-02": [
+      "bge-m3:latest",
+      "nomic-embed-text:latest",
+      "phi3.5:latest"
+    ],
+    "spot-worker-03": [
+      "qwen2.5-coder:7b",
+      "codellama:7b",
+      "deepseek-coder:6.7b"
+    ],
+    "spot-worker-04": [
+      "qwen2.5:14b"
+    ],
+    "spot-worker-05": [
+      "deepseek-r1:32b",
+      "qwen2.5-coder:32b",
+      "deepseek-r1:14b",
+      "qwen2.5-coder:7b",
+      "qwen2.5:32b",
+      "qwen2.5-coder:14b",
+      "qwen2.5:14b",
+      "llama3.1:8b"
+    ],
+    "spot-worker-06": []
+  },
   "routing_remediation": {
-    "enabled": true,
     "audit_limit": 200,
-    "min_violations": 1,
-    "quarantine_seconds": 1800,
     "auto_unquarantine": true,
-    "fallback_note_threshold": 1,
+    "degraded_clear_max_fallbacks": 0,
+    "degraded_clear_runs": 2,
+    "enabled": true,
     "fallback_degraded_threshold": 3,
     "fallback_escalate_threshold": 5,
-    "degraded_clear_runs": 2,
-    "degraded_clear_max_fallbacks": 0,
-    "fallback_recent_window_sec": 300
+    "fallback_note_threshold": 1,
+    "fallback_recent_window_sec": 300,
+    "min_violations": 1,
+    "quarantine_seconds": 1800
   }
 }

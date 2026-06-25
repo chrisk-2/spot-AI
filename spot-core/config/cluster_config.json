@@ -272,6 +272,9 @@
   },
   "workers": {
     "spot-worker-01": {
+      "accelerators": [
+        "NVIDIA GeForce RTX 3060 12GB"
+      ],
       "base_url": "http://192.168.10.10:11434",
       "burst_gpu_routes": {},
       "class_limits": {
@@ -281,6 +284,7 @@
         "utility": 0,
         "watcher": 0
       },
+      "gpu": "RTX 3060 12GB",
       "gpu_routes": {
         "gpu0": {
           "classes": [
@@ -306,6 +310,24 @@
           }
         }
       },
+      "gpu_summary": "RTX 3060 12GB",
+      "gpus": [
+        {
+          "name": "NVIDIA GeForce RTX 3060",
+          "vram_gb": 12
+        }
+      ],
+      "hardware": {
+        "gpu": "RTX 3060 12GB",
+        "gpu_summary": "RTX 3060 12GB",
+        "gpus": [
+          {
+            "name": "NVIDIA GeForce RTX 3060",
+            "vram_gb": 12
+          }
+        ]
+      },
+      "hostname": "spot-worker-01",
       "installed_models": [
         "mistral:7b",
         "llama3.1:8b",
@@ -313,12 +335,24 @@
         "qwen2.5:14b"
       ],
       "max_total": 1,
+      "models": [
+        "mistral:7b",
+        "llama3.1:8b"
+      ],
       "primary_role": "general",
+      "provision_enabled": true,
+      "restore_deferred": false,
+      "role": "general",
       "secondary_roles": [
         "heavy"
-      ]
+      ],
+      "total_vram_gb": 12
     },
     "spot-worker-02": {
+      "accelerators": [
+        "NVIDIA TITAN Xp 12GB",
+        "NVIDIA Quadro M4000 8GB"
+      ],
       "base_url": "http://192.168.10.11:11434",
       "burst_gpu_routes": {},
       "class_limits": {
@@ -328,6 +362,7 @@
         "utility": 2,
         "watcher": 2
       },
+      "gpu": "TITAN Xp 12GB + Quadro M4000 8GB",
       "gpu_routes": {
         "gpu0": {
           "classes": [
@@ -370,19 +405,58 @@
           }
         }
       },
+      "gpu_summary": "TITAN Xp 12GB + Quadro M4000 8GB",
+      "gpus": [
+        {
+          "name": "NVIDIA TITAN Xp",
+          "vram_gb": 12
+        },
+        {
+          "name": "NVIDIA Quadro M4000",
+          "vram_gb": 8
+        }
+      ],
+      "hardware": {
+        "gpu": "TITAN Xp 12GB + Quadro M4000 8GB",
+        "gpu_summary": "TITAN Xp 12GB + Quadro M4000 8GB",
+        "gpus": [
+          {
+            "name": "NVIDIA TITAN Xp",
+            "vram_gb": 12
+          },
+          {
+            "name": "NVIDIA Quadro M4000",
+            "vram_gb": 8
+          }
+        ]
+      },
+      "hostname": "spot-worker-02",
       "installed_models": [
         "mistral:7b",
         "bge-m3:latest",
         "nomic-embed-text:latest"
       ],
       "max_total": 2,
+      "models": [
+        "bge-m3:latest",
+        "nomic-embed-text:latest",
+        "phi3.5:latest"
+      ],
       "primary_role": "utility",
+      "provision_enabled": true,
+      "restore_deferred": false,
+      "role": "utility",
       "secondary_roles": [
         "watcher",
         "general"
-      ]
+      ],
+      "total_vram_gb": 20
     },
     "spot-worker-03": {
+      "accelerators": [
+        "NVIDIA GeForce GTX 1070 8GB",
+        "NVIDIA GeForce RTX 3060 12GB"
+      ],
       "base_url": "http://192.168.10.13:11434",
       "burst_gpu_routes": {
         "gpu1": {
@@ -398,6 +472,7 @@
         "utility": 0,
         "watcher": 0
       },
+      "gpu": "GTX 1070 8GB + RTX 3060 12GB",
       "gpu_routes": {
         "gpu0": {
           "classes": [
@@ -438,6 +513,32 @@
           }
         }
       },
+      "gpu_summary": "GTX 1070 8GB + RTX 3060 12GB",
+      "gpus": [
+        {
+          "name": "NVIDIA GeForce GTX 1070",
+          "vram_gb": 8
+        },
+        {
+          "name": "NVIDIA GeForce RTX 3060",
+          "vram_gb": 12
+        }
+      ],
+      "hardware": {
+        "gpu": "GTX 1070 8GB + RTX 3060 12GB",
+        "gpu_summary": "GTX 1070 8GB + RTX 3060 12GB",
+        "gpus": [
+          {
+            "name": "NVIDIA GeForce GTX 1070",
+            "vram_gb": 8
+          },
+          {
+            "name": "NVIDIA GeForce RTX 3060",
+            "vram_gb": 12
+          }
+        ]
+      },
+      "hostname": "spot-worker-03",
       "installed_models": [
         "qwen2.5-coder:14b",
         "qwen2.5-coder:7b",
@@ -445,12 +546,24 @@
         "deepseek-coder:6.7b"
       ],
       "max_total": 2,
+      "models": [
+        "qwen2.5-coder:7b",
+        "codellama:7b",
+        "deepseek-coder:6.7b"
+      ],
       "primary_role": "coding",
+      "provision_enabled": true,
+      "restore_deferred": false,
+      "role": "coding",
       "secondary_roles": [
         "heavy"
-      ]
+      ],
+      "total_vram_gb": 20
     },
     "spot-worker-04": {
+      "accelerators": [
+        "NVIDIA Quadro P6000 24GB"
+      ],
       "base_url": "http://192.168.10.14:11434",
       "burst_gpu_routes": {},
       "class_limits": {
@@ -461,6 +574,7 @@
         "utility": 0,
         "watcher": 0
       },
+      "gpu": "Quadro P6000 24GB",
       "gpu_routes": {
         "gpu0": {
           "classes": [
@@ -489,6 +603,24 @@
           }
         }
       },
+      "gpu_summary": "Quadro P6000 24GB",
+      "gpus": [
+        {
+          "name": "NVIDIA Quadro P6000",
+          "vram_gb": 24
+        }
+      ],
+      "hardware": {
+        "gpu": "Quadro P6000 24GB",
+        "gpu_summary": "Quadro P6000 24GB",
+        "gpus": [
+          {
+            "name": "NVIDIA Quadro P6000",
+            "vram_gb": 24
+          }
+        ]
+      },
+      "hostname": "spot-worker-04",
       "installed_models": [
         "qwen2.5:14b",
         "mistral-small:24b",
@@ -496,12 +628,23 @@
         "gemma3:27b"
       ],
       "max_total": 1,
+      "models": [
+        "qwen2.5:14b"
+      ],
       "primary_role": "heavy",
+      "provision_enabled": true,
+      "restore_deferred": false,
+      "role": "heavy",
       "secondary_roles": [
         "reasoning"
-      ]
+      ],
+      "total_vram_gb": 24
     },
     "spot-worker-05": {
+      "accelerators": [
+        "NVIDIA Tesla P100 16GB",
+        "NVIDIA Tesla P100 16GB"
+      ],
       "base_url": "http://192.168.10.15:11434",
       "burst_gpu_routes": {},
       "class_limits": {
@@ -515,6 +658,7 @@
       },
       "eligible": true,
       "enabled": true,
+      "gpu": "2x Tesla P100",
       "gpu_routes": {
         "gpu0": {
           "classes": [
@@ -583,6 +727,31 @@
           }
         }
       },
+      "gpu_summary": "2x Tesla P100",
+      "gpus": [
+        {
+          "name": "NVIDIA Tesla P100",
+          "vram_gb": 16
+        },
+        {
+          "name": "NVIDIA Tesla P100",
+          "vram_gb": 16
+        }
+      ],
+      "hardware": {
+        "gpu": "2x Tesla P100",
+        "gpu_summary": "2x Tesla P100",
+        "gpus": [
+          {
+            "name": "NVIDIA Tesla P100",
+            "vram_gb": 16
+          },
+          {
+            "name": "NVIDIA Tesla P100",
+            "vram_gb": 16
+          }
+        ]
+      },
       "hostname": "spot-worker-05",
       "installed_models": [
         "deepseek-r1:32b",
@@ -596,17 +765,33 @@
       ],
       "ip": "192.168.10.15",
       "max_total": 2,
+      "models": [
+        "deepseek-r1:32b",
+        "qwen2.5-coder:32b",
+        "deepseek-r1:14b",
+        "qwen2.5-coder:7b",
+        "qwen2.5:32b",
+        "qwen2.5-coder:14b",
+        "qwen2.5:14b",
+        "llama3.1:8b"
+      ],
       "name": "spot-worker-05",
       "primary_role": "review",
+      "provision_enabled": true,
       "quarantined": false,
+      "restore_deferred": false,
       "role": "review",
       "routing_enabled": true,
       "secondary_roles": [
         "heavy",
         "review"
-      ]
+      ],
+      "total_vram_gb": 32
     },
     "spot-worker-06": {
+      "accelerators": [
+        "NVIDIA Quadro P6000 23GB"
+      ],
       "base_url": "http://192.168.10.16:11434",
       "burst_gpu_routes": {},
       "class_limits": {
@@ -617,8 +802,10 @@
         "utility": 0,
         "watcher": 0
       },
-      "eligible": true,
+      "defer_reason": "node down; provision after backup",
+      "eligible": false,
       "enabled": true,
+      "gpu": "Quadro P6000 23GB",
       "gpu_routes": {
         "gpu0": {
           "classes": [
@@ -646,6 +833,23 @@
           }
         }
       },
+      "gpu_summary": "Quadro P6000 23GB",
+      "gpus": [
+        {
+          "name": "NVIDIA Quadro P6000",
+          "vram_gb": 23
+        }
+      ],
+      "hardware": {
+        "gpu": "Quadro P6000 23GB",
+        "gpu_summary": "Quadro P6000 23GB",
+        "gpus": [
+          {
+            "name": "NVIDIA Quadro P6000",
+            "vram_gb": 23
+          }
+        ]
+      },
       "hostname": "spot-worker-06",
       "installed_models": [
         "deepseek-r1:32b",
@@ -654,14 +858,18 @@
       ],
       "ip": "192.168.10.16",
       "max_total": 1,
+      "models": [],
       "name": "spot-worker-06",
       "primary_role": "reasoning",
-      "quarantined": false,
+      "provision_enabled": false,
+      "quarantined": true,
+      "restore_deferred": true,
       "role": "reasoning",
-      "routing_enabled": true,
+      "routing_enabled": false,
       "secondary_roles": [
         "heavy"
-      ]
+      ],
+      "total_vram_gb": 23
     }
   }
 }
