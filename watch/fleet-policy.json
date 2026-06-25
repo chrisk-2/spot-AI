@@ -19,7 +19,8 @@
   "required_models": {
     "spot-worker-01": [
       "mistral:7b",
-      "llama3.1:8b"
+      "llama3.1:8b",
+      "qwen2.5:14b"
     ],
     "spot-worker-02": [
       "bge-m3:latest",
@@ -29,10 +30,13 @@
     "spot-worker-03": [
       "qwen2.5-coder:7b",
       "codellama:7b",
-      "deepseek-coder:6.7b"
+      "deepseek-coder:6.7b",
+      "qwen2.5-coder:14b"
     ],
     "spot-worker-04": [
-      "qwen2.5:14b"
+      "qwen2.5:14b",
+      "qwen3:30b-a3b",
+      "mistral-small:24b"
     ],
     "spot-worker-05": [
       "deepseek-r1:32b",
