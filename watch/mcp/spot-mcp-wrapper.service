@@ -1,0 +1,13 @@
+[Unit]
+Description=Spot MCP Wrapper on 8000
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ogre/spot-mcp
+ExecStart=/home/ogre/spot-stack/watch/.venv-mcp/bin/python /home/ogre/spot-mcp/spot_mcp_wrapper.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
