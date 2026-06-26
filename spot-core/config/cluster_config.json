@@ -243,17 +243,18 @@
         "worker": "spot-worker-05"
       },
       {
-        "eligible": true,
-        "enabled": true,
+        "eligible": false,
+        "enabled": false,
+        "hold_reason": "W6 pings and Ollama port opens, but SSH times out; physical repair/memtest required",
         "hostname": "spot-worker-06",
         "ip": "192.168.10.16",
         "model": "deepseek-r1:32b",
         "name": "spot-worker-06",
         "primary_role": "reasoning",
-        "quarantined": false,
-        "reason": "reasoning_primary",
+        "quarantined": true,
+        "reason": "hardware_hold_w6_frozen_suspected_ram",
         "role": "reasoning",
-        "routing_enabled": true,
+        "routing_enabled": false,
         "worker": "spot-worker-06"
       },
       {
@@ -802,7 +803,7 @@
         "utility": 0,
         "watcher": 0
       },
-      "defer_reason": "node down; provision after backup",
+      "defer_reason": "hardware hold: frozen system / suspected RAM issue; repair and memtest required",
       "eligible": false,
       "enabled": true,
       "gpu": "Quadro P6000 23GB",
