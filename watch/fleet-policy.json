@@ -48,7 +48,12 @@
       "qwen2.5:14b",
       "llama3.1:8b"
     ],
-    "spot-worker-06": []
+    "spot-worker-06": [
+      "deepseek-r1:14b",
+      "deepseek-r1:32b",
+      "qwen2.5-coder:32b",
+      "qwen2.5:14b"
+    ]
   },
   "routing_remediation": {
     "audit_limit": 200,
