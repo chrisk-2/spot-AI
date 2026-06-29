@@ -153,6 +153,7 @@
     ],
     "reasoning": [
       "spot-worker-06",
+      "spot-worker-05",
       "spot-worker-04"
     ],
     "review": [
@@ -243,16 +244,15 @@
         "worker": "spot-worker-05"
       },
       {
-        "eligible": false,
-        "enabled": false,
-        "hold_reason": "W6 pings and Ollama port opens, but SSH times out; physical repair/memtest required",
+        "eligible": true,
+        "enabled": true,
         "hostname": "spot-worker-06",
         "ip": "192.168.10.16",
         "model": "deepseek-r1:32b",
         "name": "spot-worker-06",
         "primary_role": "reasoning",
-        "quarantined": true,
-        "reason": "hardware_hold_w6_frozen_suspected_ram",
+        "quarantined": false,
+        "reason": "reasoning_primary_warmup",
         "role": "reasoning",
         "routing_enabled": false,
         "worker": "spot-worker-06"
@@ -476,9 +476,7 @@
       "gpu": "GTX 1070 8GB + RTX 3060 12GB",
       "gpu_routes": {
         "gpu0": {
-          "classes": [
-            "coding"
-          ],
+          "classes": [],
           "label": "GTX 1070 8GB",
           "max_total": 1,
           "model_limits": {
@@ -803,8 +801,7 @@
         "utility": 0,
         "watcher": 0
       },
-      "defer_reason": "hardware hold: frozen system / suspected RAM issue; repair and memtest required",
-      "eligible": false,
+      "eligible": true,
       "enabled": true,
       "gpu": "Quadro P6000 23GB",
       "gpu_routes": {
@@ -862,11 +859,11 @@
       "models": [],
       "name": "spot-worker-06",
       "primary_role": "reasoning",
-      "provision_enabled": false,
-      "quarantined": true,
-      "restore_deferred": true,
+      "provision_enabled": true,
+      "quarantined": false,
+      "restore_deferred": false,
       "role": "reasoning",
-      "routing_enabled": false,
+      "routing_enabled": true,
       "secondary_roles": [
         "heavy"
       ],

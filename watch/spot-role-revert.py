@@ -2,6 +2,10 @@
 """
 spot-role-revert.py — Auto-revert role ownership when canonical owner comes back online.
 Run by fleet-watch on every cycle. Edits cluster_config.json and signals spot-core to reload.
+
+Operator holds (restore_deferred / eligible:false / routing_enabled:false / quarantined:true
+in cluster_config.json) STRICTLY override liveness: a held node is never auto-promoted,
+and a held canonical owner sheds its role to an eligible stand-in.
 """
 import json, sys, time, subprocess, logging
 from pathlib import Path
@@ -25,9 +29,23 @@ def append_log(entry):
     with REVERT_LOG.open("a") as f:
         f.write(json.dumps({**entry, "ts": now()}) + "\n")
 
+def worker_held(cfg, name):
+    """Operator-set hold in config. Overrides liveness for all ownership decisions."""
+    w = cfg.get("workers", {}).get(name, {})
+    return (
+        w.get("restore_deferred") is True
+        or w.get("eligible") is False
+        or w.get("routing_enabled") is False
+        or w.get("quarantined") is True
+    )
+
 def worker_online(name, state):
     h = state.get("hosts", {}).get(name, {})
     return h.get("ssh_ok") is True and h.get("service_ok") is True and not h.get("quarantined")
+
+def worker_available(cfg, state, name):
+    """Online AND not under an operator hold."""
+    return worker_online(name, state) and not worker_held(cfg, name)
 
 def current_role_owner_in_app() -> dict:
     """Parse ROLE_OWNERS dict from app.py."""
@@ -47,13 +65,11 @@ def current_role_owner_in_app() -> dict:
 
 def set_role_owner_in_app(role, worker):
     src = APP_PATH.read_text()
-    # Find and replace the specific role line
     import re
     pattern = rf'("{role}":\s*)"spot-worker-\d+"'
     replacement = rf'\1"{worker}"'
     new_src, n = re.subn(pattern, replacement, src)
     if n == 0:
-        # Role not present — insert it
         old_block = "\nROLE_OWNERS: dict[str, str] = {"
         new_src = src.replace(old_block, old_block + f'\n    "{role}": "{worker}",', 1)
     import ast
@@ -81,39 +97,40 @@ def run():
         current = current_owners.get(role)
 
         if current == canon_worker:
-            # Already correct — check if canonical is actually online
-            if not worker_online(canon_worker, state):
-                # Canonical owner offline — find best standin
-                standin_list = standins.get(role, [])
-                for standin in standin_list:
-                    if standin != canon_worker and worker_online(standin, state):
-                        log.warning(f"STANDIN: {role} canonical {canon_worker} offline → assigning {standin}")
-                        set_role_owner_in_app(role, standin)
-                        update_role_priority_front(cfg, role, standin)
-                        cfg["workers"][standin]["primary_role"] = role
-                        append_log({"event": "standin_assigned", "role": role, "canonical": canon_worker, "standin": standin})
-                        changed = True
-                        break
+            # Canonical currently owns — keep ONLY if genuinely available and not held.
+            if worker_available(cfg, state, canon_worker):
+                continue
+            # Canonical unavailable OR under operator hold — shed to best eligible stand-in.
+            reason = "held" if worker_held(cfg, canon_worker) else "offline"
+            for standin in standins.get(role, []):
+                if standin != canon_worker and worker_available(cfg, state, standin):
+                    log.warning(f"STANDIN: {role} canonical {canon_worker} {reason} → assigning {standin}")
+                    set_role_owner_in_app(role, standin)
+                    update_role_priority_front(cfg, role, standin)
+                    cfg["workers"][standin]["primary_role"] = role
+                    append_log({"event": "standin_assigned", "role": role,
+                                "canonical": canon_worker, "standin": standin, "reason": reason})
+                    changed = True
+                    break
             continue
 
-        # Current owner is a stand-in — check if canonical is back
-        if worker_online(canon_worker, state):
+        # Current owner is a stand-in — revert to canonical ONLY if it is back AND not held.
+        if worker_available(cfg, state, canon_worker):
             log.info(f"REVERT: {role} reverting from {current} (stand-in) → {canon_worker} (canonical)")
             set_role_owner_in_app(role, canon_worker)
             update_role_priority_front(cfg, role, canon_worker)
-            # Restore stand-in's primary role to its canonical role
             standin_canonical = {v: k for k, v in canonical.items()}.get(current)
             if standin_canonical and standin_canonical != role:
                 cfg["workers"][current]["primary_role"] = standin_canonical
             append_log({"event": "revert", "role": role, "from": current, "to": canon_worker})
             changed = True
+        elif worker_online(canon_worker, state) and worker_held(cfg, canon_worker):
+            log.info(f"HOLD: {role} canonical {canon_worker} is online but under operator hold — not reverting")
 
     if changed:
         CFG_PATH.write_text(json.dumps(cfg, indent=2))
-        # Signal spot-core to reload config (it hot-reloads on mtime change)
         CFG_PATH.touch()
         log.info("Config updated and touched for hot-reload")
-        # Also restart spot-core to pick up app.py changes
         subprocess.run(
             ["docker", "compose", "-f", "/home/ogre/spot-stack/docker-compose.yml",
              "restart", "spot-core"],

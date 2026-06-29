@@ -1370,7 +1370,25 @@ def installed_models_for_worker(worker_name: str, cfg: dict[str, Any]) -> set[st
     return watcher_models | config_models
 
 
+def worker_operator_held(worker_name: str, cfg: dict[str, Any]) -> tuple[bool, str]:
+    """Operator-set hold in cluster_config.json. Overrides live health probes:
+    a held worker is never healthy/eligible regardless of ssh/service/alerts."""
+    w = cfg.get("workers", {}).get(worker_name, {})
+    if w.get("restore_deferred") is True:
+        return True, "operator_hold:restore_deferred"
+    if w.get("eligible") is False:
+        return True, "operator_hold:eligible_false"
+    if w.get("routing_enabled") is False:
+        return True, "operator_hold:routing_disabled"
+    if w.get("quarantined") is True:
+        return True, "operator_hold:quarantined"
+    return False, ""
+
+
 def is_worker_healthy(worker_name: str, cfg: dict[str, Any]) -> tuple[bool, str]:
+    held, hold_reason = worker_operator_held(worker_name, cfg)
+    if held:
+        return False, hold_reason
     status = worker_status(name=worker_name)
     if not status:
         return False, "missing_watch_status"
@@ -1839,6 +1857,9 @@ def record_retry_note(events: list[dict[str, Any]], chosen: dict[str, Any], phas
 
 
 def should_skip_same_worker_retry(cfg: dict[str, Any], worker_name: str, exc: Exception) -> tuple[bool, str]:
+    held, _hold_reason = worker_operator_held(worker_name, cfg)
+    if held:
+        return True, "operator_hold"
     status = worker_status(worker_name)
     if status.get("quarantined") is True:
         return True, "watch_quarantined"
