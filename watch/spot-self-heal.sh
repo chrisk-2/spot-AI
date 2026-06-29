@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 REPO="${REPO:-/home/ogre/spot-stack}"
 SPOT_BASE_URL="${SPOT_BASE_URL:-http://127.0.0.1:8787}"
-MCP_LOCAL_URL="${MCP_LOCAL_URL:-http://127.0.0.1:8001/health}"
+MCP_LOCAL_URL="${MCP_LOCAL_URL:-http://127.0.0.1:8010/}"
 SPOT_UI_OUT_DIR="${SPOT_UI_OUT_DIR:-/var/www/html/spot}"
 READINESS_FILE="${READINESS_FILE:-${SPOT_UI_OUT_DIR}/operator-readiness.json}"
 META_FILE="${META_FILE:-${SPOT_UI_OUT_DIR}/meta.json}"
@@ -275,7 +275,7 @@ main(){
               action_id: "restart_mcp",
               apply_allowlisted: true,
               max_attempts: 1,
-              verify_url: "http://127.0.0.1:8001/health",
+              verify_url: "http://127.0.0.1:8010/",
               failure_policy: "single_restart_then_escalate_no_loop"
             }
           },
@@ -320,7 +320,7 @@ main(){
             verifier_implemented: true,
             restart_policy: {
               max_attempts: 1,
-              verify_url: "http://127.0.0.1:8001/health",
+              verify_url: "http://127.0.0.1:8010/",
               failure_policy: "single_restart_then_escalate_no_loop"
             }
           } else empty end,
