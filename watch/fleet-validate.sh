@@ -162,10 +162,8 @@ run_role_route_checks() {
 
   if jq -e '.["spot-worker-06"].quarantined == true' "$reasoning_ping" >/dev/null 2>&1; then
     warn "spot-worker-06 reasoning lane quarantined; skipping eligibility check"
-  elif spot_worker_06_restore_deferred; then
-    warn "spot-worker-06 restore deferred; skipping reasoning eligibility check"
   else
-    check_worker_registered spot-worker-06 reasoning '["deepseek-r1:32b","qwen2.5-coder:32b","qwen2.5:14b"]' || true
+    check_worker_registered spot-worker-06 reasoning '["deepseek-r1:14b","qwen2.5-coder:32b","qwen2.5:14b"]' || true
   fi
   local after_lines=0
   [[ -f "$AUDIT_FILE" ]] && after_lines="$(wc -l < "$AUDIT_FILE")"
