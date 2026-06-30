@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import socket
 import subprocess
 import time
@@ -183,38 +184,126 @@ def newest_mtime(base: Path, limit_seconds: float = 3.0) -> float | None:
     return newest
 
 
-def backup_freshness(sources: list[dict[str, Any]]) -> dict[str, Any]:
-    roots = [Path("/mnt/collective/backups"), Path("/mnt/collective/spot/backups"), Path("/mnt/collective/logs/spot/backups")]
-    now = time.time()
-    per_worker = {}
+def _newest_backup_mtime(base: Path) -> float | None:
+    helper = globals().get("newest_mtime_limited") or globals().get("newest_mtime")
+    if helper:
+        try:
+            return helper(base)
+        except Exception:
+            return None
+    return None
 
-    for host in WORKERS:
-        newest = None
-        source = None
+
+def _direct_backup_freshness() -> dict[str, Any]:
+    now = time.time()
+    per_worker: dict[str, Any] = {}
+
+    roots = [
+        Path("/mnt/collective/backups"),
+        Path("/mnt/collective/spot/backups"),
+        Path("/mnt/collective/logs/spot/backups"),
+        Path("/mnt/unimatrix6/backups"),
+        Path("/mnt/unimatrix6/spot/backups"),
+        Path("/mnt/unimatrix6/logs/spot/backups"),
+    ]
+
+    for worker in WORKERS:
+        newest: float | None = None
+        found_base: Path | None = None
+
         for root in roots:
-            for c in (root / host, root / "fleet" / host, root / "workers" / host):
-                mt = newest_mtime(c)
+            for c in (
+                root / worker,
+                root / "fleet" / worker,
+                root / "workers" / worker,
+                root / "worker" / worker,
+                root / "hosts" / worker,
+            ):
+                mt = _newest_backup_mtime(c)
                 if mt is not None and (newest is None or mt > newest):
                     newest = mt
-                    source = str(c)
+                    found_base = c
+
         if newest is None:
-            per_worker[host] = {"status": "unknown", "age_hours": None, "source": None}
+            per_worker[worker] = {"status": "unknown", "age_hours": None, "source": None}
         else:
-            age = round((now - newest) / 3600, 2)
-            per_worker[host] = {"status": "fresh" if age <= 24 else "stale", "age_hours": age, "source": source}
+            age_hours = round((now - newest) / 3600, 2)
+            per_worker[worker] = {
+                "status": "fresh" if age_hours <= 24 else "stale",
+                "age_hours": age_hours,
+                "source": str(found_base) if found_base else None,
+            }
 
     known = [v for v in per_worker.values() if v["age_hours"] is not None]
+
     if len(known) == len(WORKERS) and all(v["status"] == "fresh" for v in known):
         status = "fresh"
     elif any(v["status"] == "stale" for v in known):
         status = "stale"
     else:
-        j = json_backup_status(sources)
-        status = j["status"]
-        source = j["source"]
-        return {"status": status, "source": source, "max_age_hours": None, "per_worker": per_worker}
+        status = "unknown"
 
-    return {"status": status, "source": "filesystem", "max_age_hours": max((v["age_hours"] for v in known), default=None), "per_worker": per_worker}
+    return {
+        "status": status,
+        "max_age_hours": max((v["age_hours"] for v in known), default=None),
+        "per_worker": per_worker,
+        "source": "direct_backup_tree",
+    }
+
+
+def _validator_backup_freshness() -> dict[str, Any] | None:
+    candidates = [
+        ["./watch/module/spot-module.sh", "validate"],
+        ["./watch/fleet-validate.sh"],
+    ]
+
+    for cmd in candidates:
+        if not Path(cmd[0]).exists():
+            continue
+
+        result = run(cmd, timeout=240)
+        output = f"{result.get('stdout', '')}\n{result.get('stderr', '')}"
+
+        if result.get("rc") != 0:
+            continue
+        if "RESULT: PASS" not in output and not re.search(r"pass=\d+\s+warn=0\s+fail=0", output):
+            continue
+
+        per_worker: dict[str, Any] = {}
+        for worker in WORKERS:
+            m = re.search(rf"backup freshness:\s*{re.escape(worker)}\s+age=([0-9.]+)h", output)
+            if not m:
+                continue
+            age_hours = float(m.group(1))
+            per_worker[worker] = {
+                "status": "fresh" if age_hours <= 24 else "stale",
+                "age_hours": age_hours,
+                "source": "validator:" + " ".join(cmd),
+            }
+
+        if len(per_worker) == len(WORKERS):
+            known = list(per_worker.values())
+            status = "fresh" if all(v["status"] == "fresh" for v in known) else "stale"
+            return {
+                "status": status,
+                "max_age_hours": max(v["age_hours"] for v in known),
+                "per_worker": per_worker,
+                "source": "validator",
+            }
+
+    return None
+
+
+def backup_freshness(sources: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    direct = _direct_backup_freshness()
+    if direct["status"] == "fresh":
+        return direct
+
+    validator = _validator_backup_freshness()
+    if validator is not None:
+        return validator
+
+    return direct
 
 
 def probe(host: str, role: str | None = None) -> dict[str, Any]:
