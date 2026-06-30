@@ -1949,6 +1949,11 @@ main() {
     ui-build)            cmd_ui_build "$@" ;;
     caddy-reload)        cmd_caddy_reload "$@" ;;
         -h|--help|"")        usage ;;
+    life|life-pulse)
+      cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+      exec ./watch/spot-life-pulse.sh
+      ;;
+
     *)
       echo "ERROR: unknown command: $cmd" >&2
       usage
