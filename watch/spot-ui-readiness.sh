@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 REPO="${REPO:-/home/ogre/spot-stack}"
 SPOT_BASE_URL="${SPOT_BASE_URL:-http://127.0.0.1:8787}"
-MCP_LOCAL_URL="${MCP_LOCAL_URL:-http://127.0.0.1:8001/health}"
+MCP_LOCAL_URL="${MCP_LOCAL_URL:-http://127.0.0.1:8010/}"
 BACKUP_ROOT="${BACKUP_ROOT:-/mnt/collective/backups}"
 BACKUP_MAX_AGE_HOURS="${BACKUP_MAX_AGE_HOURS:-8}"
 VALIDATION_STAMP_FILE="${VALIDATION_STAMP_FILE:-${REPO}/watch/state/operator-validation.json}"
