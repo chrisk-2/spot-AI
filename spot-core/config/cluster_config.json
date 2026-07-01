@@ -254,7 +254,7 @@
         "quarantined": false,
         "reason": "reasoning_primary_warmup",
         "role": "reasoning",
-        "routing_enabled": false,
+        "routing_enabled": true,
         "worker": "spot-worker-06"
       },
       {
@@ -782,8 +782,7 @@
       "role": "review",
       "routing_enabled": true,
       "secondary_roles": [
-        "heavy",
-        "review"
+        "heavy"
       ],
       "total_vram_gb": 32
     },
