@@ -419,6 +419,83 @@ def _readiness_from_commands() -> dict[str, Any]:
     return {"status": "UNKNOWN", "source": None, "path": None}
 
 
+
+def _self_heal_actionable_summary(obj: Any, source: str) -> dict[str, Any] | None:
+    """Return actionable self-heal count, not advisory/gated warning count.
+
+    self-heal audit can report actions that are explicitly safe_apply=false or
+    policy-gated. Life Pulse should not call those pending repair actions.
+    """
+    if isinstance(obj, list):
+        actionable = [
+            x for x in obj
+            if isinstance(x, dict) and x.get("safe_apply") is True
+        ]
+        advisory = [
+            x for x in obj
+            if isinstance(x, dict) and x.get("safe_apply") is not True
+        ]
+        return {
+            "count": len(actionable),
+            "action_count": len(actionable),
+            "advisory_count": len(advisory),
+            "blocked_count": len(advisory),
+            "source": source,
+            "path": "$",
+        }
+
+    if not isinstance(obj, dict):
+        return None
+
+    would_apply = obj.get("would_apply")
+    if isinstance(would_apply, list):
+        actions = obj.get("actions") if isinstance(obj.get("actions"), list) else []
+        blocked = obj.get("blocked_or_skipped") if isinstance(obj.get("blocked_or_skipped"), list) else []
+        advisory = [
+            x for x in actions
+            if isinstance(x, dict) and x.get("safe_apply") is not True
+        ]
+        return {
+            "count": len(would_apply),
+            "action_count": len(would_apply),
+            "advisory_count": len(advisory),
+            "blocked_count": len(blocked) if blocked else len(advisory),
+            "source": source,
+            "path": "would_apply",
+        }
+
+    actions = obj.get("actions")
+    if isinstance(actions, list):
+        actionable = [
+            x for x in actions
+            if isinstance(x, dict) and x.get("safe_apply") is True
+        ]
+        advisory = [
+            x for x in actions
+            if isinstance(x, dict) and x.get("safe_apply") is not True
+        ]
+        return {
+            "count": len(actionable),
+            "action_count": len(actionable),
+            "advisory_count": len(advisory),
+            "blocked_count": len(advisory),
+            "source": source,
+            "path": "actions.safe_apply_true",
+        }
+
+    for key in ("action_count", "count", "pending"):
+        if isinstance(obj.get(key), int):
+            return {
+                "count": obj[key],
+                "action_count": obj[key],
+                "advisory_count": 0,
+                "blocked_count": 0,
+                "source": source,
+                "path": key,
+            }
+
+    return None
+
 def _self_heal_from_commands() -> dict[str, Any]:
     candidates = [
         ["./watch/spot-ops.sh", "self-heal"],
@@ -438,23 +515,12 @@ def _self_heal_from_commands() -> dict[str, Any]:
             continue
 
         for obj in _extract_json_objects(output):
-            if isinstance(obj, list):
-                return {"count": len(obj), "source": "command:" + " ".join(cmd), "path": "$"}
-            if isinstance(obj, dict):
-                for key in ("actions", "planned_actions", "proposals", "items"):
-                    if isinstance(obj.get(key), list):
-                        return {
-                            "count": len(obj[key]),
-                            "source": "command:" + " ".join(cmd),
-                            "path": key,
-                        }
-                for key in ("action_count", "count", "pending"):
-                    if isinstance(obj.get(key), int):
-                        return {
-                            "count": obj[key],
-                            "source": "command:" + " ".join(cmd),
-                            "path": key,
-                        }
+            summary = _self_heal_actionable_summary(
+                obj,
+                "command:" + " ".join(cmd),
+            )
+            if summary is not None:
+                return summary
 
         lower = output.lower()
         if "actions: []" in lower or "actions=[]" in lower or "no actions" in lower or output.strip() == "[]":
