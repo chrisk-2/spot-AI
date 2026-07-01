@@ -342,6 +342,138 @@ def probe(host: str, role: str | None = None) -> dict[str, Any]:
     }
 
 
+
+def _extract_json_objects(raw: str) -> list[Any]:
+    objects: list[Any] = []
+    raw = raw.strip()
+    if not raw:
+        return objects
+
+    try:
+        objects.append(json.loads(raw))
+        return objects
+    except Exception:
+        pass
+
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or not line.startswith(("{", "[")):
+            continue
+        try:
+            objects.append(json.loads(line))
+        except Exception:
+            continue
+
+    return objects
+
+
+def _readiness_from_commands() -> dict[str, Any]:
+    candidates = [
+        ["./watch/spot-ops.sh", "readiness"],
+        ["./watch/spot-ops.sh", "ready"],
+        ["./watch/spot-ops.sh", "status"],
+        ["./watch/module/spot-module.sh", "status"],
+        ["./watch/readiness.sh"],
+        ["./watch/spot-readiness.sh"],
+    ]
+
+    for cmd in candidates:
+        if not Path(cmd[0]).exists():
+            continue
+
+        result = run(cmd, timeout=30)
+        output = f"{result.get('stdout', '')}\n{result.get('stderr', '')}".strip()
+        if not output:
+            continue
+
+        for obj in _extract_json_objects(output):
+            status = normalize_status(obj)
+            if status:
+                return {
+                    "status": status,
+                    "source": "command:" + " ".join(cmd),
+                    "path": "$",
+                }
+
+        upper = output.upper()
+        if re.search(r"\bREADINESS\b.*\bOK\b", upper) or re.search(r"\bSTATUS\b.*\bOK\b", upper) or re.search(r"\bREADY\b", upper):
+            if not re.search(r"\bFAIL\b|\bERROR\b|\bBLOCKED\b", upper):
+                return {
+                    "status": "OK",
+                    "source": "command:" + " ".join(cmd),
+                    "path": "stdout",
+                }
+
+    for cmd in (["./watch/module/spot-module.sh", "validate"], ["./watch/fleet-validate.sh"]):
+        if not Path(cmd[0]).exists():
+            continue
+        result = run(cmd, timeout=240)
+        output = f"{result.get('stdout', '')}\n{result.get('stderr', '')}"
+        if result.get("rc") == 0 and ("RESULT: PASS" in output or re.search(r"pass=\d+\s+warn=0\s+fail=0", output)):
+            return {
+                "status": "OK",
+                "source": "validator:" + " ".join(cmd),
+                "path": "summary",
+            }
+
+    return {"status": "UNKNOWN", "source": None, "path": None}
+
+
+def _self_heal_from_commands() -> dict[str, Any]:
+    candidates = [
+        ["./watch/spot-ops.sh", "self-heal"],
+        ["./watch/spot-ops.sh", "selfheal"],
+        ["./watch/spot-ops.sh", "heal"],
+        ["./watch/self-heal.sh"],
+        ["./watch/spot-self-heal.sh"],
+    ]
+
+    for cmd in candidates:
+        if not Path(cmd[0]).exists():
+            continue
+
+        result = run(cmd, timeout=30)
+        output = f"{result.get('stdout', '')}\n{result.get('stderr', '')}".strip()
+        if not output:
+            continue
+
+        for obj in _extract_json_objects(output):
+            if isinstance(obj, list):
+                return {"count": len(obj), "source": "command:" + " ".join(cmd), "path": "$"}
+            if isinstance(obj, dict):
+                for key in ("actions", "planned_actions", "proposals", "items"):
+                    if isinstance(obj.get(key), list):
+                        return {
+                            "count": len(obj[key]),
+                            "source": "command:" + " ".join(cmd),
+                            "path": key,
+                        }
+                for key in ("action_count", "count", "pending"):
+                    if isinstance(obj.get(key), int):
+                        return {
+                            "count": obj[key],
+                            "source": "command:" + " ".join(cmd),
+                            "path": key,
+                        }
+
+        lower = output.lower()
+        if "actions: []" in lower or "actions=[]" in lower or "no actions" in lower or output.strip() == "[]":
+            return {"count": 0, "source": "command:" + " ".join(cmd), "path": "stdout"}
+
+    for cmd in (["./watch/module/spot-module.sh", "validate"], ["./watch/fleet-validate.sh"]):
+        if not Path(cmd[0]).exists():
+            continue
+        result = run(cmd, timeout=240)
+        output = f"{result.get('stdout', '')}\n{result.get('stderr', '')}"
+        if result.get("rc") == 0 and ("RESULT: PASS" in output or re.search(r"pass=\d+\s+warn=0\s+fail=0", output)):
+            return {
+                "count": 0,
+                "source": "validator_clean_no_self_heal_actions",
+                "path": "summary",
+            }
+
+    return {"count": None, "source": None, "path": None}
+
 def main() -> None:
     sources = load_sources()
 
@@ -353,7 +485,17 @@ def main() -> None:
 
     workers_healthy = sum(1 for x in workers.values() if x["healthy"])
     readiness = find_status(sources, ["readiness", "ready"])
+    if readiness["status"] == "UNKNOWN":
+        readiness = _readiness_from_commands()
     self_heal = self_heal_count(sources)
+    if self_heal["count"] is None:
+        self_heal = _self_heal_from_commands()
+
+    # Keep schema stable for consumers: expose both names.
+    if "action_count" not in self_heal and "count" in self_heal:
+        self_heal["action_count"] = self_heal["count"]
+    if "count" not in self_heal and "action_count" in self_heal:
+        self_heal["count"] = self_heal["action_count"]
     backups = backup_freshness(sources)
     routing = find_status(sources, ["routing_health", "routing.status", "routing_status", "route_health"])
 
