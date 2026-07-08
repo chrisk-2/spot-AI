@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Ensure non-interactive SSH/systemd shells can find local Spot operator shims.
+export PATH="$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
+
 ROOT="/home/ogre/spot-stack"
 cd "$ROOT"
 
