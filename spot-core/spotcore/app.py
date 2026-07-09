@@ -17,6 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel
+from spotcore.host_liveness import admin_host_liveness
 
 APP_START_TS = int(time.time())
 CONFIG_PATH = Path(os.environ.get("SPOTCORE_CONFIG", "/app/config/cluster_config.json"))
@@ -3746,3 +3747,15 @@ try:
 except Exception as _spot_outcome_patch_error:
     print(f"[SPOT_OUTCOME_LEARNING_DISABLED] {_spot_outcome_patch_error}")
 # --- SPOT OUTCOME LEARNING LOOP: API WIRING END ---
+
+
+@app.get("/admin/host-liveness")
+async def admin_host_liveness_get(targets: str = "all"):
+    selected = "all" if targets == "all" else [t.strip() for t in targets.split(",") if t.strip()]
+    return admin_host_liveness(selected)
+
+
+@app.post("/admin/host-liveness")
+async def admin_host_liveness_post(payload: dict):
+    return admin_host_liveness(payload.get("targets", "all"))
+

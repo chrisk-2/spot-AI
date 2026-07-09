@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "description": "Read-only host liveness reconciliation registry for non-wrapper Starfleet nodes.",
+  "updated_at": "2026-07-09T13:58:43Z",
+  "hosts": [
+    {
+      "name": "dns-core",
+      "ip": "192.168.60.10",
+      "probe_method": "both",
+      "expected_ports": [
+        53
+      ],
+      "notes": "DNS authority liveness; ICMP plus DNS port."
+    },
+    {
+      "name": "starfleet-tower",
+      "ip": "192.168.30.5",
+      "probe_method": "both",
+      "expected_ports": [
+        22
+      ],
+      "notes": "Tower host liveness; SSH service check."
+    },
+    {
+      "name": "unimatrix6",
+      "ip": "192.168.50.10",
+      "probe_method": "both",
+      "expected_ports": [
+        2049
+      ],
+      "notes": "NFS/Unimatrix storage liveness."
+    },
+    {
+      "name": "spot-ui-01",
+      "ip": "192.168.10.12",
+      "probe_method": "both",
+      "expected_ports": [
+        22,
+        8765
+      ],
+      "notes": "Kiosk/UI node liveness; SSH plus local boot page if present."
+    }
+  ]
+}

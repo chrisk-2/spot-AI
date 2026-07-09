@@ -1,0 +1,4 @@
+{
+  "leases4_path": "/api/kea/leases4/search",
+  "source": "default_kea_preferred_with_wrapper_fallback"
+}
