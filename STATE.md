@@ -122,3 +122,43 @@ Priority 0 admin/operator reliability is currently validated green by fleet vali
 - Do not bypass review, backup, rollback, or approval gates.
 - Do not change role ownership without explicit operator approval.
 - Do not treat review/reasoning online status as authorization for autonomous remediation.
+
+---
+
+## Stage 1 Trusted Checkpoint — 20260709T235445Z
+
+Checkpoint ID: `module8-stage1-trusted-checkpoint-20260709T235445Z`
+
+Stage 1 / Spot Core Trusted is locked at this checkpoint.
+
+Validated state:
+- Fleet Truth Baseline exists: `/mnt/collective/logs/spot/fleet-truth/baseline-20260709T155316Z`
+- Caddy Cloudflare HTTP-origin alignment completed: `/mnt/collective/logs/spot/actions/module6-caddy-cloudflare-http-origin-20260709T155511Z`
+- Stage 1 closure scan completed: `/mnt/collective/logs/spot/actions/module7-stage1-closure-gap-scan-20260709T155657Z`
+- Routing audit write failure logging present.
+- Validator normal mode passed.
+- Validator smoke mode passed.
+- Caddy active with HTTP origin mode.
+- No failed systemd services at baseline.
+- Worker roles healthy and eligible:
+  - general -> spot-worker-01
+  - utility -> spot-worker-02
+  - coding -> spot-worker-03
+  - heavy -> spot-worker-04
+  - review -> spot-worker-05
+  - reasoning -> spot-worker-06
+
+Known non-blockers:
+- `starfleet-edge-01` DNS remains unresolved until intentionally restored or removed from active inventory.
+- `unimatrix6` may reject `ogre` SSH while storage access remains functional.
+- `starfleet-ui/public/status.json` is runtime drift and should not be committed.
+
+Policy state:
+- Spot Core remains sole executor.
+- No worker self-apply.
+- No backup, no change.
+- No rollback, no execution.
+- High-risk network actions remain approval-gated.
+
+Next module class:
+- Stage 2 operator surface / usable command layer.
