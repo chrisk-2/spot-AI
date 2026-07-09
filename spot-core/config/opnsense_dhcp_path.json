@@ -1,4 +1,6 @@
 {
   "leases4_path": "/api/kea/leases4/search",
-  "source": "default_kea_preferred_with_wrapper_fallback"
+  "method": "POST",
+  "backend": "cached",
+  "source": "live_mcp_registry_override_v3"
 }
