@@ -8,6 +8,26 @@ mutation_authority=false
 spot_core_sole_executor=true
 
 READ-ONLY COMMANDS
+  ./watch/operator/spot-operator.sh routing
+    Purpose: Show routing audit status and role owners.
+    Risk: none.
+    Mutation: none.
+
+  ./watch/operator/spot-operator.sh review-status
+    Purpose: Show review gate and review log status.
+    Risk: none.
+    Mutation: none.
+
+  ./watch/operator/spot-operator.sh quarantine-status
+    Purpose: Show quarantine/eligibility state.
+    Risk: none.
+    Mutation: none.
+
+  ./watch/operator/spot-operator.sh operator-logs
+    Purpose: Show Spot action/review/backup/rollback log status.
+    Risk: none.
+    Mutation: none.
+
   ./watch/operator/spot-operator.sh overview
     Purpose: Show fleet/operator overview.
     Risk: none.

@@ -420,6 +420,15 @@ case "$cmd" in
   validate)
     bash watch/fleet-validate.sh
     ;;
+  review-status|reviews)
+    bash watch/operator/spot-review-status.sh
+    ;;
+  quarantine-status|quarantine-state)
+    bash watch/operator/spot-quarantine-status.sh
+    ;;
+  operator-logs|log-status)
+    bash watch/operator/spot-log-status.sh
+    ;;
   command-map|commands|safety)
     bash watch/operator/spot-command-map.sh
     ;;
@@ -484,6 +493,10 @@ spot-operator commands:
   remediation-policy        show governed remediation policy
   remediation-policy-validate validate governed remediation policy
   validate                  run full fleet validation
+  routing|routing-status      show read-only routing audit status
+  review-status|reviews       show read-only review gate status
+  quarantine-status|quarantine-state show read-only quarantine state
+  operator-logs|log-status    show read-only Spot log status
   command-map|commands|safety show operator command safety map
   overview                  show read-only fleet/operator overview
   smoke                     run smoke validation
