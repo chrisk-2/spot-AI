@@ -429,6 +429,21 @@ case "$cmd" in
   operator-logs|log-status)
     bash watch/operator/spot-log-status.sh
     ;;
+  network-senses|senses)
+    bash watch/network/spot-network-senses.sh
+    ;;
+  network-inputs)
+    bash watch/network/spot-network-inputs.sh
+    ;;
+  dns-sense)
+    bash watch/network/spot-dns-sense.sh
+    ;;
+  gateway-sense)
+    bash watch/network/spot-gateway-sense.sh
+    ;;
+  service-sense)
+    bash watch/network/spot-service-sense.sh
+    ;;
   command-map|commands|safety)
     bash watch/operator/spot-command-map.sh
     ;;
@@ -493,6 +508,11 @@ spot-operator commands:
   remediation-policy        show governed remediation policy
   remediation-policy-validate validate governed remediation policy
   validate                  run full fleet validation
+  network-senses|senses     run read-only network senses aggregate
+  network-inputs            show read-only network input sources
+  dns-sense                 show read-only DNS health inputs
+  gateway-sense             show read-only gateway/path inputs
+  service-sense             show read-only service reachability inputs
   routing|routing-status      show read-only routing audit status
   review-status|reviews       show read-only review gate status
   quarantine-status|quarantine-state show read-only quarantine state

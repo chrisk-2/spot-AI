@@ -8,6 +8,26 @@ mutation_authority=false
 spot_core_sole_executor=true
 
 READ-ONLY COMMANDS
+  ./watch/operator/spot-operator.sh network-senses
+    Purpose: Run aggregate read-only network senses.
+    Risk: none.
+    Mutation: none.
+
+  ./watch/operator/spot-operator.sh dns-sense
+    Purpose: Show DNS resolver and name-resolution health.
+    Risk: none.
+    Mutation: none.
+
+  ./watch/operator/spot-operator.sh gateway-sense
+    Purpose: Show gateway/path reachability.
+    Risk: none.
+    Mutation: none.
+
+  ./watch/operator/spot-operator.sh service-sense
+    Purpose: Show local and fleet service reachability.
+    Risk: none.
+    Mutation: none.
+
   ./watch/operator/spot-operator.sh routing
     Purpose: Show routing audit status and role owners.
     Risk: none.
@@ -86,7 +106,7 @@ CURRENT KNOWN NON-BLOCKERS
   starfleet-ui/public/status.json is runtime drift and must not be committed.
 
 NEXT STAGE-2 TARGETS
-  1. Add focused operator subcommands for routing, review, quarantine, and logs.
-  2. Expose command map in UI/operator panel.
-  3. Make read-only network diagnostics visible.
+  1. Expose command map in UI/operator panel.
+  2. Promote read-only network senses into diagnostics summaries.
+  3. Begin structured incident timeline from existing logs.
 MAP
