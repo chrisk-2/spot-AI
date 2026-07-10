@@ -614,6 +614,18 @@ EOF
   execution-replay-audit-validate)
     exec python3 watch/executor/execution-replay-audit-validate.py
     ;;
+  network-health-summary)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/network-health-summary.sh"
+    ;;
+  critical-hosts)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/critical-host-availability.sh"
+    ;;
+  proxy-tunnel-health)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/proxy-tunnel-health.sh"
+    ;;
+  network-incident-snapshot)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/network-incident-snapshot.sh"
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
