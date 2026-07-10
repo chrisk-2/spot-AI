@@ -626,6 +626,21 @@ EOF
   network-incident-snapshot)
     exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/network-incident-snapshot.sh"
     ;;
+  resource-sense)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/resource-sense.sh"
+    ;;
+  mount-sense)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/mount-sense.sh"
+    ;;
+  worker-runtime-sense)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/worker-runtime-sense.sh"
+    ;;
+  certificate-sense)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/certificate-sense.sh"
+    ;;
+  infrastructure-senses)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/infrastructure-senses.sh"
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
