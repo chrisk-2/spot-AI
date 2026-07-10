@@ -641,6 +641,18 @@ EOF
   infrastructure-senses)
     exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/infrastructure-senses.sh"
     ;;
+  topology-sense)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/topology-sense.sh"
+    ;;
+  ai-runtime-sense)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/ai-runtime-sense.sh"
+    ;;
+  governance-sense)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/governance-sense.sh"
+    ;;
+  fleet-health)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/fleet-health.sh"
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
