@@ -420,6 +420,9 @@ case "$cmd" in
   validate)
     bash watch/fleet-validate.sh
     ;;
+  command-map|commands|safety)
+    bash watch/operator/spot-command-map.sh
+    ;;
   overview)
     bash watch/operator/spot-overview.sh
     ;;
@@ -481,6 +484,7 @@ spot-operator commands:
   remediation-policy        show governed remediation policy
   remediation-policy-validate validate governed remediation policy
   validate                  run full fleet validation
+  command-map|commands|safety show operator command safety map
   overview                  show read-only fleet/operator overview
   smoke                     run smoke validation
   dirty                     show git dirty state
