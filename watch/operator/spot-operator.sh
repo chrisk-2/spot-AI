@@ -653,6 +653,21 @@ EOF
   fleet-health)
     exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/fleet-health.sh"
     ;;
+  event-memory)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/memory/event-memory.sh"
+    ;;
+  infrastructure-memory)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/memory/infrastructure-memory.sh"
+    ;;
+  operator-memory)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/memory/operator-memory.sh"
+    ;;
+  strategy-memory)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/memory/strategy-memory.sh"
+    ;;
+  memory-status)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/memory/memory-status.sh"
+    ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
     exit 2
