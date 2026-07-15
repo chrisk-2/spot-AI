@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "description": "Read-only host liveness reconciliation registry for non-wrapper Starfleet nodes.",
-  "updated_at": "2026-07-09T13:58:43Z",
+  "updated_at": "2026-07-14T22:54:01Z",
   "hosts": [
     {
       "name": "dns-core",
@@ -39,6 +39,15 @@
         8765
       ],
       "notes": "Kiosk/UI node liveness; SSH plus local boot page if present."
+    },
+    {
+      "name": "spot-edge-01",
+      "ip": "192.168.30.10",
+      "probe_method": "both",
+      "expected_ports": [
+        22
+      ],
+      "notes": "Pull-only recovery, repository mirror, provisioning, and disaster-recovery node. Non-routing and no mutation authority."
     }
   ]
 }

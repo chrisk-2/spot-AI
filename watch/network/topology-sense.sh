@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -u
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+HOST_REGISTRY="${ROOT}/spot-core/config/host_registry.json"
+
+registry_ipv4() {
+  local host="$1"
+
+  [[ -f "$HOST_REGISTRY" ]] || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+
+  jq -r     --arg host "$host"     '.hosts[]? | select(.name == $host) | .ip // empty'     "$HOST_REGISTRY" 2>/dev/null |
+    head -n1
+}
+
 HOSTS=(
   "spot-core:control-plane"
   "starfleet-tower:operations"
@@ -14,7 +27,7 @@ HOSTS=(
   "unimatrix6:storage"
   "starfleet-core:dns-secondary"
   "dns-core:dns-primary"
-  "starfleet-edge-01:edge"
+  "spot-edge-01:recovery-edge"
 )
 
 resolve_ipv4() {
@@ -27,8 +40,18 @@ resolve_ipv4() {
     return
   fi
 
-  getent ahostsv4 "$host" 2>/dev/null |
-    awk '$1 !~ /^127\./ {print $1; exit}'
+  local address
+
+  address="$(
+    getent ahostsv4 "$host" 2>/dev/null |
+      awk '$1 !~ /^127\./ {print $1; exit}'
+  )"
+
+  if [[ -z "$address" ]]; then
+    address="$(registry_ipv4 "$host")"
+  fi
+
+  printf '%s\n' "$address"
 }
 
 subnet_from_ipv4() {

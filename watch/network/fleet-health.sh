@@ -7,6 +7,7 @@ OPERATOR="${ROOT}/watch/operator/spot-operator.sh"
 CHECKS=(
   "network-health-summary"
   "critical-hosts"
+  "edge-recovery-status"
   "infrastructure-senses"
   "topology-sense"
   "ai-runtime-sense"

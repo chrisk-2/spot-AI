@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -u
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+HOST_REGISTRY="${ROOT}/spot-core/config/host_registry.json"
+
+registry_ipv4() {
+  local host="$1"
+
+  [[ -f "$HOST_REGISTRY" ]] || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+
+  jq -r     --arg host "$host"     '.hosts[]? | select(.name == $host) | .ip // empty'     "$HOST_REGISTRY" 2>/dev/null |
+    head -n1
+}
+
 HOSTS=(
   spot-core
   starfleet-tower
@@ -14,7 +27,7 @@ HOSTS=(
   unimatrix6
   starfleet-core
   dns-core
-  starfleet-edge-01
+  spot-edge-01
 )
 
 resolved=0
@@ -33,6 +46,10 @@ printf '%-23s %-16s %-10s %-10s\n' \
 
 for host in "${HOSTS[@]}"; do
   address="$(getent ahostsv4 "$host" 2>/dev/null | awk 'NR == 1 {print $1}')"
+
+  if [[ -z "$address" ]]; then
+    address="$(registry_ipv4 "$host")"
+  fi
 
   if [[ -z "$address" ]]; then
     printf '%-23s %-16s %-10s %-10s\n' \

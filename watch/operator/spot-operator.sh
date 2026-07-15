@@ -620,6 +620,9 @@ EOF
   critical-hosts)
     exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/critical-host-availability.sh"
     ;;
+  edge-recovery-status)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/edge-recovery-status.sh"
+    ;;
   proxy-tunnel-health)
     exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/proxy-tunnel-health.sh"
     ;;

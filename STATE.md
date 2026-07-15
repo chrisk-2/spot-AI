@@ -149,7 +149,7 @@ Validated state:
   - reasoning -> spot-worker-06
 
 Known non-blockers:
-- `starfleet-edge-01` DNS remains unresolved until intentionally restored or removed from active inventory.
+- `spot-edge-01` is registered at `192.168.30.10` as a read-only, non-routing recovery and provisioning edge.
 - `unimatrix6` may reject `ogre` SSH while storage access remains functional.
 - `starfleet-ui/public/status.json` is runtime drift and should not be committed.
 
