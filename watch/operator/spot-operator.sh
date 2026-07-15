@@ -520,6 +520,9 @@ spot-operator commands:
   command-map|commands|safety show operator command safety map
   overview                  show read-only fleet/operator overview
   smoke                     run smoke validation
+  spot-core-deployment-manifest          build sanitized Spot Core recovery manifest
+  spot-core-deployment-manifest-status   show latest deployment manifest status
+  spot-core-deployment-manifest-validate validate latest deployment manifest package
   dirty                     show git dirty state
 EOF
     ;;
@@ -613,6 +616,17 @@ EOF
     ;;
   execution-replay-audit-validate)
     exec python3 watch/executor/execution-replay-audit-validate.py
+    ;;
+  spot-core-deployment-manifest)
+    exec sudo "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/recovery/spot-core-deployment-manifest.sh"
+    ;;
+  spot-core-deployment-manifest-status)
+    status="/var/lib/spot/recovery/spot-core-deployment-manifest-latest.json"
+    test -s "$status"
+    exec jq . "$status"
+    ;;
+  spot-core-deployment-manifest-validate)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/recovery/spot-core-deployment-manifest-validate.sh"
     ;;
   network-health-summary)
     exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/network/network-health-summary.sh"
