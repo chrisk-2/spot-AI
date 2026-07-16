@@ -26,7 +26,7 @@ for h in \
   unimatrix6 \
   starfleet-core \
   dns-core \
-  spot-edge-01 \
+  starfleet-edge-01 \
   spot.starfleetcore.com
 do
   echo "--- $h ---"

@@ -4,7 +4,7 @@ set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 REGISTRY="${ROOT}/spot-core/config/host_registry.json"
 
-NODE="spot-edge-01"
+NODE="starfleet-edge-01"
 STATUS_ROOT="/mnt/collective/logs/spot/edge/${NODE}"
 
 VALIDATOR_MAX_AGE="${EDGE_VALIDATOR_MAX_AGE:-7200}"
@@ -113,7 +113,7 @@ EDGE_IP="$(
 )"
 
 if [[ -z "$EDGE_IP" ]]; then
-  record FAIL registry "spot-edge-01 not registered"
+  record FAIL registry "starfleet-edge-01 not registered"
 else
   record PASS registry "$NODE=$EDGE_IP"
 fi

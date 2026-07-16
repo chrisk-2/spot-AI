@@ -27,7 +27,7 @@ HOSTS=(
   unimatrix6
   starfleet-core
   dns-core
-  spot-edge-01
+  starfleet-edge-01
 )
 
 resolved=0

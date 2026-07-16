@@ -27,7 +27,7 @@ HOSTS=(
   "unimatrix6:storage"
   "starfleet-core:dns-secondary"
   "dns-core:dns-primary"
-  "spot-edge-01:recovery-edge"
+  "starfleet-edge-01:recovery-edge"
 )
 
 resolve_ipv4() {

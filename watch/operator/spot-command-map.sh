@@ -101,7 +101,7 @@ FORBIDDEN BY POLICY
   Bypassing Spot Core.
 
 CURRENT KNOWN NON-BLOCKERS
-  spot-edge-01 is registered as a read-only, non-routing recovery edge.
+  starfleet-edge-01 is registered as a read-only, non-routing recovery edge.
   unimatrix6 may reject ogre SSH while storage access works.
   starfleet-ui/public/status.json is runtime drift and must not be committed.
 

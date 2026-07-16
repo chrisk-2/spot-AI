@@ -140,7 +140,7 @@ do
 done
 
 section "KNOWN NON-BLOCKERS"
-echo "spot-edge-01=recovery_edge_registered_read_only_non_routing"
+echo "starfleet-edge-01=recovery_edge_registered_read_only_non_routing"
 echo "unimatrix6_ssh=may_deny_ogre_while_storage_access_works"
 echo "status_json=runtime_drift_do_not_commit"
 

@@ -41,7 +41,7 @@
       "notes": "Kiosk/UI node liveness; SSH plus local boot page if present."
     },
     {
-      "name": "spot-edge-01",
+      "name": "starfleet-edge-01",
       "ip": "192.168.30.10",
       "probe_method": "both",
       "expected_ports": [
