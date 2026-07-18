@@ -66,6 +66,44 @@ READ-ONLY COMMANDS
     Mutation: none.
     Safe for routine use.
 
+
+APPEND-ONLY THINKING COMMANDS
+  ./watch/operator/spot-operator.sh situation-assessment
+    Purpose: Classify the current operational situation.
+    Risk: none.
+    Mutation: append-only thinking memory only.
+    Boundary: no approval or execution authority.
+
+  ./watch/operator/spot-operator.sh drift-detection
+    Purpose: Compare verified situation assessments.
+    Risk: none.
+    Mutation: append-only thinking memory only.
+    Boundary: no routing, ownership, or service mutation.
+
+  ./watch/operator/spot-operator.sh risk-assessment
+    Purpose: Score operational risk deterministically.
+    Risk: none.
+    Mutation: append-only thinking memory only.
+    Boundary: risk classification cannot authorize execution.
+
+  ./watch/operator/spot-operator.sh operational-reasoning
+    Purpose: Generate advisory operational recommendations.
+    Risk: none.
+    Mutation: append-only thinking memory only.
+    Boundary: proposal-only; no self-approval or auto-apply.
+
+  ./watch/operator/spot-operator.sh thinking-loop
+    Purpose: Run situation, drift, risk, and reasoning in order.
+    Risk: none.
+    Mutation: append-only thinking memory only.
+    Boundary: execution_allowed=false and mutation_authority=false.
+
+  ./watch/operator/spot-operator.sh thinking-status
+    Purpose: Show the latest verified Thinking Loop state.
+    Risk: none.
+    Mutation: none.
+    Safe for routine use.
+
 VALIDATION-ONLY COMMANDS
   ./watch/operator/spot-operator.sh validate
     Purpose: Run normal fleet validation.

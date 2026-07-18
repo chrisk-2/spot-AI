@@ -21,3 +21,39 @@ Must include:
 - validation commands
 - rollback instructions
 - no automatic mutation until execution wrapper exists
+
+---
+
+# Operational Progress Addendum — 2026-07-18
+
+This addendum supersedes earlier current-position statements in this roadmap.
+
+## Current Seven-Step Build Position
+
+1. Trusted Core — complete
+2. Operator Surface — mostly complete
+3. Senses — complete
+4. Memory Foundation — complete
+5. Thinking Loop — complete through Modules 42-46
+6. Controlled Hands — not authorized
+7. Operator Body/Face — later
+
+## Thinking Loop Capability
+
+Spot can now:
+
+- assess the current fleet situation
+- compare verified situation records for drift
+- score operational risk deterministically
+- generate governed advisory recommendations
+- preserve the reasoning chain as verified append-only memory
+- present a unified Thinking Loop status
+
+The Thinking Loop cannot approve or execute its own recommendations.
+
+Locked state:
+
+- approval_authority=false
+- execution_allowed=false
+- mutation_authority=false
+- Spot Core remains sole executor

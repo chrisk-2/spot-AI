@@ -162,3 +162,49 @@ Policy state:
 
 Next module class:
 - Stage 2 operator surface / usable command layer.
+
+---
+
+## Module 42-46 — Read-Only Thinking Loop
+
+Status: complete pending final validation in this module block.
+
+Implemented:
+- Module 42: deterministic situation assessment
+- Module 43: verified situation drift detection
+- Module 44: deterministic operational risk scoring
+- Module 45: governed advisory operational reasoning
+- Module 46: unified Thinking Loop and operator integration
+
+Operator commands:
+- situation-assessment
+- drift-detection
+- risk-assessment
+- operational-reasoning
+- thinking-loop
+- thinking-status
+
+Persistent intelligence state:
+- append-only artifacts under /mnt/collective/memory/spot/thinking
+- SHA-256 verification for every thinking artifact
+- append-only category indexes
+- situation, drift, risk, and reasoning evidence chain
+
+Safety:
+- read-only operational observation
+- append-only thinking memory
+- advisory/proposal-only recommendations
+- approval_authority=false
+- execution_allowed=false
+- mutation_authority=false
+- worker_self_apply=false
+- Spot Core remains sole executor
+
+Step position:
+- Step 1 Trusted Core: complete
+- Step 2 Operator Surface: mostly complete
+- Step 3 Senses: complete
+- Step 4 Memory Foundation: complete
+- Step 5 Thinking Loop: complete
+- Step 6 Controlled Hands: not authorized
+- Step 7 Operator Body/Face: later

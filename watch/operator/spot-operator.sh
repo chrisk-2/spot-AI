@@ -523,6 +523,12 @@ spot-operator commands:
   spot-core-deployment-manifest          build sanitized Spot Core recovery manifest
   spot-core-deployment-manifest-status   show latest deployment manifest status
   spot-core-deployment-manifest-validate validate latest deployment manifest package
+  situation-assessment      create append-only read-only situation assessment
+  drift-detection           compare verified situation assessments
+  risk-assessment           score deterministic operational risk
+  operational-reasoning     create advisory-only recommendation envelope
+  thinking-loop|think       run the complete read-only Thinking Loop
+  thinking-status           show the latest verified Thinking Loop state
   dirty                     show git dirty state
 EOF
     ;;
@@ -684,6 +690,24 @@ EOF
     ;;
   memory-status)
     exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/memory/memory-status.sh"
+    ;;
+  situation-assessment)
+    exec python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/thinking/situation-assessment.py"
+    ;;
+  drift-detection)
+    exec python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/thinking/drift-detection.py"
+    ;;
+  risk-assessment)
+    exec python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/thinking/risk-assessment.py"
+    ;;
+  operational-reasoning)
+    exec python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/thinking/operational-reasoning.py"
+    ;;
+  thinking-loop|think)
+    exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/thinking/thinking-loop.sh"
+    ;;
+  thinking-status)
+    exec python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/thinking/thinking-status.py"
     ;;
   *)
     echo "[FAIL] unknown command: $cmd" >&2
