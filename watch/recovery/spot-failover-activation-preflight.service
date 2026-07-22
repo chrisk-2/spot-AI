@@ -1,0 +1,22 @@
+[Unit]
+Description=Spot failover read-only activation preflight
+After=docker.service network-online.target
+Wants=docker.service network-online.target
+ConditionPathExists=/etc/spot-failover/authority-state
+ConditionPathExists=/srv/spot-backup-data/replica
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/spot-failover-activation-preflight
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/srv/spot-backup-data/failover-state
+RestrictAddressFamilies=AF_UNIX
+UMask=0022

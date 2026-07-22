@@ -1,0 +1,13 @@
+[Unit]
+Description=Run Spot failover activation preflight every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+RandomizedDelaySec=20
+AccuracySec=15s
+Persistent=true
+Unit=spot-failover-activation-preflight.service
+
+[Install]
+WantedBy=timers.target
