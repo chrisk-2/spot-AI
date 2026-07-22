@@ -1,0 +1,20 @@
+[Unit]
+Description=Spot replica retention cleanup
+After=local-fs.target spot-replica-verify.service
+ConditionPathIsDirectory=/srv/spot-backup-data/replica/releases
+ConditionPathIsSymbolicLink=/srv/spot-backup-data/replica/current
+
+[Service]
+Type=oneshot
+Environment=SPOT_REPLICA_KEEP=288
+Environment=SPOT_REPLICA_DELETE_LIMIT=64
+ExecStart=/usr/local/sbin/spot-replica-retention --apply
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/srv/spot-backup-data /run/lock
+TimeoutStartSec=15min
