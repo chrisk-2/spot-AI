@@ -1,0 +1,12 @@
+[Unit]
+Description=Continuously Enforce Spot Primary Fence
+
+[Timer]
+OnBootSec=10s
+OnUnitActiveSec=15s
+AccuracySec=1s
+Persistent=true
+Unit=spot-primary-fence-guard.service
+
+[Install]
+WantedBy=timers.target

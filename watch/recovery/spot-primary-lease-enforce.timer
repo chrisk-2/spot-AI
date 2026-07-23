@@ -1,0 +1,12 @@
+[Unit]
+Description=Check Spot Primary Witness Lease Every Five Seconds
+
+[Timer]
+OnBootSec=15s
+OnUnitActiveSec=5s
+AccuracySec=1s
+Persistent=true
+Unit=spot-primary-lease-enforce.service
+
+[Install]
+WantedBy=timers.target

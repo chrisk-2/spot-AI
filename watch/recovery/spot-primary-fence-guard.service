@@ -1,0 +1,10 @@
+[Unit]
+Description=Enforce Spot Primary Execution Fence
+After=docker.service network-online.target
+Wants=docker.service network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/spot-primary-fence enforce

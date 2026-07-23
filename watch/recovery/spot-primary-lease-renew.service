@@ -1,0 +1,17 @@
+[Unit]
+Description=Renew Spot Primary Witness Authority Lease
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/spot-failover-primary/fenced
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/spot-primary-lease-renew
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/var/lib/spot-failover-primary
+ReadWritePaths=/run/lock

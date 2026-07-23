@@ -1,0 +1,12 @@
+[Unit]
+Description=Renew Spot Primary Witness Lease Every Fifteen Seconds
+
+[Timer]
+OnBootSec=10s
+OnUnitActiveSec=15s
+AccuracySec=1s
+Persistent=true
+Unit=spot-primary-lease-renew.service
+
+[Install]
+WantedBy=timers.target
