@@ -1,0 +1,26 @@
+[Unit]
+Description=Spot Backup Bridge API
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+ConditionPathExists=/srv/spot-backup-data/failover-active/activated
+
+[Service]
+Type=simple
+User=ogre
+Group=ogre
+WorkingDirectory=/home/ogre/spot-stack/watch
+Environment=SPOT_BASE_URL=http://127.0.0.1:8787
+Environment=SPOT_ADMIN_TOKEN=
+ExecStartPre=/usr/bin/grep -Eiq ^(DEFAULT_STATE|STATE)=active$ /etc/spot-failover/authority-state
+ExecStartPre=/usr/bin/grep -Eiq ^(AUTHORITY_HOLDER|authority_holder)=spot-core-backup$ /etc/spot-failover/authority-state
+ExecStartPre=/usr/bin/grep -Eiq ^MUTATION_AUTHORITY=true$ /etc/spot-failover/authority-state
+ExecStartPre=/usr/bin/grep -Eiq ^EXECUTION_ALLOWED=true$ /etc/spot-failover/authority-state
+ExecStartPre=/usr/bin/test -L /home/ogre/spot-stack
+ExecStartPre=/usr/bin/docker inspect --format={{.State.Running}} spot-core
+ExecStart=/bin/bash -lc 'export SPOT_ADMIN_TOKEN="$(docker exec spot-core printenv SPOTCORE_ADMIN_API_TOKEN)"; exec /home/ogre/spot-mcp/.venv/bin/python -m uvicorn spot_bridge_api:app --app-dir /home/ogre/spot-stack/watch --host 127.0.0.1 --port 8010'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

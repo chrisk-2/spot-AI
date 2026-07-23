@@ -1,0 +1,25 @@
+[Unit]
+Description=Spot Backup MCP Support Runtime
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+ConditionPathExists=/srv/spot-backup-data/failover-active/activated
+
+[Service]
+Type=simple
+User=ogre
+Group=ogre
+WorkingDirectory=/home/ogre/spot-mcp
+EnvironmentFile=/home/ogre/spot-mcp/spot-mcp.env
+Environment=SPOT_API_BASE=http://127.0.0.1:8787
+ExecStartPre=/usr/bin/grep -Eiq ^(DEFAULT_STATE|STATE)=active$ /etc/spot-failover/authority-state
+ExecStartPre=/usr/bin/grep -Eiq ^(AUTHORITY_HOLDER|authority_holder)=spot-core-backup$ /etc/spot-failover/authority-state
+ExecStartPre=/usr/bin/grep -Eiq ^MUTATION_AUTHORITY=true$ /etc/spot-failover/authority-state
+ExecStartPre=/usr/bin/grep -Eiq ^EXECUTION_ALLOWED=true$ /etc/spot-failover/authority-state
+ExecStartPre=/usr/bin/test -L /home/ogre/spot-mcp
+ExecStart=/home/ogre/spot-mcp/.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8001
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
