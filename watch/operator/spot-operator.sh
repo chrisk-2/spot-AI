@@ -529,6 +529,9 @@ spot-operator commands:
   operational-reasoning     create advisory-only recommendation envelope
   thinking-loop|think       run the complete read-only Thinking Loop
   thinking-status           show the latest verified Thinking Loop state
+  recommendation-review-gate    evaluate and journal current recommendation gate
+  recommendation-review-status  show latest immutable recommendation gate record
+  recommendation-review-validate validate recommendation review gate
   dirty                     show git dirty state
 EOF
     ;;
@@ -706,6 +709,18 @@ EOF
   thinking-loop|think)
     exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/thinking/thinking-loop.sh"
     ;;
+  recommendation-review-gate)
+    shift
+    exec python3 watch/review/recommendation-review-gate.py run "$@"
+    ;;
+  recommendation-review-status)
+    shift
+    exec python3 watch/review/recommendation-review-gate.py status "$@"
+    ;;
+  recommendation-review-validate)
+    exec python3 watch/review/recommendation-review-gate-validate.py
+    ;;
+
   thinking-status)
     exec python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/watch/thinking/thinking-status.py"
     ;;
