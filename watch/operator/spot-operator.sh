@@ -532,6 +532,8 @@ spot-operator commands:
   recommendation-review-gate    evaluate and journal current recommendation gate
   recommendation-review-status  show latest immutable recommendation gate record
   recommendation-review-validate validate recommendation review gate
+  controlled-hands-noop [args] build read-only no-op action proposal
+  controlled-hands-noop-validate validate no-op action proposal contract
   dirty                     show git dirty state
 EOF
     ;;
@@ -719,6 +721,13 @@ EOF
     ;;
   recommendation-review-validate)
     exec python3 watch/review/recommendation-review-gate-validate.py
+    ;;
+  controlled-hands-noop)
+    shift
+    exec python3 watch/executor/controlled-hands-noop.py "$@"
+    ;;
+  controlled-hands-noop-validate)
+    exec python3 watch/executor/controlled-hands-noop-validate.py
     ;;
 
   thinking-status)
