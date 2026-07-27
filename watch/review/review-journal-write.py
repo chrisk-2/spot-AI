@@ -144,8 +144,10 @@ def main() -> int:
         raise SystemExit(f"[FAIL] internal journal schema missing keys: {missing}")
 
     atomic_write_new(journal_path, journal)
+    journal_path.chmod(0o444)
 
     index_record = {k: journal[k] for k in REQUIRED_TOP_LEVEL}
+    index_record["review_bundle"] = journal["review_bundle"]
     append_index(index_path, index_record)
 
     print(json.dumps({"ok": True, "journal_path": str(journal_path), "index_path": str(index_path)}, indent=2))
