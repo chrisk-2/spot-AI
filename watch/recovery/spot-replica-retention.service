@@ -6,8 +6,11 @@ ConditionPathIsSymbolicLink=/srv/spot-backup-data/replica/current
 
 [Service]
 Type=oneshot
-Environment=SPOT_REPLICA_KEEP=288
+Environment=SPOT_REPLICA_KEEP=4
+Environment=SPOT_REPLICA_MIN_KEEP=4
 Environment=SPOT_REPLICA_DELETE_LIMIT=64
+Environment=SPOT_REPLICA_MAX_DISK_USED=90
+Environment=SPOT_REPLICA_MAX_INODE_USED=90
 ExecStart=/usr/local/sbin/spot-replica-retention --apply
 Nice=10
 IOSchedulingClass=best-effort

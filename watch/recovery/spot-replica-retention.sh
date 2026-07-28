@@ -13,8 +13,11 @@ AUTHORITY="/etc/spot-failover/authority-state"
 REPLICA_STATUS="$STATE_ROOT/replica-status.json"
 LOCK="/run/lock/spot-replica-retention.lock"
 
-KEEP="${SPOT_REPLICA_KEEP:-288}"
+KEEP="${SPOT_REPLICA_KEEP:-4}"
+MIN_KEEP="${SPOT_REPLICA_MIN_KEEP:-4}"
 DELETE_LIMIT="${SPOT_REPLICA_DELETE_LIMIT:-64}"
+MAX_DISK_USED="${SPOT_REPLICA_MAX_DISK_USED:-90}"
+MAX_INODE_USED="${SPOT_REPLICA_MAX_INODE_USED:-90}"
 
 fail() {
     printf '[FAIL] %s\n' "$*" >&2
@@ -29,17 +32,31 @@ case "$MODE" in
         ;;
 esac
 
-[[ "$KEEP" =~ ^[0-9]+$ ]] ||
-    fail "SPOT_REPLICA_KEEP must be numeric"
+for numeric in \
+    "$KEEP" \
+    "$MIN_KEEP" \
+    "$DELETE_LIMIT" \
+    "$MAX_DISK_USED" \
+    "$MAX_INODE_USED"
+do
+    [[ "$numeric" =~ ^[0-9]+$ ]] ||
+        fail "retention settings must be numeric"
+done
 
-[[ "$DELETE_LIMIT" =~ ^[0-9]+$ ]] ||
-    fail "SPOT_REPLICA_DELETE_LIMIT must be numeric"
+((MIN_KEEP >= 4)) ||
+    fail "emergency retention floor is 4 releases"
 
-((KEEP >= 24)) ||
-    fail "retention floor is 24 releases"
+((KEEP >= MIN_KEEP)) ||
+    fail "normal retention must not be below the emergency floor"
 
 ((DELETE_LIMIT >= 1 && DELETE_LIMIT <= 256)) ||
     fail "delete limit must be between 1 and 256"
+
+((MAX_DISK_USED >= 50 && MAX_DISK_USED <= 98)) ||
+    fail "disk pressure threshold must be between 50 and 98"
+
+((MAX_INODE_USED >= 50 && MAX_INODE_USED <= 98)) ||
+    fail "inode pressure threshold must be between 50 and 98"
 
 exec 9>"$LOCK"
 
@@ -100,10 +117,73 @@ done
 test -s "$REPLICA_STATUS" ||
     fail "replica verification status is missing"
 
-jq -e \
+DISK_USED_PERCENT="$(
+    df --output=pcent "$ROOT" |
+        awk 'END {gsub(/%/, "", $1); print $1}'
+)"
+
+INODE_USED_PERCENT="$(
+    df --output=ipcent "$ROOT" |
+        awk 'END {gsub(/%/, "", $1); print $1}'
+)"
+
+[[ "$DISK_USED_PERCENT" =~ ^[0-9]+$ ]] ||
+    fail "unable to determine disk utilization"
+
+[[ "$INODE_USED_PERCENT" =~ ^[0-9]+$ ]] ||
+    fail "unable to determine inode utilization"
+
+RESOURCE_PRESSURE=false
+
+if \
+    ((DISK_USED_PERCENT >= MAX_DISK_USED)) ||
+    ((INODE_USED_PERCENT >= MAX_INODE_USED))
+then
+    RESOURCE_PRESSURE=true
+fi
+
+REPLICA_GATE="verified-status"
+
+if jq -e \
     '(.valid // .replica_valid // false) == true' \
-    "$REPLICA_STATUS" >/dev/null ||
-    fail "latest replica is not verified"
+    "$REPLICA_STATUS" >/dev/null
+then
+    :
+elif [ "$RESOURCE_PRESSURE" = true ]; then
+    jq -e \
+        '
+            .manifest_valid == true and
+            .checksums_valid == true and
+            (.release_path | type) == "string"
+        ' \
+        "$REPLICA_STATUS" >/dev/null ||
+        fail "no verified release is available for low-space recovery"
+
+    RECOVERY_ANCHOR="$(jq -r '.release_path' "$REPLICA_STATUS")"
+
+    case "$RECOVERY_ANCHOR" in
+        "$RELEASE_ROOT_REAL"/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z)
+            ;;
+        *)
+            fail "verified recovery anchor escaped release root"
+            ;;
+    esac
+
+    test -d "$RECOVERY_ANCHOR" ||
+        fail "verified recovery anchor is missing"
+
+    test ! -L "$RECOVERY_ANCHOR" ||
+        fail "verified recovery anchor must not be a symlink"
+
+    RECOVERY_ANCHOR_REAL="$(realpath -e -- "$RECOVERY_ANCHOR")"
+
+    test "$RECOVERY_ANCHOR_REAL" = "$RECOVERY_ANCHOR" ||
+        fail "verified recovery anchor resolved unexpectedly"
+
+    REPLICA_GATE="verified-recorded-release-low-space"
+else
+    fail "latest replica is not verified and no resource pressure exists"
+fi
 
 declare -A PROTECTED=()
 PROTECTED["$CURRENT_REAL"]=1
@@ -116,6 +196,8 @@ LINK_SCAN_ROOTS=(
 )
 
 for candidate in \
+    /srv/spot-backup-data/failover-runtime \
+    /srv/spot-backup-data/failover-active \
     /srv/spot-backup-data/runtime \
     /srv/spot-backup-data/stage \
     /srv/spot-backup-data/staging
@@ -198,16 +280,27 @@ mapfile -t RELEASES < <(
 )
 
 COUNT="${#RELEASES[@]}"
-CUTOFF=0
+TARGET_KEEP="$KEEP"
 
-if ((COUNT > KEEP)); then
-    CUTOFF=$((COUNT - KEEP))
+if \
+    [ "$RESOURCE_PRESSURE" = true ] &&
+    ((COUNT <= KEEP))
+then
+    TARGET_KEEP="$MIN_KEEP"
+fi
+
+NEED=0
+
+if ((COUNT > TARGET_KEEP)); then
+    NEED=$((COUNT - TARGET_KEEP))
 fi
 
 CANDIDATES=()
 
-for ((index=0; index<CUTOFF; index++)); do
-    name="${RELEASES[$index]}"
+for name in "${RELEASES[@]}"; do
+    ((${#CANDIDATES[@]} < NEED)) ||
+        break
+
     path="$RELEASE_ROOT_REAL/$name"
 
     if [[ -v "PROTECTED[$path]" ]]; then
@@ -220,12 +313,17 @@ for ((index=0; index<CUTOFF; index++)); do
         break
     fi
 done
-
 CURRENT_RELEASE="${CURRENT_REAL##*/}"
 
 printf 'mode: %s\n' "$MODE"
 printf 'release_count: %s\n' "$COUNT"
 printf 'keep_newest: %s\n' "$KEEP"
+printf 'minimum_keep: %s\n' "$MIN_KEEP"
+printf 'target_keep: %s\n' "$TARGET_KEEP"
+printf 'disk_used_percent: %s\n' "$DISK_USED_PERCENT"
+printf 'inode_used_percent: %s\n' "$INODE_USED_PERCENT"
+printf 'resource_pressure: %s\n' "$RESOURCE_PRESSURE"
+printf 'replica_gate: %s\n' "$REPLICA_GATE"
 printf 'current_release: %s\n' "$CURRENT_RELEASE"
 printf 'eligible_this_run: %s\n' "${#CANDIDATES[@]}"
 
@@ -285,17 +383,29 @@ TMP_STATUS="$(mktemp "$STATE_ROOT/.retention-status.XXXXXX")"
 jq -n \
     --arg generated_at "$GENERATED_AT" \
     --arg current_release "$CURRENT_RELEASE" \
+    --arg replica_gate "$REPLICA_GATE" \
     --argjson keep_newest "$KEEP" \
+    --argjson minimum_keep "$MIN_KEEP" \
+    --argjson target_keep "$TARGET_KEEP" \
     --argjson delete_limit "$DELETE_LIMIT" \
+    --argjson disk_used_percent "$DISK_USED_PERCENT" \
+    --argjson inode_used_percent "$INODE_USED_PERCENT" \
+    --argjson resource_pressure "$RESOURCE_PRESSURE" \
     --argjson deleted "$DELETED" \
     --argjson remaining "$REMAINING" \
     '{
         generated_at: $generated_at,
         result: "PASS",
-        policy: "keep-current-and-newest",
+        policy: "capacity-aware-protected-retention",
         current_release: $current_release,
+        replica_gate: $replica_gate,
         keep_newest: $keep_newest,
+        minimum_keep: $minimum_keep,
+        target_keep: $target_keep,
         delete_limit: $delete_limit,
+        disk_used_percent: $disk_used_percent,
+        inode_used_percent: $inode_used_percent,
+        resource_pressure: $resource_pressure,
         deleted_this_run: $deleted,
         remaining_releases: $remaining,
         authority_holder: "spot-core",
