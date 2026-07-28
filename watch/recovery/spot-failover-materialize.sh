@@ -191,7 +191,7 @@ project_path() {
         test -L "$projection" ||
             fail "$projection exists and is not a symbolic link"
 
-        old_target="$(readlink -f "$projection")"
+        old_target="$(readlink -m "$projection")"
 
         case "$old_target" in
             "$ACTIVE_RELEASE_ROOT"/*/"$expected_suffix")
@@ -211,7 +211,7 @@ project_path() {
     chown -h ogre:ogre "$temporary"
     mv -Tf "$temporary" "$projection"
 
-    test "$(readlink -f "$projection")" = "$target"
+    test "$(readlink -m "$projection")" = "$target"
 }
 
 project_path \
