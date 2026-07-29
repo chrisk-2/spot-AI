@@ -1,113 +1,97 @@
 #!/usr/bin/env python3
+"""Validator for Module 50 lease/receipt reconciliation audit schema v2."""
+
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
-from typing import Any
 
-ROOT = Path(__file__).resolve().parents[2]
-STATE = ROOT / "watch" / "state"
+REPO = Path(__file__).resolve().parents[2]
+AUDIT = REPO / "watch" / "state" / "lease-receipt-reconciliation-audit.json"
 
-SNAP = STATE / "lease-receipt-reconciliation-audit.json"
-HISTORY = STATE / "lease-receipt-reconciliation-history.jsonl"
+EXPECTED_PROPOSAL = "THINK-20260724T165433-73e9e400daa4bbe6"
+EXPECTED_ACTION = "ACT-ba58a8dd0ce1a62f88e9"
 
-KNOWN = {
-    "NONE",
-    "LEASE_MISSING",
-    "RECEIPT_MISSING",
-    "LEASE_RECEIPT_MISMATCH",
-    "CHAIN_BREAK",
-    "ROLLBACK_BINDING_MISSING",
-    "RECONCILIATION_MISMATCH",
+SAFE_CONTEXT_CLASSES = {
+    "READ_ONLY_CONTEXT",
+    "BLOCKED_PREFLIGHT_CONTEXT",
+    "SIMULATED_NOOP_CONTEXT",
+    "SANDBOX_ONLY_CONTEXT",
+    "OBSERVATIONAL_LIFE_PULSE_CONTEXT",
 }
 
 
-def fail(msg: str) -> int:
-    print(f"[FAIL] {msg}")
-    return 1
-
-
-def ok(msg: str) -> None:
-    print(f"[PASS] {msg}")
-
-
-def load(path: Path) -> Any:
-    with path.open("r", encoding="utf-8") as fh:
-        return json.load(fh)
+def require(condition: bool, message: str, failures: list[str]) -> None:
+    if condition:
+        print(f"[PASS] {message}")
+    else:
+        print(f"[FAIL] {message}")
+        failures.append(message)
 
 
 def main() -> int:
-    if not SNAP.exists():
-        return fail("lease receipt reconciliation audit missing")
+    failures: list[str] = []
+
+    require(AUDIT.is_file(), f"audit artifact exists: {AUDIT}", failures)
+    if failures:
+        return 1
 
     try:
-        data = load(SNAP)
-    except Exception as exc:
-        return fail(f"audit invalid JSON: {exc}")
+        record = json.loads(AUDIT.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        print(f"[FAIL] unreadable audit artifact: {error}")
+        return 1
 
-    if not isinstance(data, dict):
-        return fail("audit must be object")
-    ok("audit valid JSON")
+    governance = record.get("governance", {})
+    evidence = record.get("execution_evidence", {})
+    context = record.get("non_live_context_evidence", {})
+    boundary = record.get("safety_boundary", {})
+    artifacts = context.get("artifacts", [])
 
-    if data.get("schema") != "starfleet.lease_receipt_reconciliation_audit.v1":
-        return fail("schema mismatch")
-    ok("schema valid")
+    require(record.get("schema_version") == "v2", "schema_version=v2", failures)
+    require(record.get("proposal_id") == EXPECTED_PROPOSAL, "proposal identity matches", failures)
+    require(record.get("action_id") == EXPECTED_ACTION, "action identity matches", failures)
+    require(
+        record.get("primary_classification") == "BLOCKED_NO_EXECUTION_EVIDENCE",
+        "primary classification is BLOCKED_NO_EXECUTION_EVIDENCE",
+        failures,
+    )
+    require(record.get("result") == "PASS", "audit result is PASS", failures)
+    require(evidence.get("present") is False, "no qualifying execution evidence", failures)
+    require(evidence.get("count") == 0, "qualifying evidence count is zero", failures)
+    require(evidence.get("paths") == [], "qualifying evidence paths are empty", failures)
+    require(isinstance(artifacts, list), "non-live context artifacts are listed", failures)
+    require(
+        context.get("present") is bool(artifacts)
+        and context.get("count") == len(artifacts),
+        "non-live context summary is consistent",
+        failures,
+    )
+    require(
+        all(
+            isinstance(artifact, dict)
+            and artifact.get("classification") in SAFE_CONTEXT_CLASSES
+            for artifact in artifacts
+        ),
+        "all context artifacts are explicitly non-live",
+        failures,
+    )
+    require(governance.get("execution_allowed") is False, "execution_allowed=false", failures)
+    require(governance.get("mutation_authority") is False, "mutation_authority=false", failures)
+    require(governance.get("step6_authorized") is False, "step6_authorized=false", failures)
+    require(governance.get("live_executor_enabled") is False, "live_executor_enabled=false", failures)
 
-    for key in ("execution_allowed", "mutation_authority", "live_executor_enabled"):
-        if data.get(key) is not False:
-            return fail(f"{key} must be false")
-        ok(f"{key} false")
+    for key, value in boundary.items():
+        require(value is False, f"safety boundary preserved: {key}=false", failures)
 
-    if data.get("mode") != "read_only":
-        return fail("mode must be read_only")
-    ok("mode read_only")
+    if failures:
+        print(f"RESULT: FAIL ({len(failures)} check(s))")
+        return 1
 
-    if data.get("advisory_only") is not True:
-        return fail("advisory_only must be true")
-    ok("advisory_only true")
-
-    findings = data.get("findings")
-    if not isinstance(findings, list) or not findings:
-        return fail("findings must be non-empty list")
-
-    for idx, finding in enumerate(findings):
-        if not isinstance(finding, dict):
-            return fail(f"finding[{idx}] must be object")
-        cls = finding.get("classification")
-        if cls not in KNOWN:
-            return fail(f"finding[{idx}] unknown classification {cls}")
-
-    ok("all classifications known")
-
-    artifacts = data.get("artifact_summary")
-    if not isinstance(artifacts, dict):
-        return fail("artifact_summary must be object")
-    ok("artifact summary present")
-
-    if not HISTORY.exists():
-        return fail("history missing")
-
-    count = 0
-    with HISTORY.open("r", encoding="utf-8") as fh:
-        for lineno, line in enumerate(fh, 1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                rec = json.loads(line)
-            except Exception as exc:
-                return fail(f"history line {lineno} invalid JSON: {exc}")
-            if rec.get("schema") != "starfleet.lease_receipt_reconciliation_audit.v1":
-                return fail(f"history line {lineno} schema mismatch")
-            count += 1
-
-    if count < 1:
-        return fail("history empty")
-
-    ok(f"history JSONL valid count={count}")
     print("RESULT: PASS")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

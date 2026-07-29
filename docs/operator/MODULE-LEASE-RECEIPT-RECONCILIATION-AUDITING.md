@@ -1,56 +1,33 @@
-# Module — Lease Receipt Reconciliation Auditing
+# Module 50 — Lease/Receipt Reconciliation Auditing
 
-## Scope
+Module 50 is a read-only, advisory-only audit of controlled-hands lease and receipt evidence.
 
-This module adds read-only lease/receipt reconciliation auditing.
+## V2 contract
 
-It cross-checks modeled lease, receipt, rollback, lifecycle, drift, and reconciliation artifacts without modifying runtime state.
+- `schema_version: v2`
+- execution authority remains disabled
+- mutation authority remains disabled
+- a safe result is `BLOCKED_NO_EXECUTION_EVIDENCE` with zero qualifying execution artifacts
 
-## Added
+## Semantic classification
 
-- watch/governance/lease-receipt-reconciliation-audit.py
-- watch/governance/lease-receipt-reconciliation-validate.py
-- watch/governance/lease-receipt-reconciliation-history.py
+Classification is determined from each persisted record's content, never from its filename alone.
 
-## Operator Commands
+The audit records these as separate, non-live contexts:
 
-- lease-receipt-reconciliation
-- lease-receipt-reconciliation-validate
-- lease-receipt-reconciliation-history
+- read-only advisory records with execution and mutation disabled;
+- blocked, non-mutating preflight summaries;
+- simulated no-op lifecycles whose events performed no execution or mutation;
+- sandbox-only records that target the declared sandbox and explicitly report no live infrastructure mutation.
 
-## Outputs
+Any relevant record outside those boundaries is qualifying controlled-execution evidence and produces `UNEXPECTED_PERSISTED_EXECUTION_EVIDENCE`.
 
-- watch/state/lease-receipt-reconciliation-audit.json
-- watch/state/lease-receipt-reconciliation-history.jsonl
+## Safety boundary
 
-## Audit Classifications
+This module does not execute commands, restart services, modify leases or receipts, alter rollback bindings, modify modeled execution journals, or grant authority.
 
-- NONE
-- LEASE_MISSING
-- RECEIPT_MISSING
-- LEASE_RECEIPT_MISMATCH
-- CHAIN_BREAK
-- ROLLBACK_BINDING_MISSING
-- RECONCILIATION_MISMATCH
+## Observational life-pulse context
 
-## Governance Invariants
-
-- mode: read_only
-- advisory_only: true
-- execution_allowed: false
-- mutation_authority: false
-- live_executor_enabled: false
-
-## Safety Boundary
-
-This module does not:
-
-- execute commands
-- restart services
-- create leases
-- modify leases
-- create receipts
-- modify receipts
-- modify rollback bindings
-- mutate reconciliation journals
-- grant executor authority
+`spot.life_pulse.v1` is non-live context only when its exact observe-only mode is
+present and both root and governance fields explicitly keep execution, mutation,
+auto-apply, and full autonomy disabled.
