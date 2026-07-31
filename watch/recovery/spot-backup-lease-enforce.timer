@@ -1,0 +1,12 @@
+[Unit]
+Description=Continuously enforce Spot backup lease safety
+
+[Timer]
+OnBootSec=10s
+OnUnitInactiveSec=5s
+AccuracySec=1s
+Persistent=false
+Unit=spot-backup-lease-enforce.service
+
+[Install]
+WantedBy=timers.target

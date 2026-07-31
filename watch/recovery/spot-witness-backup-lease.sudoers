@@ -1,0 +1,2 @@
+spot-lease-backup ALL=(root) NOPASSWD: /usr/local/sbin/spot-witness-authority status
+spot-lease-backup ALL=(root) NOPASSWD: /usr/local/sbin/spot-witness-authority renew-backup

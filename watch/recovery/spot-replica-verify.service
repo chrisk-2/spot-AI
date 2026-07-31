@@ -1,0 +1,16 @@
+[Unit]
+Description=Verify Spot Core Replicated Release
+After=network-online.target
+RequiresMountsFor=/srv/spot-backup-data
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/spot-replica-verify
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/srv/spot-backup-data/failover-state
+ReadWritePaths=/run/lock

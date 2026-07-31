@@ -1,0 +1,17 @@
+[Unit]
+Description=Spot Backup Witness Consensus Reader
+After=network-online.target spot-failover-observer.service
+Wants=network-online.target
+RequiresMountsFor=/srv/spot-backup-data
+
+[Service]
+Type=oneshot
+User=ogre
+Group=ogre
+ExecStart=/usr/local/sbin/spot-failover-consensus
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/srv/spot-backup-data/failover-state
+ReadWritePaths=/run/lock

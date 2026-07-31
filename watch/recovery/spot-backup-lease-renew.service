@@ -1,0 +1,10 @@
+[Unit]
+Description=Renew bounded Spot backup authority lease
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/spot-backup-lease-renew

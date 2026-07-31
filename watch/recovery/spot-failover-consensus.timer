@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Spot Failover Consensus Every 15 Seconds
+
+[Timer]
+OnBootSec=35s
+OnUnitActiveSec=15s
+AccuracySec=1s
+Persistent=true
+Unit=spot-failover-consensus.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,12 @@
+[Unit]
+Description=Renew Spot backup authority while activated
+
+[Timer]
+OnBootSec=15s
+OnUnitInactiveSec=10s
+AccuracySec=1s
+Persistent=false
+Unit=spot-backup-lease-renew.service
+
+[Install]
+WantedBy=timers.target
