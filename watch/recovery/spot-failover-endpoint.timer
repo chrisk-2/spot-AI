@@ -1,0 +1,12 @@
+[Unit]
+Description=Continuously enforce Spot shared service endpoint
+
+[Timer]
+OnBootSec=15s
+OnUnitInactiveSec=5s
+AccuracySec=1s
+Persistent=false
+Unit=spot-failover-endpoint.service
+
+[Install]
+WantedBy=timers.target
