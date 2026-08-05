@@ -1,0 +1,55 @@
+{
+  "acceptance_results": {
+    "fixture_execution_succeeded": true,
+    "fixture_heartbeat_verified": true,
+    "network_stack_mutation": false,
+    "phase238_receipt_verified": true,
+    "phase239_fixture_milestone_accepted": true,
+    "production_service_mutation": false,
+    "restricted_executor_validation_passed": true,
+    "rollback_defined": true,
+    "rollback_evidence_verified": true,
+    "source_and_installed_units_match": true
+  },
+  "acceptance_scope": "controlled_fixture_milestone_only",
+  "accepted_repository_head": "4597fdb",
+  "checkpoint": "PHASE239-CURRENT-CONTROLLED-AUTONOMY-ACCEPTANCE",
+  "correlation": {
+    "fixture_execution_result": "success",
+    "fixture_execution_timestamp": "2026-08-05T00:06:23Z",
+    "fixture_exit_status": 0,
+    "fixture_invocation_id": "5c6302b7a4d94a2ba12d0d9984d83561",
+    "fixture_target": "spot-remediation-fixture.service",
+    "heartbeat_path": "/var/lib/spot/remediation-fixture/heartbeat.json",
+    "heartbeat_sha256": "196074515fcb2108def313a415b11054cb1307154fcc35611f0965a8b13f371d",
+    "heartbeat_timestamp": "2026-08-05T00:06:23Z",
+    "installed_unit_path": "/etc/systemd/system/spot-remediation-fixture.service",
+    "installed_unit_sha256": "7982345fa35a8a87d7731fab3ea6c081a834459120cfccb69924bd432d3a85d6",
+    "phase238_action_id": "ACT-PHASE238-20260805T000424Z",
+    "phase238_receipt_path": "/mnt/collective/logs/spot/actions/phase238/ACT-PHASE238-20260805T000424Z.json",
+    "phase238_receipt_sha256": "ac05b6277d2622ba5ca16e3f0a74e44be99784ac43e298342cd8a7c9ac4a1a9a",
+    "rollback_backup_path": "/mnt/collective/backups/spot-remediation-fixture/phase238/ACT-PHASE238-20260805T000424Z-heartbeat.before.json",
+    "rollback_backup_sha256": "cdbb34ff9a0e7e03336deae266146bc245e623081c5ccde33dad5425c051bbf3",
+    "source_unit_path": "watch/remediation/spot-remediation-fixture.service",
+    "source_unit_sha256": "7982345fa35a8a87d7731fab3ea6c081a834459120cfccb69924bd432d3a85d6"
+  },
+  "decision": "PHASE_2_39_CONTROLLED_FIXTURE_MILESTONE_ACCEPTED",
+  "generated_at": "2026-08-05T15:26:54Z",
+  "governance": {
+    "general_execution_allowed": false,
+    "general_mutation_authority": false,
+    "live_executor_enabled": false,
+    "restricted_executor_dormant": true,
+    "service_action_performed_by_acceptance": false,
+    "spot_core_only_apply_authority": true,
+    "worker_self_apply_allowed": false
+  },
+  "limitations": [
+    "Acceptance applies only to the controlled remediation fixture milestone.",
+    "Acceptance does not activate general execution authority.",
+    "Acceptance does not authorize production-service mutation.",
+    "A separate reviewed activation phase is required before broader autonomy."
+  ],
+  "phase": "2.39",
+  "schema": "starfleet.phase239.current-acceptance.v1"
+}
