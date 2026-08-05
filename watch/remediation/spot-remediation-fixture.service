@@ -1,6 +1,5 @@
 [Unit]
 Description=Spot Remediation Fixture Service
-Documentation=internal:starfleet-phase-2.38
 ConditionPathExists=/usr/local/lib/spot/spot-remediation-fixture.sh
 
 [Service]
