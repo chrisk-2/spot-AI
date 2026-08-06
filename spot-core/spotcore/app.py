@@ -2918,7 +2918,7 @@ async def call_local_review(cfg, req):
     if not base_url:
         raise HTTPException(status_code=503, detail={"message": f"review worker missing base_url: {req.worker}"})
     system_prompt = "You are Spot local reviewer. Proposal-review only. Return STRICT JSON only with keys: verdict, confidence, notes. verdict must be PASS, FIX, or NO."
-    payload = {"model": req.model, "prompt": f"{system_prompt}\n\nREVIEW_TYPE: {req.review_type}\n\n{req.prompt}", "stream": False}
+    payload = {"model": req.model, "prompt": f"{system_prompt}\n\nREVIEW_TYPE: {req.review_type}\n\n{req.prompt}", "stream": False, "format": "json"}
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
         resp = await client.post(f"{base_url}/api/generate", json=payload)
         try:
