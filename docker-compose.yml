@@ -30,6 +30,7 @@ services:
       UNIFI_PASS: "Spot10187***"
       UNIFI_SITE: "starfleet"
       PYTHONUNBUFFERED: "1"
+      SPOTCORE_HTTP_TIMEOUT: "900"
       SPOT_PROACTIVE_INTERVAL: "300"
       SPOT_PROACTIVE_DEDUP: "1800"
     entrypoint: []
