@@ -1,0 +1,133 @@
+{
+  "$id": "urn:starfleet:spot:controlled-read-observe-request:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "observation_class": {
+            "const": "journal"
+          }
+        },
+        "required": [
+          "observation_class"
+        ]
+      },
+      "then": {
+        "required": [
+          "journal_lines",
+          "journal_lookback_seconds"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "execution_allowed": {
+      "const": false
+    },
+    "hostname": {
+      "const": "spot-core"
+    },
+    "journal_lines": {
+      "maximum": 200,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "journal_lookback_seconds": {
+      "maximum": 3600,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "live_executor_enabled": {
+      "const": false
+    },
+    "mutation_authority": {
+      "const": false
+    },
+    "observation_class": {
+      "enum": [
+        "systemd",
+        "journal",
+        "socket",
+        "http",
+        "filesystem",
+        "git"
+      ]
+    },
+    "observation_id": {
+      "pattern": "^OBS-[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$",
+      "type": "string"
+    },
+    "observer_identity": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "operation": {
+      "enum": [
+        "systemd_show",
+        "systemd_status",
+        "systemd_is_active",
+        "systemd_is_enabled",
+        "systemd_list_units",
+        "systemd_list_unit_files",
+        "journal_read",
+        "socket_listening_read",
+        "http_get",
+        "filesystem_metadata_read",
+        "filesystem_bounded_content_read",
+        "git_status",
+        "git_diff",
+        "git_log",
+        "git_show",
+        "git_rev_parse",
+        "git_branch_current"
+      ]
+    },
+    "output_bytes_max": {
+      "maximum": 65536,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "request_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$",
+      "type": "string"
+    },
+    "requested_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "schema": {
+      "const": "spot_controlled_read_observe_request_v1"
+    },
+    "target": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "type": "string"
+    },
+    "timeout_seconds": {
+      "maximum": 15,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema",
+    "observation_id",
+    "request_id",
+    "requested_at",
+    "hostname",
+    "observer_identity",
+    "observation_class",
+    "target",
+    "operation",
+    "timeout_seconds",
+    "output_bytes_max",
+    "execution_allowed",
+    "mutation_authority",
+    "live_executor_enabled"
+  ],
+  "title": "Spot Controlled Read/Observe Request v1",
+  "type": "object"
+}

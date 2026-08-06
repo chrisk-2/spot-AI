@@ -1,0 +1,135 @@
+{
+  "activation_authorized": false,
+  "authority": "read_only_observation_policy",
+  "filesystem": {
+    "approved_roots": [
+      "/home/ogre/spot-stack/watch",
+      "/home/ogre/spot-stack/docs",
+      "/home/ogre/spot-stack/watch/state"
+    ],
+    "exact_files": [
+      "/var/lib/spot/remediation-fixture/heartbeat.json"
+    ],
+    "operations": [
+      "filesystem_metadata_read",
+      "filesystem_bounded_content_read"
+    ],
+    "recursive_unbounded_traversal_allowed": false,
+    "secret_collection_allowed": false,
+    "special_files_allowed": false,
+    "symlink_escape_allowed": false
+  },
+  "git": {
+    "operations": [
+      "git_status",
+      "git_diff",
+      "git_log",
+      "git_show",
+      "git_rev_parse",
+      "git_branch_current"
+    ],
+    "repository": "/home/ogre/spot-stack"
+  },
+  "governance": {
+    "execution_allowed": false,
+    "live_executor_enabled": false,
+    "mutation_authority": false,
+    "network_mutation_allowed": false,
+    "remediation_allowed": false,
+    "remote_execution_allowed": false,
+    "service_action_allowed": false
+  },
+  "host": "spot-core",
+  "http": {
+    "authentication_allowed": false,
+    "endpoints": [
+      "http://127.0.0.1:8787/health",
+      "http://127.0.0.1:8787/fleet-status",
+      "http://127.0.0.1:8010/health"
+    ],
+    "method": "GET",
+    "query_strings_allowed": false,
+    "redirects_allowed": false,
+    "request_bodies_allowed": false
+  },
+  "implementation_present": false,
+  "journal": {
+    "follow_allowed": false,
+    "mutation_allowed": false,
+    "operation": "journal_read",
+    "units_source": "systemd.units"
+  },
+  "limits": {
+    "command_timeout_seconds_max": 15,
+    "filesystem_content_bytes_max": 65536,
+    "http_connect_timeout_seconds_max": 3,
+    "http_total_timeout_seconds_max": 10,
+    "journal_lines_max": 200,
+    "journal_lookback_seconds_max": 3600,
+    "output_bytes_max": 65536
+  },
+  "observer_enabled": false,
+  "observer_installed": false,
+  "observer_scheduled": false,
+  "prohibited_classes": [
+    "service_mutation",
+    "process_signal",
+    "package_mutation",
+    "configuration_mutation",
+    "permission_mutation",
+    "network_mutation",
+    "container_mutation",
+    "remote_execution",
+    "arbitrary_url_access",
+    "credential_collection",
+    "authority_mutation",
+    "lease_mutation",
+    "fence_mutation",
+    "failover_mutation",
+    "executor_activation",
+    "automatic_remediation",
+    "automatic_approval",
+    "production_service_repair",
+    "arbitrary_shell",
+    "privilege_escalation",
+    "interactive_execution"
+  ],
+  "schema": "spot_controlled_read_observe_allowlist_v1",
+  "socket": {
+    "fixed_invocation": [
+      "ss",
+      "-lntupH"
+    ],
+    "operations": [
+      "socket_listening_read"
+    ]
+  },
+  "status": "inactive",
+  "systemd": {
+    "global_operations": [
+      "systemd_list_units",
+      "systemd_list_unit_files"
+    ],
+    "unit_operations": [
+      "systemd_show",
+      "systemd_status",
+      "systemd_is_active",
+      "systemd_is_enabled"
+    ],
+    "units": [
+      "spot-bridge-api.service",
+      "spot-mcp.service",
+      "spot-ui-publish.service",
+      "starfleet-ui.service",
+      "ttyd.service",
+      "ssh.service",
+      "docker.service",
+      "spot-remediation-fixture.service",
+      "spot-monitor-snapshot.service",
+      "spot-primary-fence-guard.service",
+      "spot-primary-lease-enforce.service",
+      "spot-primary-lease-renew.service"
+    ]
+  },
+  "version": 1
+}

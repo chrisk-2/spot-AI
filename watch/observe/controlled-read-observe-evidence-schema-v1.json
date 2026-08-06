@@ -1,0 +1,150 @@
+{
+  "$id": "urn:starfleet:spot:controlled-read-observe-evidence:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "classification": {
+      "enum": [
+        "healthy",
+        "degraded",
+        "failed",
+        "unknown"
+      ]
+    },
+    "completed_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "execution_allowed": {
+      "const": false
+    },
+    "exit_status": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "hostname": {
+      "const": "spot-core"
+    },
+    "http_status": {
+      "maximum": 599,
+      "minimum": 100,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "live_executor_enabled": {
+      "const": false
+    },
+    "mutation_authority": {
+      "const": false
+    },
+    "network_stack_mutation": {
+      "const": false
+    },
+    "observation_class": {
+      "enum": [
+        "systemd",
+        "journal",
+        "socket",
+        "http",
+        "filesystem",
+        "git"
+      ]
+    },
+    "observation_id": {
+      "pattern": "^OBS-[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$",
+      "type": "string"
+    },
+    "observer_identity": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "operation": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "output_bytes": {
+      "maximum": 65536,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "output_sha256": {
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "output_truncated": {
+      "type": "boolean"
+    },
+    "policy_decision": {
+      "enum": [
+        "allowed_read_only",
+        "denied_fail_closed"
+      ]
+    },
+    "remediation_performed": {
+      "const": false
+    },
+    "request_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$",
+      "type": "string"
+    },
+    "schema": {
+      "const": "spot_controlled_read_observe_evidence_v1"
+    },
+    "service_action_performed": {
+      "const": false
+    },
+    "started_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "target": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "type": "string"
+    },
+    "timeout_seconds": {
+      "maximum": 15,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "timestamp": {
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "observation_id",
+    "request_id",
+    "timestamp",
+    "hostname",
+    "observer_identity",
+    "observation_class",
+    "target",
+    "operation",
+    "started_at",
+    "completed_at",
+    "timeout_seconds",
+    "exit_status",
+    "http_status",
+    "output_bytes",
+    "output_truncated",
+    "output_sha256",
+    "classification",
+    "policy_decision",
+    "execution_allowed",
+    "mutation_authority",
+    "live_executor_enabled",
+    "remediation_performed",
+    "service_action_performed",
+    "network_stack_mutation"
+  ],
+  "title": "Spot Controlled Read/Observe Evidence v1",
+  "type": "object"
+}
