@@ -16,14 +16,13 @@ services:
     env_file:
       - ./spot-core/.env
       - /home/ogre/.config/spot-core/openai.env
+      - /home/ogre/.config/spot-core/opnsense.env
     environment:
       SPOTCORE_CONFIG: /srv/spot-core/config/cluster_config.json
       SPOTCORE_WATCH_STATE: /srv/watch/state/fleet-status.json
       SPOTCORE_EXEC_HISTORY: /srv/spot-core/shared_memory/exec-history.jsonl
       SPOTCORE_DECISION_LOG: /srv/spot-core/shared_memory/decision-history.jsonl
       OPNSENSE_HOST: "192.168.1.1"
-      OPNSENSE_KEY: "/sRRnVbIqH3mOuwdjDC6VJd6OUN4fgk0yh2iRyiAhS+6Sclx6q12ysfJ6poO3fPDArRWZIgOce72A/P7"
-      OPNSENSE_SECRET: "fbpoDHnoEDc5988R2D+2x/hQurrrXdlwjvqHQpXAzscKv64Gy/kraQ0UrsZOR03yYDswZozCSlU6oi0r"
       UNIFI_HOST: "192.168.60.20"
       UNIFI_PORT: "11443"
       UNIFI_USER: "spot"
