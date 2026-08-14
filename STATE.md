@@ -1,6 +1,69 @@
 # Starfleet OS / Spot Core State
 
-Updated: 2026-05-21T23:30:00Z
+Updated: 2026-08-14T23:30:47Z
+
+## Current verified state — 2026-08-14
+
+The 2026-08-14 full fleet audit and credential hardening work established
+the following current operational truth:
+
+- repository head at observer start:
+  `4cf5809a9b9a3d8146303a70996bc5e7824b6da3`
+- Spot Core administrative token rotation: complete
+- replacement token active in Spot Core, MCP, and Bridge
+- prior administrative token rejected and rollback copies removed
+- Spot Core health endpoint: HTTP 200
+- MCP service: active
+- Bridge service: active
+- primary fenced: false
+- witness lease valid and enforced
+- `execution_allowed=false`
+- `mutation_authority=false`
+- automatic takeover disabled
+- five-minute uptime pattern classified as monitoring cadence, not a
+  container restart loop
+- Docker automatic restart count at baseline: 0
+- Spot Core container restart count at baseline: 0
+- Spot Core OOM termination at baseline: false
+- `/mnt/collective` accessible at baseline
+
+### Seven-day stability soak
+
+A dedicated read-only stability observer is installed and samples every
+five minutes.
+
+- observer service:
+  `spot-core-stability-observer.service`
+- observer timer:
+  `spot-core-stability-observer.timer`
+- evidence directory:
+  `/var/lib/spot/stability-soak`
+- start:
+  `2026-08-14T23:30:47Z`
+- scheduled completion:
+  `2026-08-21T23:30:47Z`
+- current status:
+  `SOAKING`
+- current failure samples:
+  `0`
+
+The soak does not authorize execution or mutation. Any unexplained
+container identity change, restart-count change, endpoint failure,
+storage failure, fencing event, lease failure, or governance-lock change
+causes the soak to record `FAIL`.
+
+### Current known limitations
+
+- `spot-ui-01` is intentionally offline while the office is in transit.
+- `starfleet-core` monitoring still checks legacy UniFi port `8443`; the
+  controller-port source of truth must be reconciled separately.
+- `/mnt/collective` is a CIFS automount. A prior host boot showed Docker
+  attempting the bind mount before the remote share was ready. A narrow
+  boot-order correction remains required.
+- Production mutation remains disabled.
+- Phase 2.39 controlled production execution is not accepted.
+
+---
 
 ## Current phase
 
