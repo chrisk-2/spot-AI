@@ -55,8 +55,7 @@ causes the soak to record `FAIL`.
 ### Current known limitations
 
 - `spot-ui-01` is intentionally offline while the office is in transit.
-- `starfleet-core` monitoring still checks legacy UniFi port `8443`; the
-  controller-port source of truth must be reconciled separately.
+- `starfleet-core` UniFi monitoring was reconciled to the verified controller listener on port `11443` on 2026-08-14.
 - `/mnt/collective` is a CIFS automount. A prior host boot showed Docker
   attempting the bind mount before the remote share was ready. A narrow
   boot-order correction remains required.

@@ -22,7 +22,7 @@ NC=$'\033[0m'
 HOSTS=(
   "opnsense|192.168.1.1|OPNsense|443"
   "dns-core|192.168.60.10|DNS Core|22,53"
-  "starfleet-core|192.168.60.20|NPM UniFi DNS NTP|22,80,443,8443"
+  "starfleet-core|192.168.60.20|NPM UniFi DNS NTP|22,80,443,11443"
   "spot-core|192.168.60.30|Spot Core API|22,8787"
   "unimatrix6|192.168.50.10|NAS NFS|2049"
   "starfleet-tower|192.168.30.5|Tower|22"

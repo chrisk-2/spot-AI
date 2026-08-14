@@ -1253,7 +1253,7 @@ cmd_net_basics() {
     reverse_proxy: [
       {
         name: "adguard2.starfleet.local",
-        target: "192.168.60.20:8443"
+        target: "192.168.60.20:11443"
       },
       {
         name: "adguard1.starfleet.local",
