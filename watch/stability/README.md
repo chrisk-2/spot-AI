@@ -28,3 +28,22 @@ Status values:
 
 The observer never restarts services, recreates containers, changes network
 configuration, enables execution, or grants mutation authority.
+
+## Collective-storage boot ordering
+
+Docker containers bind-mount `/mnt/collective`, which is supplied through
+the generated `mnt-collective.mount` CIFS unit. The managed Docker drop-in:
+
+`/etc/systemd/system/docker.service.d/20-spot-collective-order.conf`
+
+adds:
+
+- `Wants=mnt-collective.mount`
+- `After=mnt-collective.mount`
+
+This makes Docker wait for the mount attempt before restoring containers.
+`Wants` deliberately preserves the existing `nofail` behavior: failure of
+the remote storage mount does not make Docker itself a required failure.
+
+Installing the drop-in requires `systemctl daemon-reload` only. It does
+not restart Docker or any running container.
