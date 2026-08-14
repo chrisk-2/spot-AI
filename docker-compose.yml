@@ -17,6 +17,7 @@ services:
       - ./spot-core/.env
       - /home/ogre/.config/spot-core/openai.env
       - /home/ogre/.config/spot-core/opnsense.env
+      - /home/ogre/.config/spot-core/unifi.env
     environment:
       SPOTCORE_CONFIG: /srv/spot-core/config/cluster_config.json
       SPOTCORE_WATCH_STATE: /srv/watch/state/fleet-status.json
@@ -26,7 +27,6 @@ services:
       UNIFI_HOST: "192.168.60.20"
       UNIFI_PORT: "11443"
       UNIFI_USER: "spot"
-      UNIFI_PASS: "Spot10187***"
       UNIFI_SITE: "starfleet"
       PYTHONUNBUFFERED: "1"
       SPOTCORE_HTTP_TIMEOUT: "900"
