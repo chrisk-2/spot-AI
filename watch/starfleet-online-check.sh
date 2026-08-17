@@ -24,6 +24,7 @@ HOSTS=(
   "dns-core|192.168.60.10|DNS Core|22,53"
   "starfleet-core|192.168.60.20|NPM UniFi DNS NTP|22,80,443,11443"
   "spot-core|192.168.60.30|Spot Core API|22,8787"
+  "spot-core-backup|192.168.60.40|Standby Core|22"
   "unimatrix6|192.168.50.10|NAS NFS|2049"
   "starfleet-tower|192.168.30.5|Tower|22"
   "spot-worker-01|192.168.10.10|general|22,11434"

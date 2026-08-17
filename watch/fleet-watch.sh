@@ -24,6 +24,7 @@ jq empty "$POLICY_FILE" >/dev/null 2>&1 || {
 
 declare -A HOST_IPS=(
   ["spot-core"]="127.0.0.1"
+  ["spot-core-backup"]="192.168.60.40"
   ["spot-worker-01"]="192.168.10.10"
   ["spot-worker-02"]="192.168.10.11"
   ["spot-worker-03"]="192.168.10.13"
@@ -39,6 +40,7 @@ declare -A HOST_IPS=(
 
 HOSTS=(
   "spot-core"
+  "spot-core-backup"
   "spot-worker-01"
   "spot-worker-02"
   "spot-worker-03"
@@ -149,6 +151,9 @@ UNIMATRIX6_CURRENT_OK="false"
         [[ -z "${gpu_vram_total_mb_max}" ]] && gpu_vram_total_mb_max=null; [[ -z "${gpu_free_mb_max}" ]] && gpu_free_mb_max=null
         running_jobs="$(ssh_quick "$host" "ps aux | grep -E 'ollama (run|serve)' | grep -v grep | wc -l" 2>/dev/null | tr -d '\r' || true)"; [[ -z "$running_jobs" ]] && running_jobs=0
       fi
+      elif [[ "$host" == "spot-core-backup" ]]; then
+        # Standby visibility only; never a worker routing target.
+        service_ok=null
     elif [[ "$host" == "spot-core" ]]; then
       if check_http "http://127.0.0.1:8787/health"; then service_ok=true; else service_ok=false; fi
     fi
@@ -177,7 +182,7 @@ eligible = host.startswith("spot-worker-") and ssh_ok and service_ok is True and
 print(json.dumps(alerts, separators=(",", ":")), str(quarantined).lower(), str(eligible).lower())
 PY
 )"
-    if echo "$alerts_json" | jq -e '.[] | select(. == "dns_bad")' >/dev/null 2>&1; then DNS_FIX_QUEUE+=("$host"); fi
+    if [[ "$host" != "spot-core-backup" ]] && echo "$alerts_json" | jq -e '.[] | select(. == "dns_bad")' >/dev/null 2>&1; then DNS_FIX_QUEUE+=("$host"); fi
     echo -n "    $(json_escape "$host"): {"
     echo -n "\"ssh_ok\": ${ssh_ok}, "
     if [[ "$service_ok" == "null" ]]; then echo -n "\"service_ok\": null, "; else echo -n "\"service_ok\": ${service_ok}, "; fi
