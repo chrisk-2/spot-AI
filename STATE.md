@@ -29,8 +29,8 @@ the following current operational truth:
 
 ### Seven-day stability soak
 
-A dedicated read-only stability observer is installed and samples every
-five minutes.
+The dedicated read-only stability observer completed its required
+seven-day observation window successfully.
 
 - observer service:
   `spot-core-stability-observer.service`
@@ -40,25 +40,29 @@ five minutes.
   `/var/lib/spot/stability-soak`
 - start:
   `2026-08-14T23:30:47Z`
-- scheduled completion:
+- required completion:
   `2026-08-21T23:30:47Z`
-- current status:
-  `SOAKING`
-- current failure samples:
+- first post-deadline PASS:
+  `2026-08-21T23:31:07Z`
+- accepted status:
+  `PASS`
+- failure samples during required window:
   `0`
+- acceptance evidence:
+  `/mnt/collective/logs/spot/stability-observer/ACT-STABILITY-SOAK-PASS-20260824T151510Z`
+- observer timer after closeout:
+  `disabled`
 
-The soak does not authorize execution or mutation. Any unexplained
-container identity change, restart-count change, endpoint failure,
-storage failure, fencing event, lease failure, or governance-lock change
-causes the soak to record `FAIL`.
+A later site-wide power outage occurred after the required observation
+window had passed. Spot Core rebooted at `2026-08-22T01:13:45Z`, safely
+entered its governed fence, and was subsequently restored through a
+validated witness lease. This post-completion outage does not invalidate
+the accepted soak result. Execution and mutation remain disabled.
 
 ### Current known limitations
 
 - `spot-ui-01` is intentionally offline while the office is in transit.
 - `starfleet-core` UniFi monitoring was reconciled to the verified controller listener on port `11443` on 2026-08-14.
-- `/mnt/collective` is a CIFS automount. A prior host boot showed Docker
-  attempting the bind mount before the remote share was ready. A narrow
-  boot-order correction remains required.
 - Production mutation remains disabled.
 - Phase 2.39 controlled production execution is not accepted.
 
