@@ -1,6 +1,6 @@
 # Starfleet OS / Spot Core State
 
-Updated: 2026-08-14T23:30:47Z
+Updated: 2026-08-26T14:06:17Z
 
 ## Current verified state — 2026-08-14
 
@@ -58,6 +58,37 @@ window had passed. Spot Core rebooted at `2026-08-22T01:13:45Z`, safely
 entered its governed fence, and was subsequently restored through a
 validated witness lease. This post-completion outage does not invalidate
 the accepted soak result. Execution and mutation remain disabled.
+
+### Post-2.39 controlled read/observe lane
+
+The K21B dormant controlled read/observe implementation is complete and
+accepted for source-level construction and offline validation only.
+
+- implementation commit:
+  `9783752f9aad05f99b545803feea02152a2b0394`
+- durable evidence:
+  `/mnt/collective/logs/spot/actions/post239/ACT-POST239-K21B-20260826T140617Z`
+- Worker-05 implementation review:
+  `PASS`
+- implementation present:
+  `true`
+- lane status:
+  `inactive`
+- observer installed:
+  `false`
+- observer enabled:
+  `false`
+- observer scheduled:
+  `false`
+- activation authorized:
+  `false`
+- production observation authorized:
+  `false`
+
+The default runner path denies fail-closed. Only its deterministic built-in
+offline validation fixture can succeed. Installation, scheduling, production
+observation, service actions, remediation, and broader execution authority
+require separate review and explicit operator authorization.
 
 ### Current known limitations
 
