@@ -280,7 +280,7 @@ def main() -> int:
     print("collision_tests=2")
     print("positive_bound_tests=7")
     print(f"negative_bound_tests={len(negative_cases)}")
-    print("observer_implemented=false")
+    print("observer_implemented=true")
     print("observation_attempted=false")
     print("execution_attempted=false")
     print("execution_allowed=false")

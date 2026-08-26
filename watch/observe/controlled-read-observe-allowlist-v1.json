@@ -52,7 +52,7 @@
     "redirects_allowed": false,
     "request_bodies_allowed": false
   },
-  "implementation_present": false,
+  "implementation_present": true,
   "journal": {
     "follow_allowed": false,
     "mutation_allowed": false,

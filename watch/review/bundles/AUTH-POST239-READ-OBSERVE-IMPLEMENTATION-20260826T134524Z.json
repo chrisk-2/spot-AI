@@ -1,0 +1,34 @@
+{
+  "schema": "spot.post239.read_observe.implementation_authorization.v1",
+  "authorization_id": "AUTH-POST239-READ-OBSERVE-IMPLEMENTATION-20260826T134524Z",
+  "issued_at": "2026-08-26T13:45:24Z",
+  "operator": "ogre",
+  "operator_statement": "AUTHORIZE POST239 READ-OBSERVE IMPLEMENTATION ONLY",
+  "repository_head": "2835caa80d3fcd48354bb5a9558518aa2686dc8c",
+  "scope": {
+    "implementation_authorized": true,
+    "offline_validation_authorized": true,
+    "installation_authorized": false,
+    "activation_authorized": false,
+    "scheduling_authorized": false,
+    "production_observation_authorized": false,
+    "service_action_authorized": false,
+    "remediation_authorized": false,
+    "remote_execution_authorized": false
+  },
+  "review": {
+    "bundle": "watch/review/bundles/post239-read-observe-gates-review-bundle-20260826T134048Z.md",
+    "bundle_sha256": "54b89a71c9d301bc7644bd495038384ca71986d5b8a4fd64ff5b1c79793806d9",
+    "worker05_pass_record": "watch/review/bundles/POST239-READ-OBSERVE-GATES-PASS-20260826T134350Z.json",
+    "worker05_verdict": "PASS",
+    "worker05_authority": "proposal_review_only"
+  },
+  "governance": {
+    "spot_core_sole_authority": true,
+    "worker_self_apply_allowed": false,
+    "execution_allowed": false,
+    "mutation_authority": false,
+    "live_executor_enabled": false
+  },
+  "status": "AUTHORIZED_FOR_IMPLEMENTATION_ONLY"
+}

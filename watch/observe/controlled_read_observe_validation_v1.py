@@ -84,9 +84,11 @@ def load_contracts() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     if allowlist.get("status") != "inactive":
         raise ContractError("allowlist status must remain inactive")
 
+    if allowlist.get("implementation_present") is not True:
+        raise ContractError("implementation_present must be true")
+
     for field in (
         "activation_authorized",
-        "implementation_present",
         "observer_installed",
         "observer_enabled",
         "observer_scheduled",

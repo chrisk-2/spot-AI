@@ -1,0 +1,41 @@
+{
+  "checkpoint": "POST239-READ-OBSERVE-GATES-PASS",
+  "timestamp": "2026-08-26T13:43:50Z",
+  "phase": "Post-2.39 controlled read/observe lane",
+  "bundle": "watch/review/bundles/post239-read-observe-gates-review-bundle-20260826T134048Z.md",
+  "hash_file": "watch/review/bundles/post239-read-observe-gates-review-bundle-20260826T134048Z.md.sha256",
+  "bundle_sha256": "54b89a71c9d301bc7644bd495038384ca71986d5b8a4fd64ff5b1c79793806d9",
+  "review": {
+    "ok": true,
+    "reviewer": "spot-worker-05",
+    "model": "qwen2.5-coder:32b",
+    "review_type": "policy_review",
+    "verdict": "PASS",
+    "execution_allowed": false,
+    "authority": "proposal_review_only",
+    "raw": {
+      "backup_required": false,
+      "backup_verified": false,
+      "blocking_findings": [],
+      "confidence": "high",
+      "execution_allowed": false,
+      "intent_match": "pass",
+      "notes": "The review bundle meets all the stated constraints and required conditions. The design document, allowlists, schemas, and validation tests are in place without any production observation or execution being performed.",
+      "phase_match": "pass",
+      "policy_match": "pass",
+      "required_fixes": [],
+      "rollback_defined": false,
+      "validation_defined": true,
+      "verdict": "PASS"
+    }
+  },
+  "implementation_authorized": false,
+  "activation_authorized": false,
+  "observer_implemented": false,
+  "mutation_performed": false,
+  "execution_performed": false,
+  "execution_allowed": false,
+  "mutation_authority": false,
+  "fail_closed": true,
+  "spot_core_only_apply_authority": true
+}
