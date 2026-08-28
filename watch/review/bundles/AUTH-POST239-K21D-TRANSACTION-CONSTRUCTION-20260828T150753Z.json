@@ -1,0 +1,51 @@
+{
+  "schema": "starfleet.post239.k21d_construction_authorization.v1",
+  "authorization_id": "AUTH-POST239-K21D-TRANSACTION-CONSTRUCTION-20260828T150753Z",
+  "generated_at": "2026-08-28T15:07:53Z",
+  "authorized_by": {
+    "role": "operator",
+    "identity": "ogre",
+    "authority": "repository_artifact_construction_only"
+  },
+  "repository": {
+    "host": "spot-core",
+    "branch": "main",
+    "head": "03375bb98dd3caf644b731d62aa0edac48a035ed",
+    "clean_except_runtime_drift": "starfleet-ui/public/status.json"
+  },
+  "correlated_design": {
+    "blueprint_path": "watch/observe/POST239-K21D-INSTALLATION-TRANSACTION-BLUEPRINT.md",
+    "blueprint_sha256": "d3d922f1f133f5ab70cb04202af64933a2947eebda583a306b940524a16bcf1c",
+    "blueprint_pass_path": "watch/review/bundles/POST239-K21D-BLUEPRINT-PASS-20260828T150447Z.json",
+    "blueprint_pass_sha256": "ca9b109a863369a1874cf30ac6bf295664c2b8ad50135ab2e7528146a0218b2e",
+    "worker05_verdict": "PASS"
+  },
+  "scope": {
+    "k21d_transaction_schema_construction_authorized": true,
+    "k21d_schema_validator_construction_authorized": true,
+    "k21d_failure_test_construction_authorized": true,
+    "k21d_dormant_installer_construction_authorized": true,
+    "k21d_installer_validator_construction_authorized": true,
+    "offline_validation_authorized": true,
+    "review_bundle_construction_authorized": true,
+    "system_path_installation_authorized": false,
+    "backup_creation_authorized": false,
+    "installation_manifest_creation_authorized": false,
+    "installation_receipt_creation_authorized": false,
+    "authorization_consumption_authorized": false,
+    "daemon_reload_authorized": false,
+    "activation_authorized": false,
+    "enablement_authorized": false,
+    "scheduling_authorized": false,
+    "production_observation_authorized": false,
+    "service_action_authorized": false
+  },
+  "governance": {
+    "spot_core_sole_authority": true,
+    "worker_self_apply_allowed": false,
+    "live_executor_enabled": false,
+    "execution_allowed": false,
+    "mutation_authority": false
+  },
+  "status": "AUTHORIZED_FOR_K21D_REPOSITORY_CONSTRUCTION_ONLY"
+}

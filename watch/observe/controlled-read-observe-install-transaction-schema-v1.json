@@ -1,0 +1,961 @@
+{
+  "$id": "https://starfleet.local/schemas/post239-k21d-install-transaction-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "backup": {
+      "additionalProperties": false,
+      "properties": {
+        "binding_id": {
+          "pattern": "^BACKUP-BINDING-POST239-K21D-[A-Za-z0-9._:-]{8,128}$",
+          "type": "string"
+        },
+        "manifest_id": {
+          "pattern": "^BACKUP-POST239-K21D-[A-Za-z0-9._:-]{8,128}$",
+          "type": "string"
+        },
+        "manifest_path": {
+          "pattern": "^/mnt/collective/backups/spot-core/post239-k21d/BACKUP-POST239-K21D-[A-Za-z0-9._:-]+\\.json$",
+          "type": "string"
+        },
+        "manifest_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "verified": {
+          "const": true
+        }
+      },
+      "required": [
+        "manifest_id",
+        "manifest_path",
+        "manifest_sha256",
+        "binding_id",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "design_review": {
+      "additionalProperties": false,
+      "properties": {
+        "record_path": {
+          "pattern": "^watch/review/bundles/POST239-K21D-BLUEPRINT-PASS-[0-9]{8}T[0-9]{6}Z\\.json$",
+          "type": "string"
+        },
+        "record_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "verdict": {
+          "const": "PASS"
+        }
+      },
+      "required": [
+        "record_path",
+        "record_sha256",
+        "verdict"
+      ],
+      "type": "object"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "files": {
+      "items": false,
+      "maxItems": 8,
+      "minItems": 8,
+      "prefixItems": [
+        {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "backup_sha256": {
+                    "type": "null"
+                  },
+                  "destination_type_before": {
+                    "const": "absent"
+                  }
+                }
+              },
+              "if": {
+                "properties": {
+                  "destination_preexisting": {
+                    "const": true
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "backup_sha256": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "destination_type_before": {
+                    "const": "regular"
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "backup_sha256": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "destination": {
+              "const": "/usr/local/lib/spot/controlled-read-observe.py"
+            },
+            "destination_preexisting": {
+              "type": "boolean"
+            },
+            "destination_type_before": {
+              "enum": [
+                "absent",
+                "regular"
+              ]
+            },
+            "group": {
+              "const": "root"
+            },
+            "mode": {
+              "const": "0755"
+            },
+            "owner": {
+              "const": "root"
+            },
+            "source": {
+              "const": "watch/observe/controlled-read-observe.py"
+            },
+            "source_sha256": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "destination",
+            "source_sha256",
+            "mode",
+            "owner",
+            "group",
+            "destination_preexisting",
+            "destination_type_before",
+            "backup_sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "backup_sha256": {
+                    "type": "null"
+                  },
+                  "destination_type_before": {
+                    "const": "absent"
+                  }
+                }
+              },
+              "if": {
+                "properties": {
+                  "destination_preexisting": {
+                    "const": true
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "backup_sha256": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "destination_type_before": {
+                    "const": "regular"
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "backup_sha256": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "destination": {
+              "const": "/usr/local/lib/spot/controlled-read-observe-runner.sh"
+            },
+            "destination_preexisting": {
+              "type": "boolean"
+            },
+            "destination_type_before": {
+              "enum": [
+                "absent",
+                "regular"
+              ]
+            },
+            "group": {
+              "const": "root"
+            },
+            "mode": {
+              "const": "0755"
+            },
+            "owner": {
+              "const": "root"
+            },
+            "source": {
+              "const": "watch/observe/controlled-read-observe-runner.sh"
+            },
+            "source_sha256": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "destination",
+            "source_sha256",
+            "mode",
+            "owner",
+            "group",
+            "destination_preexisting",
+            "destination_type_before",
+            "backup_sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "backup_sha256": {
+                    "type": "null"
+                  },
+                  "destination_type_before": {
+                    "const": "absent"
+                  }
+                }
+              },
+              "if": {
+                "properties": {
+                  "destination_preexisting": {
+                    "const": true
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "backup_sha256": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "destination_type_before": {
+                    "const": "regular"
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "backup_sha256": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "destination": {
+              "const": "/usr/local/lib/spot/controlled-read-observe-allowlist.json"
+            },
+            "destination_preexisting": {
+              "type": "boolean"
+            },
+            "destination_type_before": {
+              "enum": [
+                "absent",
+                "regular"
+              ]
+            },
+            "group": {
+              "const": "root"
+            },
+            "mode": {
+              "const": "0644"
+            },
+            "owner": {
+              "const": "root"
+            },
+            "source": {
+              "const": "watch/observe/controlled-read-observe-allowlist.json"
+            },
+            "source_sha256": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "destination",
+            "source_sha256",
+            "mode",
+            "owner",
+            "group",
+            "destination_preexisting",
+            "destination_type_before",
+            "backup_sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "backup_sha256": {
+                    "type": "null"
+                  },
+                  "destination_type_before": {
+                    "const": "absent"
+                  }
+                }
+              },
+              "if": {
+                "properties": {
+                  "destination_preexisting": {
+                    "const": true
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "backup_sha256": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "destination_type_before": {
+                    "const": "regular"
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "backup_sha256": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "destination": {
+              "const": "/usr/local/lib/spot/controlled-read-observe-request.schema.json"
+            },
+            "destination_preexisting": {
+              "type": "boolean"
+            },
+            "destination_type_before": {
+              "enum": [
+                "absent",
+                "regular"
+              ]
+            },
+            "group": {
+              "const": "root"
+            },
+            "mode": {
+              "const": "0644"
+            },
+            "owner": {
+              "const": "root"
+            },
+            "source": {
+              "const": "watch/observe/controlled-read-observe-request.schema.json"
+            },
+            "source_sha256": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "destination",
+            "source_sha256",
+            "mode",
+            "owner",
+            "group",
+            "destination_preexisting",
+            "destination_type_before",
+            "backup_sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "backup_sha256": {
+                    "type": "null"
+                  },
+                  "destination_type_before": {
+                    "const": "absent"
+                  }
+                }
+              },
+              "if": {
+                "properties": {
+                  "destination_preexisting": {
+                    "const": true
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "backup_sha256": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "destination_type_before": {
+                    "const": "regular"
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "backup_sha256": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "destination": {
+              "const": "/usr/local/lib/spot/controlled-read-observe-evidence.schema.json"
+            },
+            "destination_preexisting": {
+              "type": "boolean"
+            },
+            "destination_type_before": {
+              "enum": [
+                "absent",
+                "regular"
+              ]
+            },
+            "group": {
+              "const": "root"
+            },
+            "mode": {
+              "const": "0644"
+            },
+            "owner": {
+              "const": "root"
+            },
+            "source": {
+              "const": "watch/observe/controlled-read-observe-evidence.schema.json"
+            },
+            "source_sha256": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "destination",
+            "source_sha256",
+            "mode",
+            "owner",
+            "group",
+            "destination_preexisting",
+            "destination_type_before",
+            "backup_sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "backup_sha256": {
+                    "type": "null"
+                  },
+                  "destination_type_before": {
+                    "const": "absent"
+                  }
+                }
+              },
+              "if": {
+                "properties": {
+                  "destination_preexisting": {
+                    "const": true
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "backup_sha256": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "destination_type_before": {
+                    "const": "regular"
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "backup_sha256": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "destination": {
+              "const": "/usr/local/lib/spot/controlled-read-observe-validate.py"
+            },
+            "destination_preexisting": {
+              "type": "boolean"
+            },
+            "destination_type_before": {
+              "enum": [
+                "absent",
+                "regular"
+              ]
+            },
+            "group": {
+              "const": "root"
+            },
+            "mode": {
+              "const": "0755"
+            },
+            "owner": {
+              "const": "root"
+            },
+            "source": {
+              "const": "watch/observe/controlled-read-observe-validate.py"
+            },
+            "source_sha256": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "destination",
+            "source_sha256",
+            "mode",
+            "owner",
+            "group",
+            "destination_preexisting",
+            "destination_type_before",
+            "backup_sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "backup_sha256": {
+                    "type": "null"
+                  },
+                  "destination_type_before": {
+                    "const": "absent"
+                  }
+                }
+              },
+              "if": {
+                "properties": {
+                  "destination_preexisting": {
+                    "const": true
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "backup_sha256": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "destination_type_before": {
+                    "const": "regular"
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "backup_sha256": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "destination": {
+              "const": "/usr/local/lib/spot/controlled-read-observe-replay-bounds-validate.py"
+            },
+            "destination_preexisting": {
+              "type": "boolean"
+            },
+            "destination_type_before": {
+              "enum": [
+                "absent",
+                "regular"
+              ]
+            },
+            "group": {
+              "const": "root"
+            },
+            "mode": {
+              "const": "0755"
+            },
+            "owner": {
+              "const": "root"
+            },
+            "source": {
+              "const": "watch/observe/controlled-read-observe-replay-bounds-validate.py"
+            },
+            "source_sha256": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "destination",
+            "source_sha256",
+            "mode",
+            "owner",
+            "group",
+            "destination_preexisting",
+            "destination_type_before",
+            "backup_sha256"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "backup_sha256": {
+                    "type": "null"
+                  },
+                  "destination_type_before": {
+                    "const": "absent"
+                  }
+                }
+              },
+              "if": {
+                "properties": {
+                  "destination_preexisting": {
+                    "const": true
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "backup_sha256": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "destination_type_before": {
+                    "const": "regular"
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "backup_sha256": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "destination": {
+              "const": "/etc/systemd/system/controlled-read-observe.service"
+            },
+            "destination_preexisting": {
+              "type": "boolean"
+            },
+            "destination_type_before": {
+              "enum": [
+                "absent",
+                "regular"
+              ]
+            },
+            "group": {
+              "const": "root"
+            },
+            "mode": {
+              "const": "0644"
+            },
+            "owner": {
+              "const": "root"
+            },
+            "source": {
+              "const": "watch/observe/controlled-read-observe.service"
+            },
+            "source_sha256": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "destination",
+            "source_sha256",
+            "mode",
+            "owner",
+            "group",
+            "destination_preexisting",
+            "destination_type_before",
+            "backup_sha256"
+          ],
+          "type": "object"
+        }
+      ],
+      "type": "array"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "governance": {
+      "additionalProperties": false,
+      "properties": {
+        "activation_authorized": {
+          "const": false
+        },
+        "enablement_authorized": {
+          "const": false
+        },
+        "execution_allowed": {
+          "const": false
+        },
+        "live_executor_enabled": {
+          "const": false
+        },
+        "mutation_authority": {
+          "const": false
+        },
+        "production_observation_authorized": {
+          "const": false
+        },
+        "scheduling_authorized": {
+          "const": false
+        },
+        "service_action_authorized": {
+          "const": false
+        },
+        "spot_core_sole_authority": {
+          "const": true
+        },
+        "worker_self_apply_allowed": {
+          "const": false
+        }
+      },
+      "required": [
+        "spot_core_sole_authority",
+        "worker_self_apply_allowed",
+        "activation_authorized",
+        "enablement_authorized",
+        "scheduling_authorized",
+        "production_observation_authorized",
+        "service_action_authorized",
+        "live_executor_enabled",
+        "execution_allowed",
+        "mutation_authority"
+      ],
+      "type": "object"
+    },
+    "host": {
+      "const": "spot-core"
+    },
+    "operator_authorization": {
+      "additionalProperties": false,
+      "properties": {
+        "authorization_id": {
+          "pattern": "^AUTH-POST239-K21D-INSTALLATION-[A-Za-z0-9._:-]{8,128}$",
+          "type": "string"
+        },
+        "consumed": {
+          "const": false
+        },
+        "record_path": {
+          "pattern": "^watch/review/bundles/AUTH-POST239-K21D-INSTALLATION-[A-Za-z0-9._:-]+\\.json$",
+          "type": "string"
+        },
+        "record_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "single_use": {
+          "const": true
+        },
+        "system_path_installation_authorized": {
+          "const": true
+        }
+      },
+      "required": [
+        "authorization_id",
+        "record_path",
+        "record_sha256",
+        "system_path_installation_authorized",
+        "single_use",
+        "consumed"
+      ],
+      "type": "object"
+    },
+    "planned_service_state": {
+      "additionalProperties": false,
+      "properties": {
+        "daemon_reload_if_unit_changed": {
+          "const": true
+        },
+        "production_observation_planned": {
+          "const": false
+        },
+        "request_dispatch_planned": {
+          "const": false
+        },
+        "service_enablement_planned": {
+          "const": false
+        },
+        "service_start_planned": {
+          "const": false
+        },
+        "timer_installation_planned": {
+          "const": false
+        },
+        "unconditional_daemon_reload": {
+          "const": false
+        }
+      },
+      "required": [
+        "daemon_reload_if_unit_changed",
+        "unconditional_daemon_reload",
+        "service_start_planned",
+        "service_enablement_planned",
+        "timer_installation_planned",
+        "request_dispatch_planned",
+        "production_observation_planned"
+      ],
+      "type": "object"
+    },
+    "repository_head": {
+      "pattern": "^[a-f0-9]{40}$",
+      "type": "string"
+    },
+    "rollback": {
+      "additionalProperties": false,
+      "properties": {
+        "binding_id": {
+          "pattern": "^ROLLBACK-BINDING-POST239-K21D-[A-Za-z0-9._:-]{8,128}$",
+          "type": "string"
+        },
+        "document_path": {
+          "const": "watch/observe/controlled-read-observe-install-rollback.md"
+        },
+        "document_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "verified": {
+          "const": true
+        }
+      },
+      "required": [
+        "document_path",
+        "document_sha256",
+        "binding_id",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "starfleet.post239.k21d_install_transaction.v1"
+    },
+    "status": {
+      "const": "READY_FOR_SEPARATELY_AUTHORIZED_INSTALLATION_ONLY"
+    },
+    "transaction_id": {
+      "pattern": "^INSTALL-POST239-K21D-[A-Za-z0-9._:-]{8,128}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "transaction_id",
+    "generated_at",
+    "expires_at",
+    "host",
+    "repository_head",
+    "design_review",
+    "operator_authorization",
+    "backup",
+    "rollback",
+    "files",
+    "planned_service_state",
+    "governance",
+    "status"
+  ],
+  "title": "Post-2.39 K21D Installation Transaction",
+  "type": "object"
+}
