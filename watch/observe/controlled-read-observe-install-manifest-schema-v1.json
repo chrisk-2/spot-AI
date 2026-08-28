@@ -1,0 +1,321 @@
+{
+  "$id": "urn:starfleet:spot:controlled-read-observe-install-manifest:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorization": {
+      "additionalProperties": false,
+      "properties": {
+        "authorization_id": {
+          "minLength": 8,
+          "type": "string"
+        },
+        "record_path": {
+          "pattern": "^watch/review/bundles/AUTH-POST239-K21C-INSTALLATION-[A-Za-z0-9._:-]+\\.json$",
+          "type": "string"
+        },
+        "record_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "system_path_installation_authorized": {
+          "const": false
+        }
+      },
+      "required": [
+        "authorization_id",
+        "record_path",
+        "record_sha256",
+        "system_path_installation_authorized"
+      ],
+      "type": "object"
+    },
+    "backup": {
+      "additionalProperties": false,
+      "properties": {
+        "backup_binding_id": {
+          "minLength": 8,
+          "type": "string"
+        },
+        "backup_binding_verified": {
+          "const": true
+        },
+        "backup_manifest_id": {
+          "minLength": 8,
+          "type": "string"
+        },
+        "backup_manifest_path": {
+          "pattern": "^/mnt/collective/backups/spot-core/post239-k21c/[A-Za-z0-9._:/-]+\\.json$",
+          "type": "string"
+        },
+        "backup_manifest_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "backup_verified": {
+          "const": true
+        }
+      },
+      "required": [
+        "backup_manifest_id",
+        "backup_manifest_path",
+        "backup_manifest_sha256",
+        "backup_verified",
+        "backup_binding_id",
+        "backup_binding_verified"
+      ],
+      "type": "object"
+    },
+    "files": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "destination": {
+            "enum": [
+              "/usr/local/lib/spot/observe/controlled-read-observe.py",
+              "/usr/local/lib/spot/observe/controlled_read_observe_validation_v1.py",
+              "/usr/local/lib/spot/observe/controlled-read-observe-request-validate.py",
+              "/usr/local/lib/spot/observe/controlled-read-observe-evidence-validate.py",
+              "/etc/spot/observe/controlled-read-observe-allowlist-v1.json",
+              "/etc/spot/observe/controlled-read-observe-request-schema-v1.json",
+              "/etc/spot/observe/controlled-read-observe-evidence-schema-v1.json",
+              "/etc/systemd/system/spot-controlled-read-observe.service"
+            ]
+          },
+          "destination_preexisting": {
+            "type": "boolean"
+          },
+          "group": {
+            "const": "root"
+          },
+          "mode": {
+            "enum": [
+              "0644",
+              "0755"
+            ]
+          },
+          "owner": {
+            "const": "root"
+          },
+          "sha256": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "watch/observe/controlled-read-observe.py",
+              "watch/observe/controlled_read_observe_validation_v1.py",
+              "watch/observe/controlled-read-observe-request-validate.py",
+              "watch/observe/controlled-read-observe-evidence-validate.py",
+              "watch/observe/controlled-read-observe-allowlist-v1.json",
+              "watch/observe/controlled-read-observe-request-schema-v1.json",
+              "watch/observe/controlled-read-observe-evidence-schema-v1.json",
+              "watch/observe/controlled-read-observe.service"
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "destination",
+          "sha256",
+          "mode",
+          "owner",
+          "group",
+          "destination_preexisting"
+        ],
+        "type": "object"
+      },
+      "maxItems": 8,
+      "minItems": 8,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "generated_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "governance": {
+      "additionalProperties": false,
+      "properties": {
+        "activation_authorized": {
+          "const": false
+        },
+        "execution_allowed": {
+          "const": false
+        },
+        "live_executor_enabled": {
+          "const": false
+        },
+        "mutation_authority": {
+          "const": false
+        },
+        "production_observation_authorized": {
+          "const": false
+        },
+        "scheduling_authorized": {
+          "const": false
+        },
+        "spot_core_sole_authority": {
+          "const": true
+        },
+        "worker_self_apply_allowed": {
+          "const": false
+        }
+      },
+      "required": [
+        "spot_core_sole_authority",
+        "worker_self_apply_allowed",
+        "activation_authorized",
+        "scheduling_authorized",
+        "production_observation_authorized",
+        "live_executor_enabled",
+        "execution_allowed",
+        "mutation_authority"
+      ],
+      "type": "object"
+    },
+    "host": {
+      "const": "spot-core"
+    },
+    "manifest_id": {
+      "pattern": "^INSTALL-POST239-K21C-[A-Za-z0-9._:-]{8,128}$",
+      "type": "string"
+    },
+    "planned_service_state": {
+      "additionalProperties": false,
+      "properties": {
+        "daemon_reload_planned": {
+          "const": false
+        },
+        "observer_enabled": {
+          "const": false
+        },
+        "observer_scheduled": {
+          "const": false
+        },
+        "service_activation_planned": {
+          "const": false
+        },
+        "timer_installation_planned": {
+          "const": false
+        }
+      },
+      "required": [
+        "daemon_reload_planned",
+        "service_activation_planned",
+        "timer_installation_planned",
+        "observer_enabled",
+        "observer_scheduled"
+      ],
+      "type": "object"
+    },
+    "repository_head": {
+      "pattern": "^[a-f0-9]{40}$",
+      "type": "string"
+    },
+    "review": {
+      "additionalProperties": false,
+      "properties": {
+        "review_pass_path": {
+          "pattern": "^watch/review/bundles/POST239-K21C-[A-Za-z0-9._:-]+-PASS-[A-Za-z0-9._:-]+\\.json$",
+          "type": "string"
+        },
+        "review_pass_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "verdict": {
+          "const": "PASS"
+        }
+      },
+      "required": [
+        "review_pass_path",
+        "review_pass_sha256",
+        "verdict"
+      ],
+      "type": "object"
+    },
+    "rollback": {
+      "additionalProperties": false,
+      "properties": {
+        "rollback_binding_id": {
+          "minLength": 8,
+          "type": "string"
+        },
+        "rollback_binding_verified": {
+          "const": true
+        },
+        "rollback_defined": {
+          "const": true
+        },
+        "rollback_document": {
+          "const": "watch/observe/controlled-read-observe-install-rollback.md"
+        },
+        "rollback_document_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rollback_document",
+        "rollback_document_sha256",
+        "rollback_defined",
+        "rollback_binding_id",
+        "rollback_binding_verified"
+      ],
+      "type": "object"
+    },
+    "runtime": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_directory": {
+          "const": "/var/lib/spot/controlled-read-observe/evidence"
+        },
+        "evidence_directory_mode": {
+          "const": "0700"
+        },
+        "request_file": {
+          "const": "/var/lib/spot/controlled-read-observe/request.json"
+        },
+        "request_file_mode": {
+          "const": "0600"
+        },
+        "runtime_owner": {
+          "const": "root"
+        }
+      },
+      "required": [
+        "request_file",
+        "request_file_mode",
+        "evidence_directory",
+        "evidence_directory_mode",
+        "runtime_owner"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "spot_controlled_read_observe_install_manifest_v1"
+    },
+    "status": {
+      "const": "READY_FOR_SEPARATELY_AUTHORIZED_INSTALLATION"
+    }
+  },
+  "required": [
+    "schema",
+    "manifest_id",
+    "generated_at",
+    "host",
+    "repository_head",
+    "authorization",
+    "review",
+    "backup",
+    "rollback",
+    "files",
+    "runtime",
+    "planned_service_state",
+    "governance",
+    "status"
+  ],
+  "title": "Spot Controlled Read Observe Installation Manifest v1",
+  "type": "object"
+}

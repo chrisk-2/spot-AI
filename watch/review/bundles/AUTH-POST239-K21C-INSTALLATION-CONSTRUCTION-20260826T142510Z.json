@@ -1,0 +1,35 @@
+{
+  "schema": "starfleet.post239.k21c_installation_construction_authorization.v1",
+  "authorization_id": "AUTH-POST239-K21C-INSTALLATION-CONSTRUCTION-20260826T142510Z",
+  "generated_at": "2026-08-26T14:25:10Z",
+  "operator": "ogre",
+  "authorization_statement": "AUTHORIZE POST239 K21C INSTALLATION-ONLY CONSTRUCTION",
+  "repository_head": "11850954445808e74e6c46007ce4c7961fcb04f2",
+  "correlation": {
+    "blueprint": "watch/observe/POST239-K21C-INSTALLATION-ACTIVATION-BLUEPRINT.md",
+    "blueprint_sha256": "638197a47fcb4841d61ed16e3fce0ced05b28ed3973a295ae196fd0bc9aec564",
+    "reviewed_bundle": "watch/review/bundles/post239-k21c-blueprint-review-bundle-20260826T141726Z.md",
+    "reviewed_bundle_sha256": "8ccef2bc18671e259e0aee3e6d710f3c1ecdff35219ace2fe7d15919429b4e7e",
+    "review_pass_record": "watch/review/bundles/POST239-K21C-BLUEPRINT-PASS-20260826T141952Z.json",
+    "review_pass_sha256": "64bdc0aa6289d65aadf28e417cddb75b4e1e3eef227595d449ddb3487142a519"
+  },
+  "scope": {
+    "installation_artifact_construction_authorized": true,
+    "offline_validation_authorized": true,
+    "system_path_installation_authorized": false,
+    "daemon_reload_authorized": false,
+    "activation_authorized": false,
+    "scheduling_authorized": false,
+    "production_observation_authorized": false,
+    "service_action_authorized": false,
+    "remediation_authorized": false
+  },
+  "governance": {
+    "spot_core_sole_authority": true,
+    "worker_self_apply_allowed": false,
+    "live_executor_enabled": false,
+    "execution_allowed": false,
+    "mutation_authority": false
+  },
+  "status": "ACTIVE_FOR_SOURCE_CONSTRUCTION_ONLY"
+}
