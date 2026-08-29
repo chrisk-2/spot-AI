@@ -1,0 +1,65 @@
+{
+  "schema": "starfleet.post239.k21d_installation_authorization.v1",
+  "authorization_id": "AUTH-POST239-K21D-INSTALLATION-20260829T130152Z",
+  "generated_at": "2026-08-29T13:01:52Z",
+  "expires_at": "2026-08-29T17:01:52Z",
+  "authorized_by": {
+    "role": "operator",
+    "identity": "ogre",
+    "authority": "single_use_installation_only"
+  },
+  "repository": {
+    "host": "spot-core",
+    "branch": "main",
+    "head": "2a0b592ef0ac9c308fbb90c1d05602045790c499",
+    "required_clean_except_runtime_drift": "starfleet-ui/public/status.json"
+  },
+  "correlated_review": {
+    "implementation_pass_path": "watch/review/bundles/POST239-K21D-IMPLEMENTATION-PASS-20260828T222053Z.json",
+    "implementation_pass_sha256": "c5836d5b38cc97895e748c8b70ceb8b7420f467b4a18a02a33c84df79ab19673",
+    "blueprint_pass_path": "watch/review/bundles/POST239-K21D-BLUEPRINT-PASS-20260828T150447Z.json",
+    "blueprint_pass_sha256": "ca9b109a863369a1874cf30ac6bf295664c2b8ad50135ab2e7528146a0218b2e",
+    "worker05_verdict": "PASS"
+  },
+  "fixed_destinations": [
+    "/usr/local/lib/spot/controlled-read-observe.py",
+    "/usr/local/lib/spot/controlled-read-observe-runner.sh",
+    "/usr/local/lib/spot/controlled-read-observe-allowlist.json",
+    "/usr/local/lib/spot/controlled-read-observe-request.schema.json",
+    "/usr/local/lib/spot/controlled-read-observe-evidence.schema.json",
+    "/usr/local/lib/spot/controlled-read-observe-validate.py",
+    "/usr/local/lib/spot/controlled-read-observe-replay-bounds-validate.py",
+    "/etc/systemd/system/controlled-read-observe.service"
+  ],
+  "scope": {
+    "k21d_transaction_authorized": true,
+    "backup_creation_authorized": true,
+    "installation_manifest_creation_authorized": true,
+    "system_path_installation_authorized": true,
+    "installation_receipt_creation_authorized": true,
+    "authorization_consumption_authorized": true,
+    "daemon_reload_if_unit_changed_authorized": true,
+    "unconditional_daemon_reload_authorized": false,
+    "activation_authorized": false,
+    "enablement_authorized": false,
+    "scheduling_authorized": false,
+    "request_dispatch_authorized": false,
+    "production_observation_authorized": false,
+    "service_action_authorized": false,
+    "remediation_authorized": false
+  },
+  "replay_control": {
+    "single_use": true,
+    "consumed": false,
+    "installation_completed": false,
+    "rollback_completed": false
+  },
+  "governance": {
+    "spot_core_sole_authority": true,
+    "worker_self_apply_allowed": false,
+    "live_executor_enabled": false,
+    "execution_allowed": false,
+    "mutation_authority": false
+  },
+  "status": "AUTHORIZED_FOR_SINGLE_K21D_INSTALLATION_ONLY"
+}

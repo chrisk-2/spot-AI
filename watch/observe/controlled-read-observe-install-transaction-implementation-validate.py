@@ -24,6 +24,31 @@ def main() -> int:
     for path in FILES:
         require(path.is_file() and path.stat().st_size > 0, f"missing {path}")
 
+    transaction_validator = (
+        BASE / "controlled-read-observe-install-transaction-validate.py"
+    )
+    validator_source = transaction_validator.read_text(encoding="utf-8")
+
+    for source in (
+        "watch/observe/controlled-read-observe.py",
+        "watch/observe/controlled_read_observe_validation_v1.py",
+        "watch/observe/controlled-read-observe-request-validate.py",
+        "watch/observe/controlled-read-observe-evidence-validate.py",
+        "watch/observe/controlled-read-observe-allowlist-v1.json",
+        "watch/observe/controlled-read-observe-request-schema-v1.json",
+        "watch/observe/controlled-read-observe-evidence-schema-v1.json",
+        "watch/observe/controlled-read-observe.service",
+    ):
+        source_path = BASE.parent.parent / source
+        require(
+            source_path.is_file() and not source_path.is_symlink(),
+            f"authoritative source missing or unsafe: {source}",
+        )
+        require(
+            source in validator_source,
+            f"authoritative source absent from validator: {source}",
+        )
+
     installer = FILES[-1]
     source = installer.read_text(encoding="utf-8")
 

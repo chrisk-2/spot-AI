@@ -1,0 +1,20 @@
+{
+  "schema": "starfleet.post239.k21d_installation_authorization_revocation.v1",
+  "generated_at": "2026-08-29T14:10:05Z",
+  "host": "spot-core",
+  "repository_head": "2a0b592ef0ac9c308fbb90c1d05602045790c499",
+  "revoked_authorization_path": "watch/review/bundles/AUTH-POST239-K21D-INSTALLATION-20260829T130152Z.json",
+  "revoked_authorization_sha256": "8a720850bb2e9298452fe4ab628abd2357d9efc238945b6a8435d003bbaa574c",
+  "reason": "K21D mappings diverged from the accepted K21C authoritative mapping",
+  "backup_created": false,
+  "installation_manifest_created": false,
+  "authorization_consumed": false,
+  "installation_performed": false,
+  "daemon_reload_performed": false,
+  "activation_authorized": false,
+  "scheduling_authorized": false,
+  "production_observation_authorized": false,
+  "execution_allowed": false,
+  "mutation_authority": false,
+  "status": "REVOKED_BEFORE_USE"
+}

@@ -66,26 +66,25 @@ A missing, changed, stale, or mismatched binding denies installation.
 The installation transaction may address exactly these eight mappings:
 
 1. `watch/observe/controlled-read-observe.py`
-   to `/usr/local/lib/spot/controlled-read-observe.py`
-2. `watch/observe/controlled-read-observe-runner.sh`
-   to `/usr/local/lib/spot/controlled-read-observe-runner.sh`
-3. `watch/observe/controlled-read-observe-allowlist.json`
-   to `/usr/local/lib/spot/controlled-read-observe-allowlist.json`
-4. `watch/observe/controlled-read-observe-request.schema.json`
-   to `/usr/local/lib/spot/controlled-read-observe-request.schema.json`
-5. `watch/observe/controlled-read-observe-evidence.schema.json`
-   to `/usr/local/lib/spot/controlled-read-observe-evidence.schema.json`
-6. `watch/observe/controlled-read-observe-validate.py`
-   to `/usr/local/lib/spot/controlled-read-observe-validate.py`
-7. `watch/observe/controlled-read-observe-replay-bounds-validate.py`
-   to `/usr/local/lib/spot/controlled-read-observe-replay-bounds-validate.py`
+   to `/usr/local/lib/spot/observe/controlled-read-observe.py`
+2. `watch/observe/controlled_read_observe_validation_v1.py`
+   to `/usr/local/lib/spot/observe/controlled_read_observe_validation_v1.py`
+3. `watch/observe/controlled-read-observe-request-validate.py`
+   to `/usr/local/lib/spot/observe/controlled-read-observe-request-validate.py`
+4. `watch/observe/controlled-read-observe-evidence-validate.py`
+   to `/usr/local/lib/spot/observe/controlled-read-observe-evidence-validate.py`
+5. `watch/observe/controlled-read-observe-allowlist-v1.json`
+   to `/etc/spot/observe/controlled-read-observe-allowlist-v1.json`
+6. `watch/observe/controlled-read-observe-request-schema-v1.json`
+   to `/etc/spot/observe/controlled-read-observe-request-schema-v1.json`
+7. `watch/observe/controlled-read-observe-evidence-schema-v1.json`
+   to `/etc/spot/observe/controlled-read-observe-evidence-schema-v1.json`
 8. `watch/observe/controlled-read-observe.service`
-   to `/etc/systemd/system/controlled-read-observe.service`
+   to `/etc/systemd/system/spot-controlled-read-observe.service`
 
-No source substitution, destination substitution, path traversal, symlink
-redirection, wildcard expansion, directory-wide copy, or additional file is
-permitted.
-
+No source substitution, destination substitution, path traversal,
+symlink redirection, wildcard expansion, directory-wide copy, or
+additional file is permitted.
 ## Transaction identity
 
 A K21D installation transaction requires:

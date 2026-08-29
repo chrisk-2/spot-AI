@@ -19,48 +19,46 @@ HEAD = re.compile(r"^[a-f0-9]{40}$")
 
 FILE_MAP = [
     (
-        "watch/observe/controlled-read-observe.py",
-        "/usr/local/lib/spot/controlled-read-observe.py",
-        "0755",
+        'watch/observe/controlled-read-observe.py',
+        '/usr/local/lib/spot/observe/controlled-read-observe.py',
+        '0755',
     ),
     (
-        "watch/observe/controlled-read-observe-runner.sh",
-        "/usr/local/lib/spot/controlled-read-observe-runner.sh",
-        "0755",
+        'watch/observe/controlled_read_observe_validation_v1.py',
+        '/usr/local/lib/spot/observe/controlled_read_observe_validation_v1.py',
+        '0755',
     ),
     (
-        "watch/observe/controlled-read-observe-allowlist.json",
-        "/usr/local/lib/spot/controlled-read-observe-allowlist.json",
-        "0644",
+        'watch/observe/controlled-read-observe-request-validate.py',
+        '/usr/local/lib/spot/observe/controlled-read-observe-request-validate.py',
+        '0755',
     ),
     (
-        "watch/observe/controlled-read-observe-request.schema.json",
-        "/usr/local/lib/spot/controlled-read-observe-request.schema.json",
-        "0644",
+        'watch/observe/controlled-read-observe-evidence-validate.py',
+        '/usr/local/lib/spot/observe/controlled-read-observe-evidence-validate.py',
+        '0755',
     ),
     (
-        "watch/observe/controlled-read-observe-evidence.schema.json",
-        "/usr/local/lib/spot/controlled-read-observe-evidence.schema.json",
-        "0644",
+        'watch/observe/controlled-read-observe-allowlist-v1.json',
+        '/etc/spot/observe/controlled-read-observe-allowlist-v1.json',
+        '0644',
     ),
     (
-        "watch/observe/controlled-read-observe-validate.py",
-        "/usr/local/lib/spot/controlled-read-observe-validate.py",
-        "0755",
+        'watch/observe/controlled-read-observe-request-schema-v1.json',
+        '/etc/spot/observe/controlled-read-observe-request-schema-v1.json',
+        '0644',
     ),
     (
-        "watch/observe/controlled-read-observe-replay-bounds-validate.py",
-        "/usr/local/lib/spot/"
-        "controlled-read-observe-replay-bounds-validate.py",
-        "0755",
+        'watch/observe/controlled-read-observe-evidence-schema-v1.json',
+        '/etc/spot/observe/controlled-read-observe-evidence-schema-v1.json',
+        '0644',
     ),
     (
-        "watch/observe/controlled-read-observe.service",
-        "/etc/systemd/system/controlled-read-observe.service",
-        "0644",
+        'watch/observe/controlled-read-observe.service',
+        '/etc/systemd/system/spot-controlled-read-observe.service',
+        '0644',
     ),
 ]
-
 
 class TransactionError(ValueError):
     """Transaction validation denial."""
