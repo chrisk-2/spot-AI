@@ -210,6 +210,7 @@ class Fixture:
         payload = {
             "schema": self.module.AUTH_SCHEMA,
             "authorization_id": self.authorization_id,
+            "transaction_id": self.transaction_id,
             "generated_at": (self.now - timedelta(minutes=10)).isoformat(),
             "expires_at": (self.now + timedelta(hours=2)).isoformat(),
             "authorized_by": {
@@ -451,10 +452,65 @@ def positive_install(module: Any) -> None:
         print("[PASS] positive installation confined to offline fixture")
 
         expect_denied(
-            "single-use authorization replay",
+            "same-transaction replay",
             lambda: module.execute_transaction(fixture.context(), fixture.transaction_path),
             module,
         )
+    finally:
+        fixture.close()
+
+
+def changed_transaction_id_authorization_reuse(module: Any) -> None:
+    fixture = Fixture(module)
+    try:
+        changed_id = "INSTALL-POST239-K21D-OFFLINE0002"
+        transaction = json.loads(fixture.transaction_path.read_text(encoding="utf-8"))
+        transaction["transaction_id"] = changed_id
+        changed_path = fixture.physical(module.EVIDENCE_BASE) / f"{changed_id}.json"
+        write_json(changed_path, transaction)
+
+        try:
+            module.execute_transaction(fixture.context(), changed_path)
+        except module.ExecutionError as exc:
+            assert "authorization transaction ID mismatch" in str(exc)
+            print("[PASS] denied: authorization reuse under changed transaction ID")
+        else:
+            raise AssertionError("changed transaction ID reused one authorization")
+
+        evidence = fixture.physical(module.EVIDENCE_BASE)
+        assert not (evidence / f"{changed_id}.consumption.json").exists()
+        assert not (evidence / f"{changed_id}.receipt.json").exists()
+    finally:
+        fixture.close()
+
+
+def completed_rollback_authorization(module: Any) -> None:
+    fixture = Fixture(module)
+    try:
+        authorization = json.loads(fixture.authorization_path.read_text(encoding="utf-8"))
+        authorization["replay_control"]["rollback_completed"] = True
+        write_json(fixture.authorization_path, authorization)
+        authorization_sha = sha(fixture.authorization_path)
+
+        manifest = json.loads(fixture.manifest_path.read_text(encoding="utf-8"))
+        manifest["authorization_sha256"] = authorization_sha
+        write_json(fixture.manifest_path, manifest, 0o400)
+
+        transaction = json.loads(fixture.transaction_path.read_text(encoding="utf-8"))
+        transaction["operator_authorization"]["record_sha256"] = authorization_sha
+        transaction["backup"]["manifest_sha256"] = sha(fixture.manifest_path)
+        write_json(fixture.transaction_path, transaction)
+
+        try:
+            module.execute_transaction(fixture.context(), fixture.transaction_path)
+        except module.ExecutionError as exc:
+            assert "authorization rollback already completed" in str(exc)
+            print("[PASS] denied: authorization with completed rollback")
+        else:
+            raise AssertionError("completed rollback authorization was accepted")
+
+        assert not fixture.consumption_path().exists()
+        assert not fixture.receipt_path().exists()
     finally:
         fixture.close()
 
@@ -609,6 +665,8 @@ def main() -> int:
     module = load_executor()
     module.offline_self_test()
     positive_install(module)
+    changed_transaction_id_authorization_reuse(module)
+    completed_rollback_authorization(module)
     source_tamper(module)
     backup_tamper(module)
     symlink_destination(module)
@@ -618,7 +676,7 @@ def main() -> int:
     revoked_authorization(module)
     receipt_collision(module)
     print("positive_tests=3")
-    print("negative_tests=7")
+    print("negative_tests=9")
     print("live_system_paths_touched=false")
     print("installation_performed=false")
     print("daemon_reload_performed=false")

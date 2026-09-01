@@ -366,6 +366,7 @@ def validate_authorization(
         {
             "schema",
             "authorization_id",
+            "transaction_id",
             "generated_at",
             "expires_at",
             "authorized_by",
@@ -384,6 +385,10 @@ def validate_authorization(
     require(
         authorization.get("authorization_id") == operator["authorization_id"],
         "authorization ID mismatch",
+    )
+    require(
+        authorization.get("transaction_id") == transaction["transaction_id"],
+        "authorization transaction ID mismatch",
     )
     require(authorization.get("status") == "AUTHORIZED_FOR_SINGLE_K21D_INSTALLATION_ONLY", "authorization status invalid")
 
@@ -507,6 +512,7 @@ def validate_authorization(
     require(replay.get("single_use") is True, "authorization is not single-use")
     require(replay.get("consumed") is False, "authorization already consumed")
     require(replay.get("installation_completed") is False, "authorization already completed")
+    require(replay.get("rollback_completed") is False, "authorization rollback already completed")
 
     governance = exact_keys(
         authorization.get("governance"),
