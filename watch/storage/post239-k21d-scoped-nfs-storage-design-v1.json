@@ -1,0 +1,85 @@
+{
+  "schema": "starfleet.post239.k21d.scoped_nfs_storage_design.v1",
+  "status": "DESIGN_ONLY",
+  "execution_authorized": false,
+  "storage_boundary": {
+    "protocol": "nfs4",
+    "server": "192.168.50.10",
+    "share": "/volume1/spotvault",
+    "parent_collective_mount_unchanged": true,
+    "docker_restart_allowed": false,
+    "mount_options": [
+      "rw",
+      "vers=4.0",
+      "proto=tcp",
+      "hard",
+      "timeo=600",
+      "retrans=2",
+      "sec=sys",
+      "nosuid",
+      "nodev",
+      "noexec",
+      "noatime",
+      "_netdev"
+    ],
+    "mounts": [
+      {
+        "purpose": "backup",
+        "source": "192.168.50.10:/volume1/spotvault/backups/spot-core/post239-k21d",
+        "target": "/mnt/collective/backups/spot-core/post239-k21d",
+        "unit": "mnt-collective-backups-spot\\x2dcore-post239\\x2dk21d.mount"
+      },
+      {
+        "purpose": "evidence",
+        "source": "192.168.50.10:/volume1/spotvault/logs/spot/actions/post239-k21d",
+        "target": "/mnt/collective/logs/spot/actions/post239-k21d",
+        "unit": "mnt-collective-logs-spot-actions-post239\\x2dk21d.mount"
+      }
+    ]
+  },
+  "preserved_objects": [
+    {
+      "kind": "file",
+      "path": "/mnt/collective/backups/spot-core/post239-k21d/BACKUP-POST239-K21D-20260902T135309Z.json",
+      "sha256": "6154e049e83dc903cae4edb68c9b09812c896d0442dceff1e35be71780271ffd",
+      "required_mode": "0400",
+      "required_uid": 0,
+      "required_gid": 0
+    },
+    {
+      "kind": "directory",
+      "path": "/mnt/collective/backups/spot-core/post239-k21d/BACKUP-POST239-K21D-20260902T135309Z-files",
+      "required_mode": "0700",
+      "required_uid": 0,
+      "required_gid": 0
+    },
+    {
+      "kind": "file",
+      "path": "/mnt/collective/logs/spot/actions/post239-k21d/INSTALL-POST239-K21D-20260902T135309Z.json",
+      "sha256": "89585870e08664b7fe889524f20c7dd4c89411761976b683d3d1458bdeeca30b",
+      "required_mode": "0400",
+      "required_uid": 0,
+      "required_gid": 0
+    }
+  ],
+  "migration_contract": {
+    "exclusive_create_required": true,
+    "overwrite_allowed": false,
+    "delete_original_cifs_records": false,
+    "activate_only_scoped_mounts": true,
+    "k21d_installation_allowed": false
+  },
+  "rollback_contract": {
+    "stop_and_remove_scoped_mounts_only": true,
+    "retain_nfs_copies": true,
+    "original_cifs_records_reappear": true
+  },
+  "governance": {
+    "prior_authorization_revoked": true,
+    "prior_authorization_consumed": false,
+    "independent_review_required": true,
+    "new_single_use_authorization_required": true,
+    "execution_allowed": false,
+    "mutation_authority": false
+  }
+}
