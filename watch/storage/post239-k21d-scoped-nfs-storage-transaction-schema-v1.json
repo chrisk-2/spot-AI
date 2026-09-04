@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://starfleet.local/schema/post239-k21d-scoped-nfs-storage-transaction-v1.json",
+  "title": "Post-2.39 K21D Scoped NFS Storage Transaction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "transaction_id",
+    "generated_at",
+    "expires_at",
+    "host",
+    "repository_head",
+    "design_review",
+    "implementation_review",
+    "implementation",
+    "operator_authorization",
+    "backup",
+    "rollback",
+    "mounts",
+    "preserved_objects",
+    "governance",
+    "status"
+  ],
+  "properties": {
+    "schema": {
+      "const": "starfleet.post239.k21d_scoped_nfs_storage_transaction.v1"
+    },
+    "transaction_id": {
+      "type": "string",
+      "pattern": "^STORAGE-POST239-K21D-[A-Za-z0-9._:-]{8,128}$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "host": {
+      "const": "spot-core"
+    },
+    "repository_head": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "design_review": {
+      "$ref": "#/$defs/design_review"
+    },
+    "implementation_review": {
+      "$ref": "#/$defs/implementation_review"
+    },
+    "implementation": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "$ref": "#/$defs/repository_file"
+      }
+    },
+    "operator_authorization": {
+      "$ref": "#/$defs/operator_authorization"
+    },
+    "backup": {
+      "$ref": "#/$defs/backup"
+    },
+    "rollback": {
+      "$ref": "#/$defs/rollback"
+    },
+    "mounts": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "$ref": "#/$defs/mount"
+      }
+    },
+    "preserved_objects": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "$ref": "#/$defs/preserved_object"
+      }
+    },
+    "governance": {
+      "$ref": "#/$defs/governance"
+    },
+    "status": {
+      "const": "READY_FOR_SEPARATELY_AUTHORIZED_STORAGE_TRANSACTION_ONLY"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "repository_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^watch/storage/[A-Za-z0-9._-]+$"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "design_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "design_path",
+        "design_sha256",
+        "contract_path",
+        "contract_sha256",
+        "bundle_path",
+        "bundle_sha256",
+        "result_path",
+        "result_sha256",
+        "review_id",
+        "reviewer",
+        "model",
+        "verdict"
+      ],
+      "properties": {
+        "design_path": {"type": "string"},
+        "design_sha256": {"$ref": "#/$defs/sha256"},
+        "contract_path": {"type": "string"},
+        "contract_sha256": {"$ref": "#/$defs/sha256"},
+        "bundle_path": {
+          "type": "string",
+          "pattern": "^watch/review/bundles/REVIEW-POST239-K21D-SCOPED-NFS-STORAGE-IMPLEMENTATION-[A-Za-z0-9._:-]{8,128}\\.md$"
+        },
+        "bundle_sha256": {"$ref": "#/$defs/sha256"},
+        "result_path": {
+          "type": "string",
+          "pattern": "^watch/review/bundles/REVIEW-POST239-K21D-SCOPED-NFS-STORAGE-IMPLEMENTATION-[A-Za-z0-9._:-]{8,128}\\.worker05\\.json$"
+        },
+        "result_sha256": {"$ref": "#/$defs/sha256"},
+        "review_id": {
+          "type": "string",
+          "pattern": "^REVIEW-POST239-K21D-SCOPED-NFS-STORAGE-IMPLEMENTATION-[A-Za-z0-9._:-]{8,128}$"
+        },
+        "reviewer": {"const": "spot-worker-05"},
+        "model": {"const": "deepseek-r1:32b"},
+        "verdict": {"const": "PASS"}
+      }
+    },
+    "implementation_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_path",
+        "bundle_sha256",
+        "result_path",
+        "result_sha256",
+        "review_id",
+        "reviewer",
+        "model",
+        "verdict"
+      ],
+      "properties": {
+        "bundle_path": {"type": "string"},
+        "bundle_sha256": {"$ref": "#/$defs/sha256"},
+        "result_path": {"type": "string"},
+        "result_sha256": {"$ref": "#/$defs/sha256"},
+        "review_id": {"type": "string"},
+        "reviewer": {"const": "spot-worker-05"},
+        "model": {"const": "deepseek-r1:32b"},
+        "verdict": {"const": "PASS"}
+      }
+    },
+    "operator_authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authorization_id",
+        "record_path",
+        "record_sha256",
+        "single_use",
+        "consumed"
+      ],
+      "properties": {
+        "authorization_id": {
+          "type": "string",
+          "pattern": "^AUTH-STORAGE-POST239-K21D-[A-Za-z0-9._:-]{8,128}$"
+        },
+        "record_path": {
+          "type": "string",
+          "pattern": "^watch/review/bundles/AUTH-STORAGE-POST239-K21D-[A-Za-z0-9._:-]{8,128}\\.json$"
+        },
+        "record_sha256": {"$ref": "#/$defs/sha256"},
+        "single_use": {"const": true},
+        "consumed": {"const": false}
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backup_id",
+        "root",
+        "binding_id",
+        "create_before_mutation",
+        "verified_before_mutation"
+      ],
+      "properties": {
+        "backup_id": {
+          "type": "string",
+          "pattern": "^BACKUP-STORAGE-POST239-K21D-[A-Za-z0-9._:-]{8,128}$"
+        },
+        "root": {
+          "const": "/mnt/collective/backups/spot-core/post239-k21d-storage"
+        },
+        "binding_id": {
+          "type": "string",
+          "pattern": "^BACKUP-BINDING-STORAGE-POST239-K21D-[A-Za-z0-9._:-]{8,128}$"
+        },
+        "create_before_mutation": {"const": true},
+        "verified_before_mutation": {"const": true}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["document_path", "document_sha256", "binding_id", "verified"],
+      "properties": {
+        "document_path": {
+          "const": "watch/storage/post239-k21d-scoped-nfs-storage-rollback.md"
+        },
+        "document_sha256": {"$ref": "#/$defs/sha256"},
+        "binding_id": {
+          "type": "string",
+          "pattern": "^ROLLBACK-BINDING-STORAGE-POST239-K21D-[A-Za-z0-9._:-]{8,128}$"
+        },
+        "verified": {"const": true}
+      }
+    },
+    "mount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purpose",
+        "source",
+        "target",
+        "unit_name",
+        "template_path",
+        "template_sha256",
+        "installed_path",
+        "active_before",
+        "enabled_before"
+      ],
+      "properties": {
+        "purpose": {"enum": ["backup", "evidence"]},
+        "source": {"type": "string"},
+        "target": {"type": "string"},
+        "unit_name": {"type": "string"},
+        "template_path": {"type": "string"},
+        "template_sha256": {"$ref": "#/$defs/sha256"},
+        "installed_path": {"type": "string"},
+        "active_before": {"const": false},
+        "enabled_before": {"const": false}
+      }
+    },
+    "preserved_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source_path",
+        "destination_relative",
+        "sha256",
+        "mode",
+        "uid",
+        "gid"
+      ],
+      "properties": {
+        "kind": {"enum": ["file", "directory"]},
+        "source_path": {"type": "string"},
+        "destination_relative": {"type": "string"},
+        "sha256": {
+          "oneOf": [
+            {"$ref": "#/$defs/sha256"},
+            {"type": "null"}
+          ]
+        },
+        "mode": {"enum": ["0400", "0700"]},
+        "uid": {"const": 0},
+        "gid": {"const": 0}
+      }
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "spot_core_sole_executor",
+        "worker_self_apply_allowed",
+        "parent_collective_change_allowed",
+        "docker_restart_allowed",
+        "k21d_installation_allowed",
+        "k21d_activation_allowed",
+        "execution_allowed",
+        "mutation_authority"
+      ],
+      "properties": {
+        "spot_core_sole_executor": {"const": true},
+        "worker_self_apply_allowed": {"const": false},
+        "parent_collective_change_allowed": {"const": false},
+        "docker_restart_allowed": {"const": false},
+        "k21d_installation_allowed": {"const": false},
+        "k21d_activation_allowed": {"const": false},
+        "execution_allowed": {"const": false},
+        "mutation_authority": {"const": false}
+      }
+    }
+  }
+}

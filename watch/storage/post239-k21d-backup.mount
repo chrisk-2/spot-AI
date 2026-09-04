@@ -1,0 +1,17 @@
+[Unit]
+Description=SPOT Post-2.39 K21D scoped NFS backup storage
+Wants=network-online.target
+After=network-online.target mnt-collective.mount
+Requires=mnt-collective.mount
+BindsTo=mnt-collective.mount
+
+[Mount]
+What=192.168.50.10:/volume1/spotvault/backups/spot-core/post239-k21d
+Where=/mnt/collective/backups/spot-core/post239-k21d
+Type=nfs4
+Options=rw,vers=4.0,proto=tcp,hard,timeo=600,retrans=2,sec=sys,nosuid,nodev,noexec,noatime,_netdev
+DirectoryMode=0700
+TimeoutSec=90
+
+[Install]
+WantedBy=multi-user.target

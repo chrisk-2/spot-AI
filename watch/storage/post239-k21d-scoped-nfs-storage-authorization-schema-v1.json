@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://starfleet.local/schema/post239-k21d-scoped-nfs-storage-authorization-v1.json",
+  "title": "Post-2.39 K21D Scoped NFS Storage Authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "authorization_id",
+    "transaction_id",
+    "generated_at",
+    "expires_at",
+    "authorized_by",
+    "repository",
+    "review",
+    "scope",
+    "replay_control",
+    "governance",
+    "status"
+  ],
+  "properties": {
+    "schema": {
+      "const": "starfleet.post239.k21d_scoped_nfs_storage_authorization.v1"
+    },
+    "authorization_id": {
+      "type": "string",
+      "pattern": "^AUTH-STORAGE-POST239-K21D-[A-Za-z0-9._:-]{8,128}$"
+    },
+    "transaction_id": {
+      "type": "string",
+      "pattern": "^STORAGE-POST239-K21D-[A-Za-z0-9._:-]{8,128}$"
+    },
+    "generated_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "authorized_by": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "identity", "authority"],
+      "properties": {
+        "role": {"const": "operator"},
+        "identity": {"type": "string", "minLength": 1},
+        "authority": {"const": "single_use_scoped_nfs_storage_only"}
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "branch", "head", "required_clean_except_runtime_drift"],
+      "properties": {
+        "host": {"const": "spot-core"},
+        "branch": {"const": "main"},
+        "head": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "required_clean_except_runtime_drift": {
+          "const": "starfleet-ui/public/status.json"
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_id", "result_path", "result_sha256", "verdict"],
+      "properties": {
+        "review_id": {
+          "type": "string",
+          "pattern": "^REVIEW-POST239-K21D-SCOPED-NFS-STORAGE-IMPLEMENTATION-[A-Za-z0-9._:-]{8,128}$"
+        },
+        "result_path": {
+          "type": "string",
+          "pattern": "^watch/review/bundles/REVIEW-POST239-K21D-SCOPED-NFS-STORAGE-IMPLEMENTATION-[A-Za-z0-9._:-]{8,128}\\.worker05\\.json$"
+        },
+        "result_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "verdict": {"const": "PASS"}
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backup_creation_authorized",
+        "backup_binding_authorized",
+        "nfs_directory_creation_authorized",
+        "nfs_record_copy_authorized",
+        "systemd_unit_installation_authorized",
+        "daemon_reload_authorized",
+        "mount_enable_start_authorized",
+        "authorization_consumption_authorized",
+        "receipt_creation_authorized",
+        "rollback_authorized",
+        "parent_collective_change_authorized",
+        "docker_restart_authorized",
+        "k21d_installation_authorized",
+        "k21d_activation_authorized"
+      ],
+      "properties": {
+        "backup_creation_authorized": {"const": true},
+        "backup_binding_authorized": {"const": true},
+        "nfs_directory_creation_authorized": {"const": true},
+        "nfs_record_copy_authorized": {"const": true},
+        "systemd_unit_installation_authorized": {"const": true},
+        "daemon_reload_authorized": {"const": true},
+        "mount_enable_start_authorized": {"const": true},
+        "authorization_consumption_authorized": {"const": true},
+        "receipt_creation_authorized": {"const": true},
+        "rollback_authorized": {"const": true},
+        "parent_collective_change_authorized": {"const": false},
+        "docker_restart_authorized": {"const": false},
+        "k21d_installation_authorized": {"const": false},
+        "k21d_activation_authorized": {"const": false}
+      }
+    },
+    "replay_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["single_use", "consumed", "completed", "rollback_completed"],
+      "properties": {
+        "single_use": {"const": true},
+        "consumed": {"const": false},
+        "completed": {"const": false},
+        "rollback_completed": {"const": false}
+      }
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "spot_core_sole_authority",
+        "worker_self_apply_allowed",
+        "live_executor_enabled",
+        "execution_allowed",
+        "mutation_authority"
+      ],
+      "properties": {
+        "spot_core_sole_authority": {"const": true},
+        "worker_self_apply_allowed": {"const": false},
+        "live_executor_enabled": {"const": false},
+        "execution_allowed": {"const": false},
+        "mutation_authority": {"const": false}
+      }
+    },
+    "status": {
+      "const": "AUTHORIZED_FOR_SINGLE_SCOPED_NFS_STORAGE_TRANSACTION_ONLY"
+    }
+  }
+}
