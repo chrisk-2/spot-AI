@@ -7,7 +7,7 @@ KNOWN_HOSTS="/home/ogre/.ssh/known_hosts"
 STATE_DIR="/var/lib/spot-failover-primary"
 STATUS="$STATE_DIR/witness-lease.json"
 LOCK="/run/lock/spot-primary-lease-renew.lock"
-TEMP="$(mktemp)"
+TEMP="$(mktemp "$STATE_DIR/.witness-lease.XXXXXX")"
 
 cleanup() {
     rm -f "$TEMP"
@@ -50,12 +50,9 @@ jq -e '.mutation_authority == false' "$TEMP" >/dev/null
 jq -e '.execution_allowed == false' "$TEMP" >/dev/null
 jq -e '.automatic_takeover_enabled == false' "$TEMP" >/dev/null
 
-install \
-    -o root \
-    -g root \
-    -m 0640 \
-    "$TEMP" \
-    "$STATUS"
+chmod 0640 "$TEMP"
+chown root:root "$TEMP"
+mv -f -- "$TEMP" "$STATUS"
 
 logger -t spot-primary-lease-renew \
     "primary witness lease renewed"
