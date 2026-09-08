@@ -6,10 +6,11 @@
   "production_role": "none",
   "commission_status": "gpu_validated_pre_routing",
   "gpu": {
-    "model": "Quadro P6000",
-    "vram_mib": 23040,
-    "driver": "535.288.01",
-    "cuda": "12.2"
+    "model": "Tesla P100-PCIE-16GB",
+    "vram_mib": 16384,
+    "driver": "580.173.02",
+    "cuda": "13.0",
+    "count": 2
   },
   "gpu_validated": true,
   "remote_health_validated": true,
@@ -30,5 +31,20 @@
   "standby": true,
   "burst_candidate": true,
   "fallback_candidate": true,
-  "primary": false
+  "primary": false,
+  "review_registration": {
+    "role": "review",
+    "primary_role": "review",
+    "routing_enabled": true,
+    "enabled": true,
+    "eligible": true,
+    "execution_authority": false,
+    "mutation_authority": false,
+    "can_execute": false,
+    "can_self_apply": false,
+    "authority_sources": [
+      "spot-core/config/cluster_config.json",
+      "watch/runtime/review/review-runtime-policy.json"
+    ]
+  }
 }

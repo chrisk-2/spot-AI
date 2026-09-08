@@ -2610,6 +2610,7 @@ for key in [
 gpu = data.get("gpu", {})
 if gpu:
     print(f"gpu_model: {gpu.get('model')}")
+    print(f"gpu_count: {gpu.get('count')}")
     print(f"gpu_vram_mib: {gpu.get('vram_mib')}")
     print(f"gpu_driver: {gpu.get('driver')}")
     print(f"gpu_cuda: {gpu.get('cuda')}")
@@ -2619,85 +2620,335 @@ PYINNER
 cmd_worker05_routing_guard(){
   local inv="${BASE_DIR}/inventory/worker-05.json"
   local cfg="${BASE_DIR}/../spot-core/config/cluster_config.json"
-  [[ -f "$inv" ]] || { echo "ERROR: worker-05 inventory missing: $inv" >&2; exit 2; }
-  [[ -f "$cfg" ]] || { echo "ERROR: cluster config missing: $cfg" >&2; exit 2; }
+  local policy="${BASE_DIR}/runtime/review/review-runtime-policy.json"
 
-  python3 - "$inv" "$cfg" <<'PYINNER'
+  [[ -f "$inv" ]] || {
+    echo "ERROR: worker-05 inventory missing: $inv" >&2
+    exit 2
+  }
+
+  [[ -f "$cfg" ]] || {
+    echo "ERROR: cluster config missing: $cfg" >&2
+    exit 2
+  }
+
+  [[ -f "$policy" ]] || {
+    echo "ERROR: review runtime policy missing: $policy" >&2
+    exit 2
+  }
+
+  python3 - "$inv" "$cfg" "$policy" <<'PYINNER'
 import json
 import sys
 from pathlib import Path
 
 inv = json.loads(Path(sys.argv[1]).read_text())
 cfg = json.loads(Path(sys.argv[2]).read_text())
+policy = json.loads(Path(sys.argv[3]).read_text())
+
 fail = []
 warn = []
 
 worker = "spot-worker-05"
 
+
 def expect(path, actual, expected):
     if actual != expected:
-        fail.append(f"{path} must be {expected!r}, got {actual!r}")
+        fail.append(
+            f"{path} must be {expected!r}, got {actual!r}"
+        )
 
-expect("inventory.worker_id", inv.get("worker_id"), worker)
-expect("inventory.routing_enabled", inv.get("routing_enabled"), False)
-expect("inventory.production_role", inv.get("production_role"), "none")
-expect("inventory.commission_status", inv.get("commission_status"), "gpu_validated_pre_routing")
-expect("inventory.primary", inv.get("primary"), False)
-expect("inventory.standby", inv.get("standby"), True)
-expect("inventory.burst_candidate", inv.get("burst_candidate"), True)
-expect("inventory.fallback_candidate", inv.get("fallback_candidate"), True)
 
-role_priority = cfg.get("role_priority", {})
-if not isinstance(role_priority, dict) or not role_priority:
-    fail.append("role_priority map not found in cluster_config.json")
+# Explicit current review registration contract.
+expect(
+    "inventory.worker_id",
+    inv.get("worker_id"),
+    worker,
+)
 
-expected_primary_by_role = {
-    "general": "spot-worker-01",
-    "utility": "spot-worker-02",
-    "coding": "spot-worker-03",
-    "heavy": "spot-worker-04",
-}
+registration = inv.get("review_registration", {})
 
-for role, expected_primary in expected_primary_by_role.items():
-    workers = role_priority.get(role)
-    if not isinstance(workers, list) or not workers:
-        fail.append(f"role_priority.{role} must be a non-empty list")
-        continue
+if not isinstance(registration, dict):
+    fail.append(
+        "inventory.review_registration must be an object"
+    )
+    registration = {}
 
-    actual_primary = workers[0]
-    if actual_primary != expected_primary:
-        fail.append(f"primary drift: role_priority.{role}[0] expected {expected_primary}, got {actual_primary}")
+expect(
+    "inventory.review_registration.role",
+    registration.get("role"),
+    "review",
+)
 
-    if worker in workers:
-        fail.append(f"worker-05 must not be in active role_priority.{role} while routing_enabled=false")
+expect(
+    "inventory.review_registration.primary_role",
+    registration.get("primary_role"),
+    "review",
+)
 
-workers_map = cfg.get("workers", {})
-if worker in workers_map:
-    fail.append("worker-05 must not be in active workers map until explicit routing-registration slice")
+expect(
+    "inventory.review_registration.routing_enabled",
+    registration.get("routing_enabled"),
+    True,
+)
 
-burst_policy = cfg.get("burst_policy", {})
-if isinstance(burst_policy, dict) and worker in burst_policy:
-    fail.append("worker-05 must not be in active burst_policy until explicit burst test slice")
+expect(
+    "inventory.review_registration.enabled",
+    registration.get("enabled"),
+    True,
+)
 
-warm_targets = cfg.get("warm_model_policy", {}).get("targets", [])
-if isinstance(warm_targets, list):
-    for idx, target in enumerate(warm_targets):
-        if isinstance(target, dict) and target.get("worker") == worker:
-            fail.append(f"worker-05 must not be in warm_model_policy.targets[{idx}] before routing enablement")
+expect(
+    "inventory.review_registration.eligible",
+    registration.get("eligible"),
+    True,
+)
+
+expect(
+    "inventory.review_registration.execution_authority",
+    registration.get("execution_authority"),
+    False,
+)
+
+expect(
+    "inventory.review_registration.mutation_authority",
+    registration.get("mutation_authority"),
+    False,
+)
+
+expect(
+    "inventory.review_registration.can_execute",
+    registration.get("can_execute"),
+    False,
+)
+
+expect(
+    "inventory.review_registration.can_self_apply",
+    registration.get("can_self_apply"),
+    False,
+)
+
+
+# Current cluster ownership.
+expect(
+    "cluster.role_owners.review",
+    cfg.get("role_owners", {}).get("review"),
+    worker,
+)
+
+expect(
+    "cluster.role_owners_canonical.review",
+    cfg.get("role_owners_canonical", {}).get("review"),
+    worker,
+)
+
+review_priority = cfg.get(
+    "role_priority",
+    {},
+).get("review")
+
+expect(
+    "cluster.role_priority.review",
+    review_priority,
+    [worker],
+)
+
+
+# Worker runtime registration.
+workers = cfg.get("workers", {})
+worker_cfg = workers.get(worker)
+
+if not isinstance(worker_cfg, dict):
+    fail.append(
+        "cluster workers.spot-worker-05 missing"
+    )
+    worker_cfg = {}
+
+expect(
+    "cluster.worker.role",
+    worker_cfg.get("role"),
+    "review",
+)
+
+expect(
+    "cluster.worker.primary_role",
+    worker_cfg.get("primary_role"),
+    "review",
+)
+
+expect(
+    "cluster.worker.routing_enabled",
+    worker_cfg.get("routing_enabled"),
+    True,
+)
+
+expect(
+    "cluster.worker.enabled",
+    worker_cfg.get("enabled"),
+    True,
+)
+
+expect(
+    "cluster.worker.eligible",
+    worker_cfg.get("eligible"),
+    True,
+)
+
+expect(
+    "cluster.worker.quarantined",
+    worker_cfg.get("quarantined"),
+    False,
+)
+
+expect(
+    "cluster.worker.provision_enabled",
+    worker_cfg.get("provision_enabled"),
+    True,
+)
+
+canonical = cfg.get(
+    "role_owners_canonical",
+    {},
+)
+
+for role, owner in canonical.items():
+    if role != "review" and owner == worker:
+        fail.append(
+            "worker-05 must not be canonical owner "
+            f"of non-review role {role}"
+        )
+
+
+# Exactly one current review warm target.
+warm_targets = [
+    target
+    for target in cfg.get(
+        "warm_model_policy",
+        {},
+    ).get("targets", [])
+    if (
+        isinstance(target, dict)
+        and target.get("worker") == worker
+    )
+]
+
+if len(warm_targets) != 1:
+    fail.append(
+        "expected exactly one Worker-05 warm target, "
+        f"got {len(warm_targets)}"
+    )
+else:
+    target = warm_targets[0]
+
+    expect(
+        "warm_target.role",
+        target.get("role"),
+        "review",
+    )
+
+    expect(
+        "warm_target.primary_role",
+        target.get("primary_role"),
+        "review",
+    )
+
+    expect(
+        "warm_target.routing_enabled",
+        target.get("routing_enabled"),
+        True,
+    )
+
+    expect(
+        "warm_target.enabled",
+        target.get("enabled"),
+        True,
+    )
+
+    expect(
+        "warm_target.eligible",
+        target.get("eligible"),
+        True,
+    )
+
+    expect(
+        "warm_target.quarantined",
+        target.get("quarantined"),
+        False,
+    )
+
+
+# Review-runtime authority must remain non-executing.
+runtime = policy.get(
+    "review_runtime_policy",
+    {},
+)
+
+expect(
+    "review_policy.execution_authority",
+    runtime.get("execution_authority"),
+    False,
+)
+
+expect(
+    "review_policy.mutation_authority",
+    runtime.get("mutation_authority"),
+    False,
+)
+
+reviewer = policy.get(
+    "reviewers",
+    {},
+).get(worker)
+
+if not isinstance(reviewer, dict):
+    fail.append(
+        "review policy Worker-05 reviewer entry missing"
+    )
+    reviewer = {}
+
+expect(
+    "reviewer.role",
+    reviewer.get("role"),
+    "review",
+)
+
+expect(
+    "reviewer.can_execute",
+    reviewer.get("can_execute"),
+    False,
+)
+
+expect(
+    "reviewer.can_self_apply",
+    reviewer.get("can_self_apply"),
+    False,
+)
+
 
 for item in warn:
     print(f"[WARN] {item}")
+
 for item in fail:
     print(f"[FAIL] {item}")
 
 if fail:
-    print(f"RESULT: FAIL worker05_routing_guard fail={len(fail)} warn={len(warn)}")
+    print(
+        "RESULT: FAIL worker05_routing_guard "
+        f"fail={len(fail)} warn={len(warn)}"
+    )
     raise SystemExit(1)
 
-print("RESULT: PASS worker05_routing_guard routing_enabled=false primary=false production_role=none")
+print(
+    "RESULT: PASS worker05_routing_guard "
+    "role=review "
+    "routing_enabled=true "
+    "review_owner=true "
+    "execution_authority=false "
+    "mutation_authority=false "
+    "can_self_apply=false"
+)
 PYINNER
 }
-
 
 cmd_worker05_ask(){
   local prompt="${*:-}"
@@ -2992,9 +3243,13 @@ expect("collective_mounted", data.get("collective_mounted"), True)
 expect("unimatrix6_mounted", data.get("unimatrix6_mounted"), True)
 
 gpu = data.get("gpu", {})
-expect("gpu.model", gpu.get("model"), "Quadro P6000")
-expect("gpu.vram_mib", gpu.get("vram_mib"), 23040)
-expect("gpu.driver", gpu.get("driver"), "535.288.01")
+expect("gpu.model", gpu.get("model"), "Tesla P100-PCIE-16GB")
+expect("gpu.count", gpu.get("count"), 2)
+expect("gpu.vram_mib", gpu.get("vram_mib"), 16384)
+expect("gpu.driver", gpu.get("driver"), "580.173.02")
+
+if not isinstance(gpu.get("cuda"), str) or not gpu.get("cuda", "").strip():
+    fail.append("gpu.cuda must be a non-empty string")
 
 for item in warn:
     print(f"[WARN] {item}")
@@ -3018,13 +3273,33 @@ PYINNER
     nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
   ' >/tmp/spot-worker05-live-check.txt
 
-  python3 - /tmp/spot-worker05-live-check.txt <<'PYINNER'
+  python3 - /tmp/spot-worker05-live-check.txt "$inv" <<'PYINNER'
 import json
 import sys
 from pathlib import Path
 
 text = Path(sys.argv[1]).read_text().splitlines()
+inventory = json.loads(Path(sys.argv[2]).read_text())
 fail = []
+
+gpu = inventory.get("gpu", {})
+
+expected_model = gpu.get("model")
+expected_count = gpu.get("count")
+expected_vram = gpu.get("vram_mib")
+expected_driver = gpu.get("driver")
+
+if not isinstance(expected_model, str) or not expected_model:
+    fail.append("inventory gpu.model invalid")
+
+if not isinstance(expected_count, int) or expected_count < 1:
+    fail.append("inventory gpu.count invalid")
+
+if not isinstance(expected_vram, int) or expected_vram < 1:
+    fail.append("inventory gpu.vram_mib invalid")
+
+if not isinstance(expected_driver, str) or not expected_driver:
+    fail.append("inventory gpu.driver invalid")
 
 if not text or text[0].strip() != "spot-worker-05":
     fail.append("ssh hostname check failed")
@@ -3047,15 +3322,50 @@ else:
         fail.append("health collective_mounted not true")
     if health.get("unimatrix6_mounted") is not True:
         fail.append("health unimatrix6_mounted not true")
-    if "Quadro P6000" not in str(health.get("gpu_info")):
-        fail.append("health gpu_info does not mention Quadro P6000")
+    gpu_info = str(health.get("gpu_info") or "")
+
+    if (
+        isinstance(expected_model, str)
+        and isinstance(expected_count, int)
+        and gpu_info.count(expected_model) != expected_count
+    ):
+        fail.append(
+            "health gpu_info GPU count/model mismatch: "
+            f"expected {expected_count} x {expected_model}"
+        )
 
     models = [m.get("name") or m.get("model") for m in tags.get("models", [])]
     if "llama3.1:8b" not in models:
         fail.append("remote/local Ollama tags missing llama3.1:8b")
 
-if not any("Quadro P6000" in line and "535.288.01" in line for line in text):
-    fail.append("nvidia-smi line missing Quadro P6000 / 535.288.01")
+matching_gpu_lines = []
+
+if (
+    isinstance(expected_model, str)
+    and isinstance(expected_count, int)
+    and isinstance(expected_vram, int)
+    and isinstance(expected_driver, str)
+):
+    expected_memory_text = f"{expected_vram} MiB"
+
+    matching_gpu_lines = [
+        line
+        for line in text
+        if (
+            expected_model in line
+            and expected_memory_text in line
+            and expected_driver in line
+        )
+    ]
+
+    if len(matching_gpu_lines) != expected_count:
+        fail.append(
+            "nvidia-smi GPU identity/count mismatch: "
+            f"expected {expected_count} x "
+            f"{expected_model} / {expected_memory_text} / "
+            f"{expected_driver}, "
+            f"matched={len(matching_gpu_lines)}"
+        )
 
 for item in fail:
     print(f"[FAIL] {item}")
