@@ -21,14 +21,21 @@ test "$(hostname)" = "spot-core"
 test -s "$KEY"
 test -s "$KNOWN_HOSTS"
 
-if ! runuser -u ogre -- \
+if ! /usr/bin/timeout \
+        --signal=TERM \
+        --kill-after=2s \
+        8s \
+    runuser -u ogre -- \
     /usr/bin/ssh \
         -F /dev/null \
         -i "$KEY" \
         -o IdentityAgent=none \
         -o IdentitiesOnly=yes \
         -o BatchMode=yes \
-        -o ConnectTimeout=5 \
+        -o ConnectionAttempts=1 \
+        -o ConnectTimeout=3 \
+        -o ServerAliveInterval=2 \
+        -o ServerAliveCountMax=2 \
         -o StrictHostKeyChecking=yes \
         -o UserKnownHostsFile="$KNOWN_HOSTS" \
         -n \

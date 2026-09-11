@@ -43,12 +43,14 @@ stop_primary_executor() {
     systemctl stop \
         spot-self-heal.timer \
         spot-worker-recover.timer \
+        spot-core-replicate.timer \
         spot-core-replication.timer \
         2>/dev/null || true
 
     systemctl stop \
         spot-self-heal.service \
         spot-worker-recover.service \
+        spot-core-replicate.service \
         spot-core-replication.service \
         spot-bridge-api.service \
         spot-mcp.service \
@@ -102,7 +104,7 @@ start_primary_executor() {
     systemctl start \
         spot-self-heal.timer \
         spot-worker-recover.timer \
-        spot-core-replication.timer ||
+        spot-core-replicate.timer ||
         return 1
 
     if docker inspect spot-core >/dev/null 2>&1; then
