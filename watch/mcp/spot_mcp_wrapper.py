@@ -141,6 +141,18 @@ async def _opn(method: str, path: str, *, json_body=None):
 
 async def _unifi(method: str, path: str, *, json_body=None):
     """Call UniFi OS API — handles login/cookie/CSRF automatically."""
+    method = str(method).upper()
+    if method != "GET":
+        return {
+            "meta": {
+                "rc": "error",
+                "msg": "UniFi mutation blocked by Stage-0 read-only gate",
+            },
+            "error": "unifi_stage0_read_only",
+            "method": method,
+            "execution_allowed": False,
+            "mutation_authority": False,
+        }
     base = f"https://{UNIFI_HOST}:{UNIFI_PORT}"
     async with httpx.AsyncClient(verify=False, timeout=30) as client:
         login = await client.post(
