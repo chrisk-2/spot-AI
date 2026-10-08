@@ -6,11 +6,13 @@ STATE_DIR="${BASE_DIR}/state"
 LOG_DIR="${BASE_DIR}/logs"
 POLICY_FILE="${BASE_DIR}/fleet-policy.json"
 REMEDIATION_STATE_FILE="${BASE_DIR}/state/remediation-state.json"
+MAINTENANCE_STATE_FILE="${BASE_DIR}/state/fleet-maintenance.json"
 ROUTING_AUDIT_SUMMARY_FILE="${STATE_DIR}/routing-audit-summary.json"
 UNIMATRIX6_STATE_FILE="${STATE_DIR}/unimatrix6-nfs-state.json"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR"
 [[ -f "$REMEDIATION_STATE_FILE" ]] || echo "{}" > "$REMEDIATION_STATE_FILE"
+[[ -f "$MAINTENANCE_STATE_FILE" ]] || echo "{}" > "$MAINTENANCE_STATE_FILE"
 
 STAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 STATE_FILE="${STATE_DIR}/fleet-status.json"
@@ -157,19 +159,31 @@ UNIMATRIX6_CURRENT_OK="false"
     elif [[ "$host" == "spot-core" ]]; then
       if check_http "http://127.0.0.1:8787/health"; then service_ok=true; else service_ok=false; fi
     fi
-    read -r alerts_json quarantined eligible <<< "$(python3 - <<'PY' "$host" "$POLICY_FILE" "$REMEDIATION_STATE_FILE" "$ssh_ok" "$service_ok" "$models_json" "$dns_ok"
+    read -r alerts_json quarantined eligible maintenance maintenance_reason_json <<< "$(python3 - <<'PY' "$host" "$POLICY_FILE" "$REMEDIATION_STATE_FILE" "$MAINTENANCE_STATE_FILE" "$ssh_ok" "$service_ok" "$models_json" "$dns_ok"
 import json, sys
-host, policy_path, remediation_state_path = sys.argv[1], sys.argv[2], sys.argv[3]
-ssh_ok = sys.argv[4] == "true"
-service_ok_raw = sys.argv[5]
-models = json.loads(sys.argv[6])
-dns_ok_raw = sys.argv[7]
+host, policy_path, remediation_state_path, maintenance_state_path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+ssh_ok = sys.argv[5] == "true"
+service_ok_raw = sys.argv[6]
+models = json.loads(sys.argv[7])
+dns_ok_raw = sys.argv[8]
 dns_ok = None if dns_ok_raw == "null" else (dns_ok_raw == "true")
 service_ok = None if service_ok_raw == "null" else (service_ok_raw == "true")
+
+try:
+    with open(maintenance_state_path, "r", encoding="utf-8") as f:
+        maintenance_state = json.load(f)
+except Exception:
+    maintenance_state = {}
+
+maintenance_entry = maintenance_state.get(host, {})
+maintenance = bool(maintenance_entry.get("maintenance", False)) if isinstance(maintenance_entry, dict) else False
+maintenance_reason = str(maintenance_entry.get("reason", "")) if isinstance(maintenance_entry, dict) else ""
+
 alerts = []
-if not ssh_ok: alerts.append("ssh_down")
-if service_ok is False: alerts.append("service_down")
-if dns_ok is False: alerts.append("dns_bad")
+if not maintenance:
+    if not ssh_ok: alerts.append("ssh_down")
+    if service_ok is False: alerts.append("service_down")
+    if dns_ok is False: alerts.append("dns_bad")
 with open(policy_path, "r", encoding="utf-8") as f: policy = json.load(f)
 for model in policy.get("required_models", {}).get(host, []):
     if service_ok is True and model not in models: alerts.append(f"missing_model:{model}")
@@ -179,14 +193,20 @@ except Exception: rem_state = {}
 entry = rem_state.get(host, {})
 quarantined = bool(entry.get("quarantined", False)) if isinstance(entry, dict) else False
 eligible = host.startswith("spot-worker-") and ssh_ok and service_ok is True and not quarantined and len(alerts) == 0
-print(json.dumps(alerts, separators=(",", ":")), str(quarantined).lower(), str(eligible).lower())
+print(
+    json.dumps(alerts, separators=(",", ":")),
+    str(quarantined).lower(),
+    str(eligible).lower(),
+    str(maintenance).lower(),
+    json.dumps(maintenance_reason, separators=(",", ":"))
+)
 PY
 )"
     if [[ "$host" != "spot-core-backup" ]] && echo "$alerts_json" | jq -e '.[] | select(. == "dns_bad")' >/dev/null 2>&1; then DNS_FIX_QUEUE+=("$host"); fi
     echo -n "    $(json_escape "$host"): {"
     echo -n "\"ssh_ok\": ${ssh_ok}, "
     if [[ "$service_ok" == "null" ]]; then echo -n "\"service_ok\": null, "; else echo -n "\"service_ok\": ${service_ok}, "; fi
-    echo -n "\"models\": ${models_json}, \"gpu_free_mb_max\": ${gpu_free_mb_max}, \"gpu_vram_total_mb_max\": ${gpu_vram_total_mb_max}, \"load_1\": ${load_1}, \"running_jobs\": ${running_jobs}, \"alerts\": ${alerts_json}, \"dns\": {\"ok\": ${dns_ok}, \"servers\": ${dns_servers_json}, \"mode\": \"${dns_mode}\"}, \"quarantined\": ${quarantined}, \"eligible\": ${eligible}"
+    echo -n "\"models\": ${models_json}, \"gpu_free_mb_max\": ${gpu_free_mb_max}, \"gpu_vram_total_mb_max\": ${gpu_vram_total_mb_max}, \"load_1\": ${load_1}, \"running_jobs\": ${running_jobs}, \"alerts\": ${alerts_json}, \"dns\": {\"ok\": ${dns_ok}, \"servers\": ${dns_servers_json}, \"mode\": \"${dns_mode}\"}, \"quarantined\": ${quarantined}, \"eligible\": ${eligible}, \"maintenance\": ${maintenance}, \"maintenance_reason\": ${maintenance_reason_json}"
     echo -n "}"
   done
   echo
