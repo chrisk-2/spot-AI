@@ -24,7 +24,6 @@ section "HOST RESOLUTION"
 for h in \
   spot-core \
   starfleet-tower \
-  spot-ui-01 \
   spot-worker-01 \
   spot-worker-02 \
   spot-worker-03 \
@@ -33,8 +32,7 @@ for h in \
   spot-worker-06 \
   unimatrix6 \
   starfleet-core \
-  dns-core \
-  starfleet-edge-01
+  dns-core
 do
   printf '%-22s ' "$h"
   getent hosts "$h" || echo "unresolved"
@@ -62,7 +60,6 @@ fleet_status=/home/ogre/spot-stack/watch/state/fleet-status.json
 routing_audit=/home/ogre/spot-stack/watch/state/routing-audit.jsonl
 routing_audit_summary=/home/ogre/spot-stack/watch/state/routing-audit-summary.json
 unimatrix_storage=/mnt/collective
-spot_edge_status=/mnt/collective/logs/spot/edge/starfleet-edge-01
 spot_api=http://127.0.0.1:8787
 bridge_api=http://127.0.0.1:8010
 ui=http://127.0.0.1:5173

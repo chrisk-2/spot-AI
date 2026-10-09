@@ -11,7 +11,6 @@ mkdir -p "$RUN_DIR"/{raw,json}
 mkdir -p "$OUT"
 
 HOSTS=(
-  "spot-ui-01|192.168.10.12|ENGINEERING|7|Interface / dashboard"
   "spot-worker-01|192.168.10.10|ENGINEERING|5|Worker node"
   "spot-worker-02|192.168.10.11|ENGINEERING|4|Worker node"
   "spot-worker-03|192.168.10.13|ENGINEERING|6|Worker node"

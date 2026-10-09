@@ -13,7 +13,6 @@ mkdir -p "$OUT"
 HOSTS=(
   "spot-worker-01|192.168.10.10|ENGINEERING|5|Worker node"
   "spot-worker-02|192.168.10.11|ENGINEERING|4|Worker node"
-  "spot-ui-01|192.168.10.12|ENGINEERING|7|Interface / dashboard"
   "spot-worker-03|192.168.10.13|ENGINEERING|6|Worker node"
   "spot-worker-04|192.168.10.14|ENGINEERING|8|Worker node"
   "spot-worker-05|192.168.10.15|ENGINEERING||Visual / render node"
@@ -30,7 +29,6 @@ INFRASTRUCTURE,192.168.60.x,192.168.60.20,starfleet-core,21,NPM + UniFi + Second
 INFRASTRUCTURE,192.168.60.x,192.168.60.30,spot-core,24,Primary orchestrator,,
 ENGINEERING,192.168.10.x,192.168.10.10,spot-worker-01,5,Worker node,w01-gpu0-rtx3060 (12g),
 ENGINEERING,192.168.10.x,192.168.10.11,spot-worker-02,4,Worker node,w02-gpu0-m4000 (8g),w02-gpu1-gtx1060 (6g)
-ENGINEERING,192.168.10.x,192.168.10.12,spot-ui-01,7,Interface / dashboard,,
 ENGINEERING,192.168.10.x,192.168.10.13,spot-worker-03,6,Worker node,w03-gpu0-gtx1070 (8g),w03-gpu1-rtx3060 (12g)
 ENGINEERING,192.168.10.x,192.168.10.14,spot-worker-04,8,Worker node,w04-gpu0-p6000 (24g),
 ENGINEERING,192.168.10.x,192.168.10.15,spot-worker-05,,Visual / render node,w05-gpu0-titan-xp (12g),

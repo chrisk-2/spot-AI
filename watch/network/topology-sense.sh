@@ -17,7 +17,6 @@ registry_ipv4() {
 HOSTS=(
   "spot-core:control-plane"
   "starfleet-tower:operations"
-  "spot-ui-01:operator-ui"
   "spot-worker-01:general"
   "spot-worker-02:utility"
   "spot-worker-03:coding"
@@ -27,7 +26,6 @@ HOSTS=(
   "unimatrix6:storage"
   "starfleet-core:dns-secondary"
   "dns-core:dns-primary"
-  "starfleet-edge-01:recovery-edge"
 )
 
 resolve_ipv4() {

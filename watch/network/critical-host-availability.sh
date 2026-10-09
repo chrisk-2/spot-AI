@@ -17,7 +17,6 @@ registry_ipv4() {
 HOSTS=(
   spot-core
   starfleet-tower
-  spot-ui-01
   spot-worker-01
   spot-worker-02
   spot-worker-03
@@ -27,7 +26,6 @@ HOSTS=(
   unimatrix6
   starfleet-core
   dns-core
-  starfleet-edge-01
 )
 
 resolved=0

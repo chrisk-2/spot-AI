@@ -3191,7 +3191,6 @@ def build_spot_fleet_context() -> str:
         "dns-core": "dns/adguard",
         "starfleet-tower": "observability/ntfy",
         "unimatrix6": "nas/nfs",
-        "spot-ui-01": "dashboard/kiosk",
     }
     lines.append("")
     lines.append("INFRASTRUCTURE:")
@@ -3286,7 +3285,7 @@ async def chat_route(payload: ChatRequest):
         "RULES:\n"
         "- Answer ONLY from the LIVE FLEET STATE data below. Do not invent or assume any node status.\n"
         "- If a node is not listed or has no data, say so explicitly. Never guess.\n"
-        "- Infra nodes (starfleet-core, dns-core, starfleet-tower, unimatrix6, spot-ui-01) have no ollama service. ONLINE = SSH reachable and functional.\n"
+        "- Infra nodes (starfleet-core, dns-core, starfleet-tower, unimatrix6) have no ollama service. ONLINE = SSH reachable and functional.\n"
         "- You have conversation history — use it for continuity.\n"
         "- Be terse and direct.\n\n"
         "STARFLEET NETWORK TOPOLOGY:\n"

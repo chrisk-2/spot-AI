@@ -92,7 +92,7 @@ require separate review and explicit operator authorization.
 
 ### Current known limitations
 
-- `spot-ui-01` is intentionally offline while the office is in transit.
+- `spot-ui-01` physical kiosk/display host is retired; the SPOT operator UI is hosted on `spot-core`.
 - `starfleet-core` UniFi monitoring was reconciled to the verified controller listener on port `11443` on 2026-08-14.
 - Production mutation remains disabled.
 - Phase 2.39 controlled production execution is not accepted.
@@ -246,7 +246,7 @@ Validated state:
   - reasoning -> spot-worker-06
 
 Known non-blockers:
-- `starfleet-edge-01` is registered at `192.168.30.10` as a read-only, non-routing recovery and provisioning edge.
+- `starfleet-edge-01` is retired; historical recovery, mirror, restore-drill, and recovery-kit evidence is retained under `/mnt/collective/logs/spot/edge/starfleet-edge-01/`.
 - `unimatrix6` may reject `ogre` SSH while storage access remains functional.
 - `starfleet-ui/public/status.json` is runtime drift and should not be committed.
 
