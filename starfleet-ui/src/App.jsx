@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import "./App.css";
+import { useLocalChat } from "./localChat";
 
 const READINESS_URL = "/operator/readiness";
 const ALERTS_LOG    = "/operator/alerts";
 const API_BASE      = "https://api.starfleetcore.com";
-const ADMIN_TOKEN   = "39f35fb1c5825708704a40bfe015f5b547ea23f74fffc2fd813253ef7593d156";
 const POLL_MS       = 10_000;
 const ALERTS_POLL   = 15_000;
 
@@ -342,17 +342,48 @@ function WorkerLanes({data}){
   );
 }
 
+function LocalChatControls({local, busy}) {
+  if (!local.enabled) return null;
+  if (local.selected) {
+    return <div>
+      <span>{local.error || (local.ready ? "Local Ogre session" : "Restoring local session…")}</span>
+      <button type="button" disabled={busy} onClick={local.signOut}>Sign out</button>
+    </div>;
+  }
+  return <form onSubmit={event => {
+    event.preventDefault();
+    const field = event.currentTarget.elements.ogreKey;
+    local.signIn(field.value);
+    field.value = "";
+  }}>
+    <input name="ogreKey" type="password" aria-label="Local Ogre key" autoComplete="off"/>
+    <button disabled={busy} type="submit">Local Ogre sign-in</button>
+    {local.error && <span role="alert">{local.error}</span>}
+  </form>;
+}
+
 function AiPanel({authed}){
   const [msgs,setMsgs]=useState([{from:"spot",text:"Systems online."},{from:"spot",text:"Awaiting operator input."}]);
   const [input,setInput]=useState(""),[ busy,setBusy]=useState(false),boxRef=useRef(null);
+  const restoreMessages = useCallback(messages => {
+    setMsgs(messages.map(message => ({
+      from: message.role === "user" ? "user" : "spot",
+      text: message.content,
+    })));
+  }, []);
+  const local = useLocalChat("assistant", restoreMessages);
   useEffect(()=>{if(boxRef.current)boxRef.current.scrollTop=boxRef.current.scrollHeight;},[msgs]);
   async function send(){
-    const text=input.trim();if(!text||busy)return;
+    const text=input.trim();if(!text||busy||(local.enabled&&!local.ready))return;
     setMsgs(m=>[...m,{from:"user",text}]);setInput("");setBusy(true);
     try{
-      const r=await fetch(`${API_BASE}/chat`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text,role:"general",source:"starfleet-ui",mode:"advisory"})});
-      const d=await r.json();setMsgs(m=>[...m,{from:"spot",text:d.reply||"No response."}]);
-    }catch{setMsgs(m=>[...m,{from:"spot",text:"Comm channel error."}]);}
+      const payload = {message:text,role:"general",source:"starfleet-ui",mode:"advisory"};
+      const d = local.enabled ? await local.send(payload) : await (await fetch(`${API_BASE}/chat`,{
+        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)
+      })).json();
+      if (local.enabled && !d.ok) throw new Error("Local chat could not complete.");
+      setMsgs(m=>[...m,{from:"spot",text:d.reply||"No response."}]);
+    }catch(error){setMsgs(m=>[...m,{from:"spot",text:local.enabled ? error.message : "Comm channel error."}]);}
     setBusy(false);
   }
   return(
@@ -369,6 +400,7 @@ function AiPanel({authed}){
           {msgs.map((m,i)=>(<p key={i} className={m.from==="user"?"chat-user":"chat-spot"}>{m.from==="spot"&&<em>SPOT: </em>}{m.text}</p>))}
           {busy&&<p className="chat-spot"><em>SPOT: </em><span className="blink">|</span></p>}
         </div>
+        <LocalChatControls local={local} busy={busy}/>
         <div className="chat-row">
           <input placeholder={authed?"Ask Spot...":"Operator access required"} value={input} disabled={!authed} onChange={e=>authed&&setInput(e.target.value)} onKeyDown={e=>authed&&e.key==="Enter"&&send()} style={{opacity:authed?1:0.4,cursor:authed?"text":"not-allowed"}}/>
           <button onClick={send} disabled={!authed||busy} style={{opacity:authed?1:0.4,cursor:authed?"pointer":"not-allowed"}}>SEND</button>
@@ -396,14 +428,23 @@ function SpotActionCard({action,onExecute,onDismiss}){
   // Collect extra params not shown as dedicated rows
   const extraParams=Object.entries(action).filter(([k])=>!ACTION_KNOWN_KEYS.has(k));
 
-  async function execute(){
+  async function execute(event){
+    event.preventDefault();
+    if (executing) return;
+    const field = event.currentTarget.elements.adminCredential;
+    const token = field.value.trim();
+    field.value = "";
+    if (!token) return;
+    setResult(null);
     setExecuting(true);
     try{
-      const r=await fetch(`${API_BASE}/chat/execute`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:ADMIN_TOKEN,action:action.action,target:action.target||null,reason:action.reason||"operator_confirmed",confirmed:true})});
-      const d=await r.json();setResult(d.ok?"OK: EXECUTED":"FAILED");
+      const r=await fetch(`${API_BASE}/chat/execute`,{credentials:"include",method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token,action:action.action,target:action.target||null,reason:action.reason||"operator_confirmed",confirmed:true})});
+      const d=await r.json();
+      setResult(d.ok ? "OK: EXECUTED" : "FAILED");
+      if (!d.ok) return;
       if(d.ok)setTimeout(()=>onExecute(d),1800);
     }catch{setResult("COMM ERROR");}
-    setExecuting(false);
+    finally { setExecuting(false); }
   }
   return(
     <div className="spot-action-card" style={{borderColor:riskColor}}>
@@ -430,12 +471,14 @@ function SpotActionCard({action,onExecute,onDismiss}){
           </div>
         )}
       </div>
-      {result?(<div className="spot-action-result">{result}</div>):(
-        <div className="spot-action-buttons">
+      {result && <div className="spot-action-result" role="status">{result}</div>}
+      {result !== "OK: EXECUTED" && (
+        <form className="spot-action-buttons" onSubmit={execute} autoComplete="off">
           {meta.warn&&<div className="spot-action-warn" style={{color:riskColor,borderColor:riskColor}}>{meta.warn}</div>}
-          <button className="spot-exec-btn" onClick={execute} disabled={executing} style={{borderColor:riskColor,color:riskColor}}>{executing?"EXECUTING...":"EXECUTE"}</button>
-          <button className="spot-dismiss-btn" onClick={onDismiss}>DISMISS</button>
-        </div>
+          <input name="adminCredential" type="password" aria-label="Operator credential" placeholder="Operator credential" required disabled={executing}/>
+          <button type="submit" className="spot-exec-btn" disabled={executing} style={{borderColor:riskColor,color:riskColor}}>{executing?"EXECUTING...":"EXECUTE"}</button>
+          <button type="button" className="spot-dismiss-btn" onClick={onDismiss} disabled={executing}>DISMISS</button>
+        </form>
       )}
     </div>
   );
@@ -444,17 +487,28 @@ function SpotActionCard({action,onExecute,onDismiss}){
 function SpotTab(){
   const [msgs,setMsgs]=useState([{from:"spot",text:"Spot online. Full command interface ready."}]);
   const [input,setInput]=useState(""),[ busy,setBusy]=useState(false),boxRef=useRef(null);
+  const restoreMessages = useCallback(messages => {
+    setMsgs(messages.map(message => ({
+      from: message.role === "user" ? "user" : "spot",
+      text: stripSpotAction(message.content),
+    })));
+  }, []);
+  const local = useLocalChat("command", restoreMessages);
   useEffect(()=>{if(boxRef.current)boxRef.current.scrollTop=boxRef.current.scrollHeight;},[msgs]);
   function dismissAction(idx){setMsgs(m=>m.map((msg,i)=>i===idx?{...msg,action:null}:msg));}
   function onExecuted(idx,res){setMsgs(m=>[...m.map((msg,i)=>i===idx?{...msg,action:null}:msg),{from:"system",text:res.ok?`OK: ${res.action} executed.`:`FAILED: ${res.action}`}]);}
   async function send(){
-    const text=input.trim();if(!text||busy)return;
+    const text=input.trim();if(!text||busy||(local.enabled&&!local.ready))return;
     setMsgs(m=>[...m,{from:"user",text}]);setInput("");setBusy(true);
     try{
-      const r=await fetch(`${API_BASE}/chat`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text,role:"general",source:"starfleet-ui-spot-tab",mode:"advisory"})});
-      const d=await r.json();const raw=d.reply||"No response.",action=parseSpotAction(raw),clean=stripSpotAction(raw);
+      const payload = {message:text,role:"general",source:"starfleet-ui-spot-tab",mode:"advisory"};
+      const d = local.enabled ? await local.send(payload) : await (await fetch(`${API_BASE}/chat`,{
+        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)
+      })).json();
+      if (local.enabled && !d.ok) throw new Error("Local chat could not complete.");
+      const raw=d.reply||"No response.",action=parseSpotAction(raw),clean=stripSpotAction(raw);
       setMsgs(m=>[...m,{from:"spot",text:clean,action}]);
-    }catch{setMsgs(m=>[...m,{from:"spot",text:"Comm channel error."}]);}
+    }catch(error){setMsgs(m=>[...m,{from:"spot",text:local.enabled ? error.message : "Comm channel error."}]);}
     setBusy(false);
   }
   return(
@@ -486,6 +540,7 @@ function SpotTab(){
           ))}
           {busy&&<div className="spot-msg spot-msg-spot"><div className="spot-msg-from">SPOT</div><div className="spot-msg-text"><span className="blink">|</span> Processing...</div></div>}
         </div>
+        <LocalChatControls local={local} busy={busy}/>
         <div className="spot-tab-input-row">
           <input className="spot-tab-input" placeholder="Enter command or query..." value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
           <button className="spot-tab-send" onClick={send} disabled={busy}>{busy?"...":"TRANSMIT"}</button>
