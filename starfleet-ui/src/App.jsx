@@ -345,19 +345,29 @@ function WorkerLanes({data}){
 function LocalChatControls({local, busy}) {
   if (!local.enabled) return null;
   if (local.selected) {
-    return <div>
-      <span>{local.error || (local.ready ? "Local Ogre session" : "Restoring local session…")}</span>
-      <button type="button" disabled={busy} onClick={local.signOut}>Sign out</button>
+    return <div className="local-chat-sign-in">
+      <span role="status">{local.error || (local.ready ? "Local Ogre session" : "Restoring local session…")}</span>
+      <span className="chat-row">
+        <button type="button" disabled={busy} onClick={local.signOut}>Sign out</button>
+      </span>
     </div>;
   }
-  return <form onSubmit={event => {
+  return <form className="local-chat-sign-in" onSubmit={event => {
     event.preventDefault();
     const field = event.currentTarget.elements.ogreKey;
     local.signIn(field.value);
     field.value = "";
   }}>
-    <input name="ogreKey" type="password" aria-label="Local Ogre key" autoComplete="off"/>
-    <button disabled={busy} type="submit">Local Ogre sign-in</button>
+    <label>
+      Local Ogre key
+      <span className="chat-row">
+        <input name="ogreKey" type="password" placeholder="Enter your key"
+          autoComplete="off" spellCheck={false} required style={{minWidth:0,width:"100%"}}/>
+      </span>
+    </label>
+    <div className="chat-row">
+      <button disabled={busy} type="submit" style={{width:"auto",padding:"0 10px"}}>Local Ogre sign-in</button>
+    </div>
     {local.error && <span role="alert">{local.error}</span>}
   </form>;
 }
