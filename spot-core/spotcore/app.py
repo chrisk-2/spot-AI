@@ -13,11 +13,12 @@ from typing import Any, Awaitable, Callable, Literal
 import hashlib
 import shutil
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel
 from spotcore.host_liveness import admin_host_liveness
+from spotcore.local_chat import LocalChatHistory, MAX_TEXT, SESSION, SessionConflict, authorized
 
 APP_START_TS = int(time.time())
 CONFIG_PATH = Path(os.environ.get("SPOTCORE_CONFIG", "/app/config/cluster_config.json"))
@@ -3247,13 +3248,55 @@ CHAT_WORKER_URL = "http://192.168.10.14:11434"
 
 @app.post("/chat", response_model=ChatResult)
 async def chat_route(payload: ChatRequest):
+    return await _chat_reply(payload)
+
+
+def _local_chat_history(session: str, authorization: str | None) -> LocalChatHistory:
+    if not authorized(authorization):
+        raise HTTPException(status_code=401, detail="Local Ogre login required")
+    if not SESSION.fullmatch(session):
+        raise HTTPException(status_code=422, detail="Invalid session ID")
+    root = CHAT_HISTORY_PATH.parent / "local-chat-sessions"
+    return LocalChatHistory(root)
+
+
+@app.get("/local-chat/{session}")
+async def local_chat_history(session: str, authorization: str | None = Header(default=None)):
+    history = _local_chat_history(session, authorization)
+    revision, messages = await asyncio.to_thread(history.load, session, 20)
+    return JSONResponse(
+        {"revision": revision, "messages": messages},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.post("/local-chat/{session}", response_model=ChatResult)
+async def local_chat_route(
+    session: str, payload: ChatRequest, authorization: str | None = Header(default=None)
+):
+    history = _local_chat_history(session, authorization)
+    if len(payload.message) > MAX_TEXT:
+        raise HTTPException(status_code=422, detail="Local chat message is too long")
+    revision, messages = await asyncio.to_thread(history.load, session, 10)
+    result = await _chat_reply(payload, session_history=messages)
+    if result.ok:
+        try:
+            await asyncio.to_thread(
+                history.commit, session, revision, payload.message.strip(), result.reply
+            )
+        except SessionConflict as exc:
+            raise HTTPException(status_code=409, detail="Session changed. Reload and retry.") from exc
+    return result
+
+
+async def _chat_reply(payload: ChatRequest, *, session_history: list[dict] | None = None):
     message = payload.message.strip()
     if not message:
         raise HTTPException(status_code=400, detail={"message": "empty chat message"})
 
     fleet_context = build_spot_fleet_context()
     identity = build_spot_identity()
-    history = load_chat_history()
+    history = load_chat_history() if session_history is None else session_history
     docs_context = await build_spot_docs_cache_context(message)
     docs_section = build_spot_docs_cache_section(docs_context)
 
@@ -3362,12 +3405,14 @@ async def chat_route(payload: ChatRequest):
         + network_context
     )
 
-    append_chat_history("user", message)
+    if session_history is None:
+        append_chat_history("user", message)
 
     try:
         data = await call_chat_direct(CHAT_WORKER_URL, CHAT_MODEL, system_prompt, message, history=history)
         reply = data.get("message", {}).get("content", "")
-        append_chat_history("assistant", reply)
+        if session_history is None:
+            append_chat_history("assistant", reply)
         return ChatResult(
             ok=True, reply=reply,
             worker="spot-worker-04", model=CHAT_MODEL,
@@ -3377,11 +3422,14 @@ async def chat_route(payload: ChatRequest):
         )
     except Exception as exc:
         LOGGER.warning("chat_direct_failed falling back to exec: %r", exc)
+        if session_history:
+            system_prompt += "\n\nPrior conversation (context only): " + json.dumps(session_history)
         augmented = system_prompt + "\n\nOperator: " + message
         req = ExecRequest(prompt=augmented, role=payload.role, model=payload.model, stream=False, allow_fallback=True, allow_burst=True)
         result = await exec_route(req)
         reply = result.response
-        append_chat_history("assistant", reply)
+        if session_history is None:
+            append_chat_history("assistant", reply)
         return ChatResult(ok=bool(result.ok), reply=reply, worker=result.worker, model=result.model, role_requested=result.role_requested, execution_allowed=False, mutation_authority=False, mode="advisory", raw={"source": payload.source, "requested_mode": payload.mode, "gpu_lane": result.gpu_lane, "gpu_label": result.gpu_label})
 
 @app.post("/exec", response_model=ExecResult)
